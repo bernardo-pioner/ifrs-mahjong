@@ -1,0 +1,22 @@
+# SQLite local
+/data/*.sqlite
+/data/*.sqlite-journal
+/data/*.sqlite-wal
+/data/*.sqlite-shm
+/data/*.bak
+
+# Ambiente e segredos
+.env
+.env.local
+.env.*.local
+
+# PHP
+/vendor/
+composer.phar
+
+# Sistema e editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~

@@ -1,0 +1,88 @@
+/* Cores da tela de login (views/auth/login.php).
+   Altere só as variáveis abaixo. */
+
+body.is-login {
+    --login-fundo: #f4f4f4;
+    --login-texto: #111111;
+    --login-texto-suave: #3a3a3a;
+    --login-marca-fundo: #005ea2;
+    --login-marca-texto: #ffffff;
+    --login-titulo: #111111;
+    --login-destaque: #005ea2;
+    --login-cartao-fundo: #ffffff;
+    --login-cartao-borda: #c8c8c8;
+    --login-campo-fundo: #ffffff;
+    --login-campo-borda: #c8c8c8;
+    --login-campo-foco: #ffdd57;
+    --login-botao-fundo: #005ea2;
+    --login-botao-texto: #ffffff;
+    --login-botao-hover: #0a4c82;
+    --login-link: #005ea2;
+    --login-aviso-erro: #c05600;
+    --login-aviso-ok: #005ea2;
+}
+
+body.is-login {
+    background: var(--login-fundo);
+    color: var(--login-texto);
+}
+
+body.is-login .brand-mark {
+    background: var(--login-marca-fundo);
+    color: var(--login-marca-texto);
+}
+
+body.is-login .brand-text {
+    color: var(--login-texto);
+}
+
+body.is-login .page-login {
+    background: var(--login-cartao-fundo);
+    border-color: var(--login-cartao-borda);
+    color: var(--login-texto);
+}
+
+body.is-login .page-login .eyebrow {
+    color: var(--login-destaque);
+}
+
+body.is-login .page-login h1 {
+    color: var(--login-titulo);
+}
+
+body.is-login .page-login .lede,
+body.is-login .page-login .auth-switch {
+    color: var(--login-texto-suave);
+}
+
+body.is-login .page-login .form input {
+    background: var(--login-campo-fundo);
+    border-color: var(--login-campo-borda);
+    color: var(--login-texto);
+}
+
+body.is-login .page-login .form input:focus {
+    outline-color: var(--login-campo-foco);
+    border-color: var(--login-texto);
+}
+
+body.is-login .page-login .button {
+    background: var(--login-botao-fundo);
+    color: var(--login-botao-texto);
+}
+
+body.is-login .page-login .button:hover {
+    background: var(--login-botao-hover);
+}
+
+body.is-login .page-login .auth-switch a {
+    color: var(--login-link);
+}
+
+body.is-login .flash-error {
+    border-left-color: var(--login-aviso-erro);
+}
+
+body.is-login .flash-success {
+    border-left-color: var(--login-aviso-ok);
+}

@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MVC no Clube de Mahjong — guia para alunos</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 16mm 15mm 18mm;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            color: #15202b;
+            font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+            background: #fff;
+            line-height: 1.55;
+            font-size: 11pt;
+        }
+
+        h1, h2, h3, .kicker, .cover-role, .toc a, .chip, table, code, pre, .step-n {
+            font-family: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
+        }
+
+        a { color: #0b4f8a; }
+
+        .cover {
+            min-height: 250mm;
+            padding: 18mm 8mm 12mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            page-break-after: always;
+            background:
+                linear-gradient(#0d2a26, #0d2a26) 0 0 / 100% 14mm no-repeat,
+                linear-gradient(#f6f3eb, #f6f3eb);
+        }
+
+        .cover-mark {
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            background: #2f8f73;
+            color: #fff;
+            font-weight: 700;
+            font-size: 18pt;
+            border-radius: 8px;
+            font-family: "Avenir Next", Helvetica, sans-serif;
+        }
+
+        .cover h1 {
+            font-size: 34pt;
+            line-height: 1.05;
+            margin: 28mm 0 8mm;
+            color: #0d2a26;
+            font-weight: 650;
+        }
+
+        .cover-lead {
+            font-size: 14pt;
+            max-width: 140mm;
+            color: #3d4a44;
+        }
+
+        .cover-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 12mm;
+            border-top: 2px solid #0d2a26;
+            padding-top: 6mm;
+            font-size: 10pt;
+        }
+
+        .cover-role { letter-spacing: 0.14em; text-transform: uppercase; color: #2f8f73; font-size: 9pt; font-weight: 700; }
+
+        h2 {
+            font-size: 16pt;
+            color: #0d2a26;
+            margin: 0 0 4mm;
+            padding-bottom: 2mm;
+            border-bottom: 2px solid #2f8f73;
+            page-break-after: avoid;
+        }
+
+        h3 {
+            font-size: 12pt;
+            color: #0d2a26;
+            margin: 6mm 0 2mm;
+            page-break-after: avoid;
+        }
+
+        p { margin: 0 0 3.5mm; }
+
+        .section { margin: 0 0 9mm; page-break-inside: avoid; }
+
+        .section.allow-break { page-break-inside: auto; }
+
+        .kicker {
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            font-size: 8pt;
+            color: #9c2b1a;
+            font-weight: 700;
+            margin: 0 0 1mm;
+        }
+
+        .toc {
+            columns: 2;
+            column-gap: 10mm;
+            margin: 0 0 8mm;
+        }
+
+        .toc ol { margin: 0; padding-left: 5mm; }
+        .toc li { margin: 0 0 1.5mm; }
+        .toc a { text-decoration: none; color: #15202b; }
+
+        .trio {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 4mm;
+            margin: 4mm 0 5mm;
+        }
+
+        .card {
+            border: 1px solid #d5d0c4;
+            border-top: 5px solid #2f8f73;
+            padding: 4mm;
+            background: #fbfaf6;
+        }
+
+        .card.m { border-top-color: #0d2a26; }
+        .card.v { border-top-color: #b8893a; }
+
+        .card h3 { margin-top: 0; }
+
+        .flow {
+            display: grid;
+            grid-template-columns: 1fr 12mm 1fr 12mm 1fr 12mm 1fr;
+            align-items: center;
+            gap: 0;
+            margin: 5mm 0;
+            page-break-inside: avoid;
+        }
+
+        .flow-box {
+            border: 1.5px solid #0d2a26;
+            padding: 3mm 2.5mm;
+            text-align: center;
+            font-family: "Avenir Next", Helvetica, sans-serif;
+            font-size: 9pt;
+            background: #fff;
+        }
+
+        .flow-box strong { display: block; font-size: 10pt; }
+
+        .arrow {
+            text-align: center;
+            font-size: 16pt;
+            color: #2f8f73;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9.5pt;
+            margin: 2mm 0 5mm;
+        }
+
+        th, td {
+            text-align: left;
+            vertical-align: top;
+            padding: 2.2mm 2.5mm;
+            border-bottom: 1px solid #d8d3c8;
+        }
+
+        th {
+            background: #0d2a26;
+            color: #f6f3eb;
+            font-weight: 650;
+        }
+
+        tr:nth-child(even) td { background: #f7f4ec; }
+
+        code, .path {
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            font-size: 8.8pt;
+            background: #eef3ef;
+            padding: 0.15em 0.4em;
+            border-radius: 3px;
+        }
+
+        pre {
+            background: #15202b;
+            color: #e8f0ea;
+            padding: 4mm;
+            font-size: 8.4pt;
+            line-height: 1.45;
+            overflow: hidden;
+            white-space: pre-wrap;
+            page-break-inside: avoid;
+        }
+
+        .steps { counter-reset: passo; margin: 0; padding: 0; list-style: none; }
+        .steps li {
+            display: grid;
+            grid-template-columns: 9mm 1fr;
+            gap: 3mm;
+            margin: 0 0 3.5mm;
+            page-break-inside: avoid;
+        }
+
+        .step-n {
+            counter-increment: passo;
+            width: 8mm;
+            height: 8mm;
+            border-radius: 50%;
+            background: #0d2a26;
+            color: #fff;
+            display: grid;
+            place-items: center;
+            font-size: 9pt;
+            font-weight: 700;
+        }
+
+        .step-n::before { content: counter(passo); }
+
+        .note {
+            border-left: 4px solid #b8893a;
+            background: #fbf6ea;
+            padding: 3mm 4mm;
+            margin: 3mm 0 5mm;
+        }
+
+        .rules {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4mm;
+        }
+
+        footer.page-foot {
+            margin-top: 8mm;
+            font-size: 8.5pt;
+            color: #5c675a;
+            border-top: 1px solid #d5d0c4;
+            padding-top: 3mm;
+        }
+
+        .chain {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 2mm;
+            margin: 4mm 0 5mm;
+            page-break-inside: avoid;
+        }
+
+        .chain-box {
+            border: 1.5px solid #0d2a26;
+            background: #fff;
+            padding: 2.4mm 3mm;
+            font-family: "Avenir Next", Helvetica, sans-serif;
+            font-size: 8.6pt;
+            text-align: center;
+            min-width: 28mm;
+        }
+
+        .chain-box strong { display: block; font-size: 9.4pt; }
+
+        .chain-box.user { background: #0d2a26; color: #f6f3eb; border-color: #0d2a26; }
+        .chain-box.fc { background: #e8f0ea; }
+        .chain-box.ctrl { background: #fbf6ea; }
+        .chain-box.model { background: #f4f4f4; }
+        .chain-box.view { background: #fbfaf6; }
+
+        .chain-arrow {
+            color: #2f8f73;
+            font-weight: 700;
+            font-size: 13pt;
+        }
+    </style>
+</head>
+<body>
+    <section class="cover">
+        <div>
+            <div class="cover-mark">M</div>
+            <p class="cover-role">Guia para o grupo de alunos</p>
+            <h1>Como funciona o MVC neste sistema</h1>
+            <p class="cover-lead">Este texto explica o padrão Model–View–Controller usado no Clube de Mahjong, onde cada arquivo mora no projeto e como continuar a programar sem misturar as camadas.</p>
+        </div>
+        <div class="cover-meta">
+            <div>
+                <strong>Clube de Mahjong</strong><br>
+                PHP · JavaScript · CSS · SQLite
+            </div>
+            <div>
+                Servidor local: <code>php -S localhost:8081 -t public</code><br>
+                Acesso inicial: <code>admin</code> / <code>admin</code>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <p class="kicker">Sumário</p>
+        <h2>O que você vai encontrar</h2>
+        <nav class="toc">
+            <ol>
+                <li><a href="#o-que-e">O que é MVC</a></li>
+                <li><a href="#neste-projeto">Como isso aparece neste projeto</a></li>
+                <li><a href="#pastas">Onde estão os arquivos</a></li>
+                <li><a href="#ciclo">Ciclo de um pedido HTTP</a></li>
+                <li><a href="#dashboard">O dashboard (modelo a copiar)</a></li>
+                <li><a href="#login">Exemplo: tela de login</a></li>
+                <li><a href="#continuar">Como adicionar uma tela nova</a></li>
+                <li><a href="#regras">Regras básicas</a></li>
+                <li><a href="#subir">Como subir o sistema</a></li>
+            </ol>
+        </nav>
+        <div class="note">
+            O sistema não é um jogo de mahjong. É um programa para administrar um <strong>clube</strong>: pessoas, eventos, partidas e progresso. Várias telas ainda são placeholders — o grupo vai preenchê-las.
+        </div>
+    </section>
+
+    <section class="section" id="o-que-e">
+        <p class="kicker">Conceito</p>
+        <h2>1. O que é MVC</h2>
+        <p>MVC é uma forma de organizar o código em três papéis. Cada um faz uma coisa só. Assim, um aluno pode mexer na tela sem quebrar o banco, e outro pode mexer nos dados sem redesenhar o HTML.</p>
+        <div class="trio">
+            <article class="card m">
+                <h3>Model</h3>
+                <p>Representa os dados e as regras de negócio. Fala com o SQLite. Não desenha HTML e não decide URL.</p>
+            </article>
+            <article class="card">
+                <h3>Controller</h3>
+                <p>Recebe o pedido do navegador, chama o model se precisar e escolhe qual view mostrar. É o maestro.</p>
+            </article>
+            <article class="card v">
+                <h3>View</h3>
+                <p>É o HTML que a pessoa vê. Só apresenta dados que o controller enviou. Não grava no banco.</p>
+            </article>
+        </div>
+        <div class="flow">
+            <div class="flow-box"><strong>Navegador</strong>pedido HTTP</div>
+            <div class="arrow">→</div>
+            <div class="flow-box"><strong>Controller</strong>decide o que fazer</div>
+            <div class="arrow">→</div>
+            <div class="flow-box"><strong>Model</strong>lê ou grava dados</div>
+            <div class="arrow">→</div>
+            <div class="flow-box"><strong>View</strong>devolve HTML</div>
+        </div>
+        <p>A analogia da cozinha: o <em>controller</em> é o garçom (anota o pedido), o <em>model</em> é a cozinha (prepara o prato), a <em>view</em> é o prato na mesa (o que o cliente vê).</p>
+    </section>
+
+    <section class="section allow-break" id="neste-projeto">
+        <p class="kicker">Mapeamento</p>
+        <h2>2. Como isso aparece neste projeto</h2>
+        <p>Não usamos Laravel. É PHP vanilla, com pastas no lugar das camadas. O arquivo <code>public/index.php</code> só liga URL → método do controller. Ele não deve crescer com regra de negócio.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Papel MVC</th>
+                    <th>Pasta / arquivo</th>
+                    <th>Exemplos neste sistema</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Entrada</td>
+                    <td><code>public/index.php</code></td>
+                    <td>Rotas: <code>/login</code>, <code>/</code>, <code>/eventos</code>…</td>
+                </tr>
+                <tr>
+                    <td>Controller</td>
+                    <td><code>src/controllers/</code></td>
+                    <td><code>AuthController</code>, <code>DashboardController</code>, <code>EventController</code></td>
+                </tr>
+                <tr>
+                    <td>Model</td>
+                    <td><code>src/models/</code></td>
+                    <td><code>User</code>, <code>Member</code>, <code>Event</code>, <code>GameMatch</code>, <code>ProgressNote</code></td>
+                </tr>
+                <tr>
+                    <td>View</td>
+                    <td><code>views/</code></td>
+                    <td><code>auth/login.php</code>, <code>dashboard.php</code>, <code>events/index.php</code></td>
+                </tr>
+                <tr>
+                    <td>Aparência</td>
+                    <td><code>public/assets/css/</code></td>
+                    <td><code>app.css</code> (geral), <code>login.css</code> (cores do login)</td>
+                </tr>
+                <tr>
+                    <td>Comportamento no browser</td>
+                    <td><code>public/assets/js/app.js</code></td>
+                    <td>Menu no celular, avisos, formulário ocupado</td>
+                </tr>
+                <tr>
+                    <td>Banco</td>
+                    <td><code>database/</code> e <code>data/</code></td>
+                    <td><code>schema.sql</code>, <code>seed.sql</code>, <code>app.sqlite</code></td>
+                </tr>
+            </tbody>
+        </table>
+        <p>Há ainda peças de apoio que não são M, V nem C, mas sustentam o MVC:</p>
+        <table>
+            <thead>
+                <tr><th>Arquivo</th><th>Para que serve</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><code>src/bootstrap.php</code></td><td>Sessão, autoload das classes, helpers (<code>view()</code>, CSRF, flash).</td></tr>
+                <tr><td><code>src/db.php</code></td><td>Abre o SQLite e aplica schema/seed na primeira execução.</td></tr>
+                <tr><td><code>src/Router.php</code></td><td>Encaixa o caminho da URL no controller certo. Se não achar, chama o 404.</td></tr>
+                <tr><td><code>src/AuthService.php</code></td><td>Sessão: quem está logado, entrar, sair. Não desenha tela.</td></tr>
+                <tr><td><code>src/controllers/Controller.php</code></td><td>Classe base dos controllers (<code>requireAuth()</code>, <code>view()</code>).</td></tr>
+                <tr><td><code>config.php</code></td><td>Nome do clube e caminhos do banco.</td></tr>
+            </tbody>
+        </table>
+        <div class="note">A classe da partida se chama <code>GameMatch</code> (e não <code>Match</code>) porque <code>match</code> é palavra reservada do PHP 8.</div>
+    </section>
+
+    <section class="section allow-break" id="pastas">
+        <p class="kicker">Mapa</p>
+        <h2>3. Onde estão os arquivos</h2>
+        <pre>mahjong/
+  public/                 ← o navegador só “vê” esta pasta
+    index.php             ← rotas (front controller)
+    assets/css/app.css
+    assets/css/login.css
+    assets/js/app.js
+  src/
+    bootstrap.php
+    db.php
+    Router.php
+    AuthService.php
+    controllers/          ← CONTROLLER
+      Controller.php
+      AuthController.php
+      DashboardController.php
+      EventController.php
+      MatchController.php
+      MemberController.php
+      RankingController.php
+      PageController.php
+      ErrorController.php
+    models/               ← MODEL
+      User.php
+      Member.php
+      Event.php
+      GameMatch.php
+      ProgressNote.php
+  views/                  ← VIEW
+    layout.php            ← casca (sidebar ou tela de visitante)
+    dashboard.php
+    coming-soon.php
+    auth/login.php
+    auth/register.php
+    events/index.php
+    matches/index.php
+    members/index.php
+    progress/index.php
+    errors/404.php
+  database/schema.sql
+  database/seed.sql
+  data/app.sqlite         ← gerado sozinho; não vai para o Git
+  documentacao/mvc/       ← este guia
+  Imagens_base/           ← capturas de telas planejadas</pre>
+    </section>
+
+    <section class="section allow-break" id="ciclo">
+        <p class="kicker">Passo a passo</p>
+        <h2>4. Ciclo de um pedido HTTP</h2>
+        <p>Depois do login, a tela inicial é o <strong>dashboard</strong> (URL <code>/</code>), não a de eventos. Eventos, partidas e o restante são telas seguintes, abertas pelos cards ou pelo menu.</p>
+        <ol class="steps">
+            <li>
+                <span class="step-n"></span>
+                <div>O aluno, já autenticado, abre <code>http://localhost:8081/</code>. O document root é <code>public/</code>.</div>
+            </li>
+            <li>
+                <span class="step-n"></span>
+                <div><code>public/index.php</code> carrega o bootstrap e registra: <code>$router->get('/', [$dashboard, 'index'])</code>.</div>
+            </li>
+            <li>
+                <span class="step-n"></span>
+                <div>O <code>Router</code> chama <code>DashboardController::index()</code>.</div>
+            </li>
+            <li>
+                <span class="step-n"></span>
+                <div>O controller exige login (<code>requireAuth()</code>). Se não houver sessão, redireciona para <code>/login</code>.</div>
+            </li>
+            <li>
+                <span class="step-n"></span>
+                <div>O controller pede dados aos models: <code>Member::count()</code>, <code>Event::count()</code>, <code>GameMatch::count()</code>, <code>ProgressNote::count()</code>.</div>
+            </li>
+            <li>
+                <span class="step-n"></span>
+                <div>De volta ao controller, ele chama <code>$this->view('dashboard', …)</code>. O HTML de <code>views/dashboard.php</code> entra no <code>views/layout.php</code>.</div>
+            </li>
+            <li>
+                <span class="step-n"></span>
+                <div>O navegador mostra os cards. Só então, se a pessoa clicar em Eventos, começa um ciclo novo em <code>/eventos</code>.</div>
+            </li>
+        </ol>
+    </section>
+
+    <section class="section allow-break" id="dashboard">
+        <p class="kicker">Modelo a copiar</p>
+        <h2>5. O dashboard, peça por peça</h2>
+        <p>O dashboard já está completo no padrão MVC. As outras funções (torneios, listagem de eventos, partidas, etc.) devem repetir <strong>este mesmo caminho</strong>:</p>
+        <div class="chain">
+            <div class="chain-box user"><strong>Usuário</strong>abre /</div>
+            <div class="chain-arrow">→</div>
+            <div class="chain-box fc"><strong>Front controller</strong>index.php</div>
+            <div class="chain-arrow">→</div>
+            <div class="chain-box ctrl"><strong>Controller</strong>DashboardController</div>
+            <div class="chain-arrow">→</div>
+            <div class="chain-box model"><strong>Model</strong>count() no SQLite</div>
+            <div class="chain-arrow">→</div>
+            <div class="chain-box ctrl"><strong>Controller</strong>monta $stats</div>
+            <div class="chain-arrow">→</div>
+            <div class="chain-box view"><strong>View</strong>dashboard.php</div>
+            <div class="chain-arrow">→</div>
+            <div class="chain-box user"><strong>Usuário</strong>vê os cards</div>
+        </div>
+        <p>O model <em>não</em> fala com a view. O controller pede os dados, recebe os números e só então chama a view. Por isso o caminho volta ao controller no meio.</p>
+        <h3>O que cada arquivo faz nesse pedido GET /</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Ordem</th>
+                    <th>Papel</th>
+                    <th>Arquivo</th>
+                    <th>Responsabilidade</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td>Usuário</td>
+                    <td>Navegador</td>
+                    <td>Já autenticado, pede <code>http://localhost:8081/</code> (GET).</td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>Front controller</td>
+                    <td><code>public/index.php</code></td>
+                    <td>Carrega o bootstrap, cria <code>$dashboard = new DashboardController()</code> e registra <code>$router->get('/', [$dashboard, 'index'])</code>. O <code>Router</code> despacha para esse método.</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>Controller</td>
+                    <td><code>src/controllers/DashboardController.php</code></td>
+                    <td><code>index()</code> chama <code>requireAuth()</code> (sem sessão, redireciona para <code>/login</code>) e pede totais aos models.</td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>Model</td>
+                    <td><code>Member</code>, <code>Event</code>, <code>GameMatch</code>, <code>ProgressNote</code></td>
+                    <td>Cada um executa <code>COUNT(*)</code> na sua tabela via <code>db()</code>. Não conhecem HTML nem a URL.</td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>Controller de novo</td>
+                    <td>mesmo <code>DashboardController</code></td>
+                    <td>Junta os retornos em <code>$stats</code> e chama <code>$this->view('dashboard', …)</code>. A view só recebe arrays prontos.</td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>View</td>
+                    <td><code>views/dashboard.php</code> + <code>views/layout.php</code></td>
+                    <td>Imprime o nome e os quatro cards. O layout coloca a barra lateral. CSS em <code>app.css</code>.</td>
+                </tr>
+                <tr>
+                    <td>7</td>
+                    <td>Usuário</td>
+                    <td>Navegador</td>
+                    <td>Recebe o HTML. Clicar num card dispara um <em>novo</em> ciclo MVC (por exemplo GET /eventos).</td>
+                </tr>
+            </tbody>
+        </table>
+        <h3>Código real do controller</h3>
+        <pre>final class DashboardController extends Controller
+{
+    public function index(): void
+    {
+        $user = $this->requireAuth();          // sessão
+        $this->view('dashboard', [
+            'title' => 'Dashboard',
+            'user' => $user,
+            'currentPath' => '/',
+            'stats' => [
+                'members'  => Member::count(),       // model
+                'events'   => Event::count(),        // model
+                'matches'  => GameMatch::count(),    // model
+                'progress' => ProgressNote::count(),
+            ],
+        ]);
+    }
+}</pre>
+        <h3>Código real de um model (Event)</h3>
+        <pre>final class Event
+{
+    public static function count(): int
+    {
+        return (int) db()->query('SELECT COUNT(*) FROM events')->fetchColumn();
+    }
+}</pre>
+        <p>Os outros três models do dashboard (<code>Member</code>, <code>GameMatch</code>, <code>ProgressNote</code>) são iguais: só mudam a tabela. A view usa <code>$stats['events']</code> etc. — nunca chama SQL.</p>
+        <div class="note">
+            Para implementar <strong>Torneios</strong> (hoje só um placeholder em <code>PageController::torneios()</code>), copie este desenho: rota em <code>index.php</code> → <code>TorneioController</code> → <code>Torneio</code> (model) → de volta ao controller → <code>views/torneios/index.php</code> → usuário. Não coloquem SQL na view e não desenhem HTML no model.
+        </div>
+    </section>
+
+    <section class="section allow-break" id="login">
+        <p class="kicker">Caso concreto</p>
+        <h2>6. Exemplo: tela de login</h2>
+        <table>
+            <thead>
+                <tr><th>Camada</th><th>Arquivo</th><th>O que faz no login</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Rota GET</td>
+                    <td><code>public/index.php</code></td>
+                    <td><code>/login</code> → <code>AuthController::showLogin()</code></td>
+                </tr>
+                <tr>
+                    <td>Controller</td>
+                    <td><code>src/controllers/AuthController.php</code></td>
+                    <td>Se já está logado, manda para o dashboard. Senão, abre a view.</td>
+                </tr>
+                <tr>
+                    <td>View</td>
+                    <td><code>views/auth/login.php</code></td>
+                    <td>Formulário. Sem cores misturadas no PHP.</td>
+                </tr>
+                <tr>
+                    <td>CSS</td>
+                    <td><code>public/assets/css/login.css</code></td>
+                    <td>Variáveis <code>--login-*</code> no topo: é aqui que se mudam as cores do login.</td>
+                </tr>
+                <tr>
+                    <td>Rota POST</td>
+                    <td><code>AuthController::login()</code></td>
+                    <td>Valida CSRF, lê usuário e senha, chama o serviço de autenticação.</td>
+                </tr>
+                <tr>
+                    <td>Model + sessão</td>
+                    <td><code>User</code> e <code>AuthService</code></td>
+                    <td><code>User</code> busca no SQLite; <code>AuthService</code> grava <code>$_SESSION['user_id']</code>.</td>
+                </tr>
+            </tbody>
+        </table>
+        <p>Usuário e senha iniciais de desenvolvimento: <strong>admin</strong> / <strong>admin</strong> (definidos em <code>database/seed.sql</code>).</p>
+    </section>
+
+    <section class="section allow-break" id="continuar">
+        <p class="kicker">Para o grupo</p>
+        <h2>7. Como adicionar uma tela nova</h2>
+        <p>Repitam o dashboard. Imagine listar eventos de verdade, não só o placeholder. Siga esta ordem — não comece pelo HTML solto.</p>
+        <ol class="steps">
+            <li>
+                <span class="step-n"></span>
+                <div><strong>Model.</strong> Em <code>src/models/Event.php</code>, crie métodos como <code>all()</code> ou <code>create()</code> com SQL via <code>db()</code> (PDO, prepared statements).</div>
+            </li>
+            <li>
+                <span class="step-n"></span>
+                <div><strong>Controller.</strong> Em <code>EventController</code>, um método <code>index()</code> busca os eventos no model e passa o array para a view. Um <code>store()</code> trata o POST do formulário.</div>
+            </li>
+            <li>
+                <span class="step-n"></span>
+                <div><strong>Rota.</strong> Em <code>public/index.php</code>: <code>$router->get('/eventos', [$events, 'index']);</code> e, se houver formulário, um <code>post</code>.</div>
+            </li>
+            <li>
+                <span class="step-n"></span>
+                <div><strong>View.</strong> Atualize <code>views/events/index.php</code> só com HTML e <code><?php ?></code> para imprimir dados já preparados. Use <code>e()</code> para escapar texto.</div>
+            </li>
+            <li>
+                <span class="step-n"></span>
+                <div><strong>CSS.</strong> Classes novas em <code>public/assets/css/app.css</code> (ou um CSS da página, como o login). Nada de <code>style="…"</code> no PHP.</div>
+            </li>
+        </ol>
+        <p>Páginas ainda vazias (torneios, notícias, usuários, configurações) passam por <code>PageController</code> e <code>views/coming-soon.php</code>. Quando forem implementadas, criem controller + model próprios e troquem a rota.</p>
+    </section>
+
+    <section class="section" id="regras">
+        <p class="kicker">Combinado</p>
+        <h2>8. Regras básicas</h2>
+        <ol>
+            <li>SQL fica no model. HTML fica na view. O controller só liga os dois.</li>
+            <li>CSS em <code>public/assets/css/</code>. JavaScript em <code>public/assets/js/</code>. Sem <code>style</code> nem <code>script</code> no PHP das telas.</li>
+            <li>Formulário POST leva <code>csrfField()</code>. Consulta no banco usa PDO com parâmetro (<code>:nome</code>), não concatena string.</li>
+            <li>Senha grava com <code>password_hash</code>. Nunca em texto puro.</li>
+            <li>Tabela nova ou coluna nova: alterar <code>database/schema.sql</code> e apagar <code>data/app.sqlite</code> para recriar o banco.</li>
+        </ol>
+    </section>
+
+    <section class="section" id="subir">
+        <p class="kicker">Laboratório</p>
+        <h2>9. Como subir o sistema</h2>
+        <p>Na raiz do projeto (a porta <strong>8081</strong> foi escolhida porque a 8080 já está em outro programa):</p>
+        <pre>php -S localhost:8081 -t public</pre>
+        <p>Abra <code>http://localhost:8081</code>. Entre com <code>admin</code> / <code>admin</code>. Depois de clonar o repositório, o SQLite é criado sozinho em <code>data/app.sqlite</code> na primeira execução.</p>
+        <p>Lista curta de cada arquivo de código: <code>DOCUMENTACAO.md</code> na raiz. Este PDF explica o <em>porquê</em> da arquitetura; aquele arquivo é o inventário.</p>
+        <footer class="page-foot">
+            Clube de Mahjong · documentação MVC para continuidade do desenvolvimento · pasta <code>documentacao/mvc/</code>
+        </footer>
+    </section>
+</body>
+</html>
