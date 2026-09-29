@@ -1,5 +1,5 @@
 <section class="page-head">
-    <h1>Gerenciamento de Eventos</h1>
+    <h1>Criação de eventos</h1>
 </section>
 
 <div class="empty">
