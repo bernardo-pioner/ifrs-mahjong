@@ -20,7 +20,7 @@
         <?= csrfField() ?>
         <label>
             Nome
-            <input type="text" name="name" value="<?= e($name) ?>" autocomplete="name" required>
+            <input type="text" name="name" value="<?= $name = (e($name) === 'auth/register') ? '' : $name ?>" autocomplete="name" required>
         </label>
         <label>
             E-mail
