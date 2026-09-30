@@ -2,7 +2,7 @@
 /** @var list<array<string, mixed>> $users */
 ?>
 <section class="page-head">
-    <h1>Usuários</h1>
+    <h1>Todos Usuários</h1>
     <p class="lede">Contas e papéis de acesso do clube.</p>
 </section>
 
