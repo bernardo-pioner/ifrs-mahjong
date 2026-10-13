@@ -30,6 +30,8 @@ $router->post('/logout', [$auth, 'logout']);
 
 $router->get('/', [$dashboard, 'index']);
 $router->get('/eventos', [$events, 'index']);
+$router->get('/eventos/novo', [$events, 'create']);
+$router->post('/eventos/novo', [$events, 'store']);
 $router->get('/partidas', [$matches, 'index']);
 $router->get('/participantes', [$members, 'index']);
 $router->get('/rankings', [$rankings, 'index']);
