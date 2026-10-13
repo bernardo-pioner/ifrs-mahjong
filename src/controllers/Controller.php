@@ -26,8 +26,8 @@ abstract class Controller
     }
 
     /** @param array<string, mixed> $data */
-    protected function view(string $name, array $data = []): void
+    protected function view(string $viewName, array $data = []): void
     {
-        view($name, $data);
+        view($viewName, $data);
     }
 }
