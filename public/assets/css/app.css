@@ -167,6 +167,15 @@ body.is-app {
     text-transform: uppercase;
 }
 
+.brand-role.is-user-name {
+    letter-spacing: 0.02em;
+    text-transform: none;
+    max-width: 9.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 body.is-guest .brand-mark {
     background: var(--brand-m);
 }

@@ -28,11 +28,13 @@ final class PageController extends Controller
 
     public function configuracoes(): void
     {
+        $this->requireAdmin();
         $this->comingSoon('/configuracoes', 'Configurações', 'Preferências do clube e do sistema.');
     }
 
     public function app(): void
     {
+        $this->requireAdmin();
         $this->comingSoon('/app', 'Área do app', 'A área pública do aplicativo ainda será construída.');
     }
 

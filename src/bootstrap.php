@@ -116,3 +116,18 @@ function isActivePath(string $currentPath, string $path): bool
 {
     return $currentPath === $path;
 }
+
+function isAdmin(?array $user): bool
+{
+    return ($user['role'] ?? '') === 'admin';
+}
+
+function userFirstName(?array $user): string
+{
+    $name = trim((string) ($user['name'] ?? ''));
+    if ($name === '') {
+        return 'Participante';
+    }
+
+    return explode(' ', $name)[0];
+}
