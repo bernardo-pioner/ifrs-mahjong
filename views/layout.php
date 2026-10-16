@@ -46,10 +46,6 @@ $isGuest = $user === null;
                     <span class="icon icon-dashboard" aria-hidden="true"></span>
                     <span>Dashboard</span>
                 </a>
-                <a href="/torneios" class="<?= isActivePath($currentPath, '/torneios') ? 'is-active' : '' ?>">
-                    <span class="icon icon-trophy" aria-hidden="true"></span>
-                    <span>Torneios</span>
-                </a>
                 <a href="/eventos" class="<?= isActivePath($currentPath, '/eventos') ? 'is-active' : '' ?>">
                     <span class="icon icon-calendar" aria-hidden="true"></span>
                     <span>Eventos</span>
@@ -58,17 +54,9 @@ $isGuest = $user === null;
                     <span class="icon icon-layers" aria-hidden="true"></span>
                     <span>Partidas</span>
                 </a>
-                <a href="/participantes" class="<?= isActivePath($currentPath, '/participantes') ? 'is-active' : '' ?>">
-                    <span class="icon icon-users" aria-hidden="true"></span>
-                    <span>Participantes</span>
-                </a>
                 <a href="/rankings" class="<?= isActivePath($currentPath, '/rankings') ? 'is-active' : '' ?>">
                     <span class="icon icon-chart" aria-hidden="true"></span>
                     <span>Rankings</span>
-                </a>
-                <a href="/noticias" class="<?= isActivePath($currentPath, '/noticias') ? 'is-active' : '' ?>">
-                    <span class="icon icon-news" aria-hidden="true"></span>
-                    <span>Notícias</span>
                 </a>
                 <a href="/usuarios" class="<?= isActivePath($currentPath, '/usuarios') ? 'is-active' : '' ?>">
                     <span class="icon icon-user-search" aria-hidden="true"></span>
