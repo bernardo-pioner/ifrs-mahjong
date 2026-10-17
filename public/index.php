@@ -37,6 +37,10 @@ $router->get('/rankings', [$rankings, 'index']);
 $router->get('/torneios', [$pages, 'torneios']);
 $router->get('/noticias', [$pages, 'noticias']);
 $router->get('/usuarios', [$users, 'index']);
+$router->get('/usuarios/editar', [$users, 'edit']);
+$router->post('/usuarios/editar', [$users, 'update']);
+$router->post('/usuarios/status', [$users, 'changeStatus']);
+$router->post('/users/delete', [$users, 'delete']);
 $router->get('/configuracoes', [$pages, 'configuracoes']);
 $router->get('/app', [$pages, 'app']);
 
