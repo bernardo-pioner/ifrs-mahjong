@@ -931,14 +931,18 @@ body.is-guest .lede {
 }
 
 .event-type-options {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: 100%;
+    overflow-x: auto;
+    padding: 2px 2px 8px;
 }
 
 .event-type-option {
     position: relative;
     cursor: pointer;
+    flex: 1;
 }
 
 .event-type-option input {
@@ -1037,5 +1041,268 @@ body.is-guest .lede {
     .event-form-actions .button {
         width: 100%;
         box-sizing: border-box;
+    }
+}
+
+
+/* ========================================
+   EVENTOS — ajustes visuais isolados
+   Escopo restrito: páginas e componentes de eventos.
+======================================== */
+
+.events-page,
+.event-form-page {
+    color: var(--ink);
+}
+
+.events-page .events-header {
+    align-items: flex-end;
+    margin-bottom: 30px;
+}
+
+.events-page .events-header h1,
+.event-form-page .event-form-header h1 {
+    color: var(--ink);
+    letter-spacing: -0.035em;
+}
+
+.events-page .events-subtitle,
+.event-form-page .event-form-header p {
+    color: var(--ink-soft);
+}
+
+.events-page .events-summary {
+    max-width: 320px;
+    padding: 18px 22px;
+    background: #fffefa;
+    border-color: rgba(28, 36, 28, 0.12);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+}
+
+.events-page .events-summary strong {
+    color: var(--sidebar);
+    font-size: 1.9rem;
+    line-height: 1.1;
+}
+
+.events-page .events-summary > .icon {
+    color: var(--brand-m);
+}
+
+.events-page .events-grid {
+    align-items: stretch;
+    gap: 20px;
+}
+
+.events-page .event-card {
+    padding: 24px;
+    background: #fffefa;
+    border-color: rgba(28, 36, 28, 0.11);
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(28, 36, 28, 0.045);
+}
+
+.events-page .event-card:hover {
+    border-color: rgba(47, 143, 115, 0.42);
+    box-shadow: 0 10px 24px rgba(28, 36, 28, 0.085);
+}
+
+.events-page .event-type {
+    color: var(--moss);
+    background: rgba(47, 143, 115, 0.12);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    letter-spacing: 0.015em;
+}
+
+.events-page .event-card-id {
+    color: var(--ink-soft);
+}
+
+.events-page .event-card h2 {
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    letter-spacing: -0.015em;
+}
+
+.events-page .event-description {
+    color: var(--ink-soft);
+}
+
+.events-page .event-detail {
+    color: #33453d;
+}
+
+.events-page .event-detail .icon {
+    color: var(--brand-m);
+}
+
+.events-page .event-card-footer {
+    border-top-color: var(--line);
+}
+
+.events-page .event-organizer {
+    color: var(--ink-soft);
+}
+
+.events-page .event-action,
+.event-form-page .event-back-link {
+    color: var(--brand-m);
+}
+
+.events-page .events-empty {
+    background: #fffefa;
+    border-color: rgba(28, 36, 28, 0.11);
+    border-radius: 16px;
+}
+
+.events-page .events-empty-icon {
+    color: var(--brand-m);
+    background: rgba(47, 143, 115, 0.12);
+    border-radius: 18px;
+}
+
+.events-page .events-empty h2 {
+    color: var(--ink);
+}
+
+.events-page .events-empty p {
+    color: var(--ink-soft);
+}
+
+/* Formulário de eventos: sem alterar campos nem validações. */
+.event-form-page .event-form-card {
+    gap: 24px;
+    background: #fffefa;
+    border-color: rgba(28, 36, 28, 0.11);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+}
+
+.event-form-page .form-field label,
+.event-form-page .form-field legend {
+    color: var(--ink);
+}
+
+.event-form-page .form-field input:not([type="radio"]),
+.event-form-page .form-field textarea,
+.event-form-page .form-field select {
+    color: var(--ink);
+    background: #fffefa;
+    border-color: #d9d8ce;
+    border-radius: 10px;
+}
+
+.event-form-page .form-field input:focus,
+.event-form-page .form-field textarea:focus,
+.event-form-page .form-field select:focus {
+    border-color: var(--brand-m);
+    box-shadow: 0 0 0 3px rgba(47, 143, 115, 0.14);
+}
+
+.event-form-page .event-type-option-content {
+    border-color: #d9d8ce;
+    border-radius: 11px;
+}
+
+.event-form-page .event-type-option input:checked + .event-type-option-content {
+    color: var(--moss);
+    background: rgba(47, 143, 115, 0.10);
+    border-color: var(--brand-m);
+}
+
+.event-form-page .event-form-divider {
+    background: var(--line);
+}
+
+.event-form-page .event-form-actions .button-primary {
+    color: #fff;
+    background: var(--sidebar);
+    border-color: var(--sidebar);
+}
+
+.event-form-page .event-form-actions .button-primary:hover {
+    background: #143833;
+    border-color: #143833;
+}
+
+.event-form-page .event-form-actions .button-secondary {
+    color: var(--ink);
+    background: #fffefa;
+    border-color: #d9d8ce;
+}
+
+.event-form-page .event-form-actions .button-secondary:hover {
+    background: #f0ede4;
+}
+
+@media (max-width: 760px) {
+    .events-page .events-header {
+        align-items: flex-start;
+    }
+
+    .events-page .event-card {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 600px) {
+    .event-form-page .event-form-card {
+        gap: 20px;
+        padding: 20px;
+    }
+}
+/* Data e horário de início e término */
+.event-form-card .event-datetime-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 24px;
+    margin: 24px 0;
+}
+
+.event-form-card .event-datetime-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.event-form-card .event-datetime-field label {
+    display: block;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #173c32;
+}
+
+.event-form-card .event-datetime-field input[type="date"],
+.event-form-card .event-datetime-field input[type="time"] {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    min-height: 48px;
+    padding: 10px 12px;
+    border: 1px solid #ded9cc;
+    border-radius: 11px;
+    background-color: #fffefa;
+    color: #173c32;
+    font: inherit;
+    font-size: 14px;
+}
+
+.event-form-card .event-datetime-field input:focus {
+    outline: none;
+    border-color: #16856b;
+    box-shadow: 0 0 0 3px rgba(22, 133, 107, 0.12);
+}
+
+/* Em telas pequenas, organizar em uma coluna */
+@media (max-width: 600px) {
+    .event-form-card .event-datetime-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
     }
 }

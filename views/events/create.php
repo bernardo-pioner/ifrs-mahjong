@@ -74,9 +74,9 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             </div>
         </fieldset>
 
-        <div class="event-form-row">
-            <div class="form-field">
-                <label for="data">Data</label>
+        <div class="event-datetime-grid">
+            <div class="event-datetime-field">
+                <label for="data">Data de início</label>
                 <input
                     id="data"
                     name="data"
@@ -86,14 +86,36 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                 >
             </div>
 
-            <div class="form-field">
-                <label for="horario">Horário</label>
+            <div class="event-datetime-field">
+                <label for="horario">Horário de início</label>
                 <input
                     id="horario"
                     name="horario"
                     type="time"
                     required
                     value="<?= eventFormValue($old, 'horario', '14:00') ?>"
+                >
+            </div>
+
+            <div class="event-datetime-field">
+                <label for="data_fim">Data de término</label>
+                <input
+                    id="data_fim"
+                    name="data_fim"
+                    type="date"
+                    required
+                    value="<?= eventFormValue($old, 'data_fim') ?>"
+                >
+            </div>
+
+            <div class="event-datetime-field">
+                <label for="horario_fim">Horário de término</label>
+                <input
+                    id="horario_fim"
+                    name="horario_fim"
+                    type="time"
+                    required
+                    value="<?= eventFormValue($old, 'horario_fim', '16:00') ?>"
                 >
             </div>
         </div>

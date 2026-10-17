@@ -83,7 +83,11 @@ $formatarData = static function (?string $data): string {
                         <div class="event-detail">
                             <span class="icon icon-calendar" aria-hidden="true"></span>
                             <span>
-                                <?= e($formatarData($evento['data_inicio'])) ?>
+                                Início: <?= e($formatarData($evento['data_inicio'])) ?>
+                                <?php if (!empty($evento['data_fim'])): ?>
+                                    <br>
+                                    Término: <?= e($formatarData($evento['data_fim'])) ?>
+                                <?php endif; ?>
                             </span>
                         </div>
 

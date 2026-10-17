@@ -46,6 +46,8 @@ final class EventController extends Controller
             'tipo' => request('tipo', 'encontro'),
             'data' => request('data'),
             'horario' => request('horario'),
+            'data_fim' => request('data_fim'),
+            'horario_fim' => request('horario_fim'),
             'local' => request('local'),
             'limite' => request('limite'),
             'descricao' => request('descricao'),
@@ -62,26 +64,68 @@ final class EventController extends Controller
             $errors[] = 'Selecione um tipo de evento válido.';
         }
 
+        
         $dataHora = false;
+        $dataHoraFim = false;
+
+        $inicioTexto = $old['data'] . ' ' . $old['horario'];
+        $fimTexto = $old['data_fim'] . ' ' . $old['horario_fim'];
+
         if ($old['data'] !== '' && $old['horario'] !== '') {
             $dataHora = DateTimeImmutable::createFromFormat(
                 '!Y-m-d H:i',
-                $old['data'] . ' ' . $old['horario']
+                $inicioTexto
             );
 
             $dateErrors = DateTimeImmutable::getLastErrors();
+
             if (
                 !$dataHora ||
                 ($dateErrors !== false &&
-                    ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0)) ||
-                $dataHora->format('Y-m-d H:i') !== $old['data'] . ' ' . $old['horario']
+                    ($dateErrors['warning_count'] > 0 ||
+                    $dateErrors['error_count'] > 0)) ||
+                $dataHora->format('Y-m-d H:i') !== $inicioTexto
             ) {
                 $dataHora = false;
             }
         }
 
+        if (
+            $old['data_fim'] !== '' &&
+            $old['horario_fim'] !== ''
+        ) {
+            $dataHoraFim = DateTimeImmutable::createFromFormat(
+                '!Y-m-d H:i',
+                $fimTexto
+            );
+
+            $dateErrorsFim = DateTimeImmutable::getLastErrors();
+
+            if (
+                !$dataHoraFim ||
+                ($dateErrorsFim !== false &&
+                    ($dateErrorsFim['warning_count'] > 0 ||
+                    $dateErrorsFim['error_count'] > 0)) ||
+                $dataHoraFim->format('Y-m-d H:i') !== $fimTexto
+            ) {
+                $dataHoraFim = false;
+            }
+        }
+
         if ($dataHora === false) {
-            $errors[] = 'Informe uma data e um horário válidos.';
+            $errors[] = 'Informe uma data e um horário de início válidos.';
+        }
+
+        if ($dataHoraFim === false) {
+            $errors[] = 'Informe uma data e um horário de término válidos.';
+        }
+
+        if (
+            $dataHora !== false &&
+            $dataHoraFim !== false &&
+            $dataHoraFim <= $dataHora
+        ) {
+            $errors[] = 'O término deve ser posterior ao início do evento.';
         }
 
         $limite = null;
@@ -124,21 +168,27 @@ final class EventController extends Controller
 
         try {
             $inicio = $dataHora->format('Y-m-d H:i:s');
+            $fim = $dataHoraFim->format('Y-m-d H:i:s');
 
             $stmt = $pdo->prepare(
                 'INSERT INTO eventos
-                    (admin_id, tipo, titulo, descricao, data_inicio, local)
-                 VALUES
-                    (:admin_id, :tipo, :titulo, :descricao, :data_inicio, :local)'
+                    (admin_id, tipo, titulo, descricao, data_inicio, data_fim, local)
+                VALUES
+                    (:admin_id, :tipo, :titulo, :descricao, :data_inicio, :data_fim, :local)'
             );
 
             $stmt->execute([
                 ':admin_id' => (int) $user['id'],
                 ':tipo' => $old['tipo'],
                 ':titulo' => $old['titulo'],
-                ':descricao' => $old['descricao'] !== '' ? $old['descricao'] : null,
+                ':descricao' => $old['descricao'] !== ''
+                    ? $old['descricao']
+                    : null,
                 ':data_inicio' => $inicio,
-                ':local' => $old['local'] !== '' ? $old['local'] : null,
+                ':data_fim' => $fim,
+                ':local' => $old['local'] !== ''
+                    ? $old['local']
+                    : null,
             ]);
 
             $eventoId = (int) $pdo->lastInsertId();
