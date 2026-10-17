@@ -6,6 +6,16 @@
 /** @var array|null $flash */
 /** @var string $currentPath */
 $isGuest = $user === null;
+$isAdmin = isAdmin($user);
+$brandRole = $isAdmin ? 'Admin' : (is_array($user) ? (string) ($user['name'] ?? 'Participante') : 'Participante');
+$navItems = [
+    ['href' => '/', 'label' => 'Dashboard', 'icon' => 'icon-dashboard', 'adminOnly' => false],
+    ['href' => '/eventos', 'label' => 'Eventos', 'icon' => 'icon-calendar', 'adminOnly' => false],
+    ['href' => '/partidas', 'label' => 'Partidas', 'icon' => 'icon-layers', 'adminOnly' => false],
+    ['href' => '/rankings', 'label' => 'Rankings', 'icon' => 'icon-chart', 'adminOnly' => false],
+    ['href' => '/usuarios', 'label' => 'Usuários', 'icon' => 'icon-user-search', 'adminOnly' => true],
+    ['href' => '/configuracoes', 'label' => 'Configurações', 'icon' => 'icon-sliders', 'adminOnly' => true],
+];
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -37,42 +47,29 @@ $isGuest = $user === null;
                 <span class="brand-mark" aria-hidden="true">M</span>
                 <span class="brand-copy">
                     <span class="brand-text">Mahjong</span>
-                    <span class="brand-role">Admin</span>
+                    <span class="brand-role<?= $isAdmin ? '' : ' is-user-name' ?>"><?= e($brandRole) ?></span>
                 </span>
             </a>
 
             <nav id="main-nav" class="nav">
-                <a href="/" class="<?= isActivePath($currentPath, '/') ? 'is-active' : '' ?>">
-                    <span class="icon icon-dashboard" aria-hidden="true"></span>
-                    <span>Dashboard</span>
-                </a>
-                <a href="/eventos" class="<?= isActivePath($currentPath, '/eventos') ? 'is-active' : '' ?>">
-                    <span class="icon icon-calendar" aria-hidden="true"></span>
-                    <span>Eventos</span>
-                </a>
-                <a href="/partidas" class="<?= isActivePath($currentPath, '/partidas') ? 'is-active' : '' ?>">
-                    <span class="icon icon-layers" aria-hidden="true"></span>
-                    <span>Partidas</span>
-                </a>
-                <a href="/rankings" class="<?= isActivePath($currentPath, '/rankings') ? 'is-active' : '' ?>">
-                    <span class="icon icon-chart" aria-hidden="true"></span>
-                    <span>Rankings</span>
-                </a>
-                <a href="/usuarios" class="<?= isActivePath($currentPath, '/usuarios') ? 'is-active' : '' ?>">
-                    <span class="icon icon-user-search" aria-hidden="true"></span>
-                    <span>Usuários</span>
-                </a>
-                <a href="/configuracoes" class="<?= isActivePath($currentPath, '/configuracoes') ? 'is-active' : '' ?>">
-                    <span class="icon icon-sliders" aria-hidden="true"></span>
-                    <span>Configurações</span>
-                </a>
+                <?php foreach ($navItems as $item): ?>
+                    <?php if ($item['adminOnly'] && !$isAdmin) {
+                        continue;
+                    } ?>
+                    <a href="<?= e($item['href']) ?>" class="<?= isActivePath($currentPath, $item['href']) ? 'is-active' : '' ?>">
+                        <span class="icon <?= e($item['icon']) ?>" aria-hidden="true"></span>
+                        <span><?= e($item['label']) ?></span>
+                    </a>
+                <?php endforeach; ?>
             </nav>
 
             <div class="sidebar-foot">
-                <a href="/app">
-                    <span class="icon icon-back" aria-hidden="true"></span>
-                    <span>Voltar ao app</span>
-                </a>
+                <?php if ($isAdmin): ?>
+                    <a href="/app">
+                        <span class="icon icon-back" aria-hidden="true"></span>
+                        <span>Voltar ao app</span>
+                    </a>
+                <?php endif; ?>
                 <form method="post" action="/logout">
                     <?= csrfField() ?>
                     <button type="submit" class="sidebar-logout">
