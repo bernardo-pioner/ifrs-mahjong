@@ -32,14 +32,54 @@ $isActive = (int) ($targetUser['active'] ?? 0) === 1;
                 <p><?= e((string) ($targetUser['email'] ?? '')) ?></p>
             </div>
 
+            
             <div>
                 <span class="profile-label">Permissão atual</span>
+
                 <p>
                     <?= ($targetUser['role'] ?? '') === 'admin'
                         ? 'Administrador'
                         : 'Participante' ?>
                 </p>
+
+                <div class="profile-role-action">
+                    <form
+                        method="post"
+                        action="/usuarios/permissao"
+                        onsubmit="return confirm('Tem certeza de que deseja <?= ($targetUser['role'] ?? '') === 'admin'
+                            ? 'remover os privilégios de administrador deste usuário'
+                            : 'tornar este usuário administrador' ?>?');"
+                    >
+                        <?= csrfField() ?>
+
+                        <input
+                            type="hidden"
+                            name="id"
+                            value="<?= (int) $targetUser['id'] ?>"
+                        >
+
+                        <input
+                            type="hidden"
+                            name="action"
+                            value="<?= ($targetUser['role'] ?? '') === 'admin'
+                                ? 'demote'
+                                : 'promote' ?>"
+                        >
+
+                        <button
+                            type="submit"
+                            class="button <?= ($targetUser['role'] ?? '') === 'admin'
+                                ? 'button-danger'
+                                : 'button-promote' ?>"
+                        >
+                            <?= ($targetUser['role'] ?? '') === 'admin'
+                                ? 'Remover privilégios de administrador'
+                                : 'Tornar administrador' ?>
+                        </button>
+                    </form>
+                </div>
             </div>
+
 
             <div>
                 <span class="profile-label">Status atual</span>

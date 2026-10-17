@@ -298,6 +298,46 @@ a.btn-view-user svg {
 }
 
 
+/* Botão de tornar adm e retirar permissão adm*/
+
+
+.profile-role-action {
+    margin-top: 12px;
+}
+
+.profile-role-action form {
+    margin: 0;
+}
+
+.profile-role-action .button {
+    white-space: normal;
+    text-align: center;
+}
+
+.profile-role-action .button-promote {
+    background-color: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+}
+
+.profile-role-action .button-promote:hover {
+    background-color: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.profile-role-action .button-danger {
+    background-color: #dc2626;
+    border-color: #dc2626;
+    color: #ffffff;
+}
+
+.profile-role-action .button-danger:hover {
+    background-color: #b91c1c;
+    border-color: #b91c1c;
+}
+
+
+
 
 .brand-mark {
     display: grid;

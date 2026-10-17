@@ -203,5 +203,69 @@ final class UserController extends Controller
         redirect('/usuarios/editar?id=' . $id);
     }
 
+    
+    public function changeRole(): void
+    {
+        $user = $this->requireAdmin();
+
+        verifyCsrf();
+
+        $idText = request('id');
+        $action = request('action');
+
+        if ($idText === '' || !ctype_digit($idText) || (int) $idText <= 0) {
+            flash('error', 'ID de usuário inválido.');
+            redirect('/usuarios');
+        }
+
+        if (!in_array($action, ['promote', 'demote'], true)) {
+            flash('error', 'Ação de permissão inválida.');
+            redirect('/usuarios');
+        }
+
+        $id = (int) $idText;
+        $makeAdmin = $action === 'promote';
+
+        $result = User::changeRole(
+            $id,
+            (int) $user['id'],
+            $makeAdmin
+        );
+
+        switch ($result) {
+            case 'success':
+                flash(
+                    'success',
+                    $makeAdmin
+                        ? 'Usuário promovido a administrador com sucesso.'
+                        : 'Privilégios de administrador removidos com sucesso.'
+                );
+                break;
+
+            case 'not_found':
+                flash('error', 'Usuário não encontrado.');
+                break;
+
+            case 'self':
+                flash('error', 'Você não pode alterar sua própria permissão.');
+                break;
+
+            case 'last_admin':
+                flash('error', 'Não é possível remover os privilégios do último administrador ativo.');
+                break;
+
+            case 'unchanged':
+                flash('error', 'O usuário já possui essa permissão.');
+                break;
+
+            default:
+                flash('error', 'Ocorreu um erro ao alterar a permissão do usuário.');
+                break;
+        }
+
+        redirect('/usuarios/editar?id=' . $id);
+    }
+
+
 }
 

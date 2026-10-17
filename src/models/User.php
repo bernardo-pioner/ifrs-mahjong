@@ -358,6 +358,90 @@ final class User
         }
     }
 
+    
+    public static function changeRole(
+        int $id,
+        int $currentUserId,
+        bool $makeAdmin
+    ): string {
+        $pdo = db();
+
+        try {
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare(
+                'SELECT id, ativo
+                FROM usuarios
+                WHERE id = :id'
+            );
+            $stmt->execute(['id' => $id]);
+            $targetUser = $stmt->fetch();
+
+            if (!$targetUser) {
+                $pdo->rollBack();
+                return 'not_found';
+            }
+
+            if ($id === $currentUserId) {
+                $pdo->rollBack();
+                return 'self';
+            }
+
+            $stmt = $pdo->prepare(
+                'SELECT usuario_id
+                FROM admins
+                WHERE usuario_id = :id'
+            );
+            $stmt->execute(['id' => $id]);
+            $isAdmin = (bool) $stmt->fetch();
+
+            if ($isAdmin === $makeAdmin) {
+                $pdo->rollBack();
+                return 'unchanged';
+            }
+
+            if ($isAdmin && !$makeAdmin && (int) $targetUser['ativo'] === 1) {
+                $totalActiveAdmins = (int) $pdo->query(
+                    'SELECT COUNT(*)
+                    FROM usuarios u
+                    INNER JOIN admins a ON a.usuario_id = u.id
+                    WHERE u.ativo = 1'
+                )->fetchColumn();
+
+                if ($totalActiveAdmins <= 1) {
+                    $pdo->rollBack();
+                    return 'last_admin';
+                }
+            }
+
+            if ($makeAdmin) {
+                $stmt = $pdo->prepare(
+                    'INSERT INTO admins (usuario_id)
+                    VALUES (:id)'
+                );
+            } else {
+                $stmt = $pdo->prepare(
+                    'DELETE FROM admins
+                    WHERE usuario_id = :id'
+                );
+            }
+
+            $stmt->execute(['id' => $id]);
+
+            $pdo->commit();
+
+            return 'success';
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            error_log('Erro ao alterar permissão do usuário: ' . $e->getMessage());
+
+            return 'error';
+        }
+    }
+
 
 
     
