@@ -10,12 +10,9 @@ $isAdmin = isAdmin($user);
 $brandRole = $isAdmin ? 'Admin' : (is_array($user) ? (string) ($user['name'] ?? 'Participante') : 'Participante');
 $navItems = [
     ['href' => '/', 'label' => 'Dashboard', 'icon' => 'icon-dashboard', 'adminOnly' => false],
-    ['href' => '/torneios', 'label' => 'Torneios', 'icon' => 'icon-trophy', 'adminOnly' => false],
     ['href' => '/eventos', 'label' => 'Eventos', 'icon' => 'icon-calendar', 'adminOnly' => false],
     ['href' => '/partidas', 'label' => 'Partidas', 'icon' => 'icon-layers', 'adminOnly' => false],
-    ['href' => '/participantes', 'label' => 'Participantes', 'icon' => 'icon-users', 'adminOnly' => false],
     ['href' => '/rankings', 'label' => 'Rankings', 'icon' => 'icon-chart', 'adminOnly' => false],
-    ['href' => '/noticias', 'label' => 'Notícias', 'icon' => 'icon-news', 'adminOnly' => false],
     ['href' => '/usuarios', 'label' => 'Usuários', 'icon' => 'icon-user-search', 'adminOnly' => true],
     ['href' => '/configuracoes', 'label' => 'Configurações', 'icon' => 'icon-sliders', 'adminOnly' => true],
 ];
