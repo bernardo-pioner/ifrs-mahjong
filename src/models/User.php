@@ -158,15 +158,15 @@ final class User
         $email = strtolower(trim($email));
 
         if ($name === '' || mb_strlen($name) < 2) {
-            $errors[] = 'Informe um nome com pelo menos 2 caracteres.';
+            $errors[] = 'Informe um nome com pelo menos 2 caracteres';
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Informe um e-mail válido.';
+            $errors[] = 'Informe um e-mail válido';
         }
 
         if (mb_strlen($password) < 8) {
-            $errors[] = 'A senha deve ter pelo menos 8 caracteres.';
+            $errors[] = 'A senha deve ter pelo menos 8 caracteres, incluindo um caractere especial, maiúsculas e minúsculas';
         }
 
         if ($errors !== []) {
