@@ -9,11 +9,13 @@
     <p class="lede">O cadastro libera o acesso ao painel do clube. O perfil de membro pode ser completado depois.</p>
 
     <?php if ($errors !== []): ?>
-        <ul class="form-errors">
-            <?php foreach ($errors as $error): ?>
-                <li><?= e($error) ?></li>
-            <?php endforeach; ?>
-        </ul>
+        <div class="form-errors">
+            <ul>
+                <?php foreach ($errors as $error): ?>
+                    <li><?= e($error) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
     <?php endif; ?>
 
     <form method="post" action="/cadastro" class="form" novalidate>
