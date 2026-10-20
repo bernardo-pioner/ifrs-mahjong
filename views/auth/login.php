@@ -10,7 +10,7 @@
         <?= csrfField() ?>
         <label>
             E-mail ou nome
-            <input type="text" name="email" value="<?= e($email) ?>" autocomplete="username" required>
+            <input type="text" name="email" value="<?= e($email) ?>" autocomplete="off" required>
         </label>
         <label>
             Senha

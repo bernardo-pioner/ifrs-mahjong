@@ -18,15 +18,15 @@
         </div>
     <?php endif; ?>
 
-    <form method="post" action="/cadastro" class="form" novalidate>
+    <form method="post" action="/cadastro" class="form" novalidate autocomplete="off">
         <?= csrfField() ?>
         <label>
-            Nome
-            <input type="text" name="name" value="<?= e($name) ?>"autocomplete="name" required>
+            Apelido
+            <input type="text" name="name" value="<?= e($name) ?>" onkeyup="" required>
         </label>
         <label>
             E-mail
-            <input type="email" name="email" value="<?= e($email) ?>" autocomplete="email" required>
+            <input type="email" name="email" value="<?= e($email) ?>" required>
         </label>
         <label>
             Senha
