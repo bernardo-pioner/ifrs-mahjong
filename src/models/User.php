@@ -176,7 +176,7 @@ final class User
         }
 
         if (self::emailExists($email)) {
-            return ['Este e-mail já está cadastrado.'];
+            return ['Este e-mail já está cadastrado. Faça login para acessar nossa plataforma!'];
         }
 
         $id = self::create($name, $email, $password);
