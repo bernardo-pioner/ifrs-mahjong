@@ -3,7 +3,16 @@
 /** @var string $email */
 /** @var list<string> $errors */
 ?>
-<section class="auth-card">
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="checkUsername.js"></script>
+</head>
+<body>
+    <section class="auth-card">
     <p class="eyebrow">Novo usuário</p>
     <h1>Criar cadastro</h1>
     <p class="lede">O cadastro libera o acesso ao painel do clube. O perfil de membro pode ser completado depois.</p>
@@ -22,7 +31,7 @@
         <?= csrfField() ?>
         <label>
             Apelido
-            <input type="text" name="name" value="<?= e($name) ?>" onkeyup="" required>
+            <input type="text" name="name" value="<?= e($name) ?>" oninput="checkUsername()" required>
         </label>
         <label>
             E-mail
@@ -38,3 +47,5 @@
 
     <p class="auth-switch">Já tem conta? <a href="/login">Entrar</a></p>
 </section>
+</body>
+</html>
