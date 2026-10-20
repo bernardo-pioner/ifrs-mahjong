@@ -156,8 +156,8 @@ final class User
 
         $name = trim($name);
         $email = strtolower(trim($email));
-
-        if ($name === '' || mb_strlen($name) < 2) {
+    
+        /*if ($name === '' || mb_strlen($name) < 2) {
             $errors[] = 'Informe um nome com pelo menos 2 caracteres';
         }
 
@@ -165,12 +165,13 @@ final class User
             $errors[] = 'Informe um e-mail válido';
         }
 
+        
         if (mb_strlen($password) < 8 || // mínimo de 8 caracteres
             !preg_match('/[^a-zA-Z0-9]/', $password) || // verifica se NÃO tem caractere especial
             !preg_match('/(?=.*\p{Ll})(?=.*\p{Lu})/u', $password)) { // verifica se tem pelo menos UMA maiúscula e UMA minúscula
                 $errors[] = 'A senha deve ter pelo menos 8 caracteres, incluindo um caractere especial, letras maiúsculas e minúsculas';
         }
-
+         
         if ($errors !== []) {
             return $errors;
         }
@@ -178,6 +179,7 @@ final class User
         if (self::emailExists($email)) {
             return ['Este e-mail já está cadastrado. Faça login para acessar nossa plataforma!'];
         }
+        */
 
         $id = self::create($name, $email, $password);
         AuthService::login($id);
