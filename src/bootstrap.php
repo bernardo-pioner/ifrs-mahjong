@@ -122,6 +122,11 @@ function isAdmin(?array $user): bool
     return ($user['role'] ?? '') === 'admin';
 }
 
+function clubLogoUrl(): string
+{
+    return '/assets/images/' . rawurlencode('logo clube.png');
+}
+
 function userFirstName(?array $user): string
 {
     $name = trim((string) ($user['name'] ?? ''));
