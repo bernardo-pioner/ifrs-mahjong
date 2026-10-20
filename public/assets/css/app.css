@@ -774,6 +774,226 @@ body.is-guest .lede {
 .data-table td.actions-column form { display: flex; align-items: center; justify-content: center; margin: 0; }
 
 
+
+/* Botões de permissão e status da tela editar perfil */
+
+.profile-inline-info {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.profile-inline-info p {
+    margin: 0;
+}
+
+.profile-inline-info form {
+    margin: 0;
+}
+
+.profile-inline-info .button {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    border-radius: 5px;
+    min-height: auto;
+}
+
+
+/* Tornar administrador: verde mais claro */
+.profile-inline-info .button-promote {
+    background: #15803d !important;
+    border: 1px solid #15803d !important;
+    color: #ffffff !important;
+}
+
+.profile-inline-info .button-promote:hover {
+    background: #166534 !important;
+    border-color: #166534 !important;
+}
+
+/* Reativar perfil: verde mais claro */
+.profile-inline-info .button-reactivate {
+    background: #15803d !important;
+    border: 1px solid #15803d !important;
+    color: #ffffff !important;
+}
+
+.profile-inline-info .button-reactivate:hover {
+    background: #166534 !important;
+    border-color: #166534 !important;
+}
+
+
+/* Tornar administrador: verde mais claro */
+.profile-inline-info .button.button-promote {
+    background-color: #15803d !important;
+    border-color: #15803d !important;
+    color: #ffffff !important;
+}
+
+/* Reativar perfil: verde mais claro */
+.profile-inline-info .button.button-reactivate {
+    background-color: #15803d !important;
+    border-color: #15803d !important;
+    color: #ffffff !important;
+}
+
+/* Inativar perfil: vermelho */
+.profile-inline-info .button.button-danger {
+    background-color: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: #ffffff !important;
+}
+
+/* Cores ao passar o mouse */
+.profile-inline-info .button.button-promote:hover,
+.profile-inline-info .button.button-reactivate:hover {
+    background-color: #166534 !important;
+    border-color: #166534 !important;
+}
+
+.profile-inline-info .button.button-danger:hover {
+    background-color: #b91c1c !important;
+    border-color: #b91c1c !important;
+}
+
+/*   Botão de desfazer alteração (permissão e status)*/
+.button-undo {
+    background-color: #f6f3eb;
+    color: #1c241c;
+    border: 1px solid #c9c4b8;
+    font-weight: 600;
+}
+
+.button-undo:hover {
+    background-color: #eae5d9;
+    color: #1c241c;
+    border-color: #b8b3a8;
+}
+
+
+/* filtro de pesquisa tela de usuarios*/
+
+
+/* Filtros compactos da tela de usuários */
+
+.user-filters {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 auto 12px;
+    flex-wrap: wrap;
+}
+
+
+.user-search,
+.user-status-filter,
+.user-role-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+
+.user-search {
+    flex: 0 1 320px;
+    width: 320px;
+    max-width: 320px;
+    min-width: 0;
+}
+
+.user-search input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.user-status-filter,
+.user-role-filter {
+    flex: 0 1 auto;
+}
+
+.user-filters label {
+    color: var(--ink);
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.user-filters input,
+.user-filters select {
+    box-sizing: border-box;
+    height: 36px;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background-color: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.85rem;
+}
+
+.user-filters input {
+    width: 100%;
+    min-width: 0;
+}
+
+.user-filters select {
+    max-width: 170px;
+}
+
+.user-filters input:focus,
+.user-filters select:focus {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+}
+
+#users-no-results td {
+    padding: 16px;
+    text-align: center;
+    color: var(--ink-soft);
+}
+
+@media (max-width: 850px) {
+    .user-filters {
+        align-items: stretch;
+    }
+
+    .user-search {
+        flex-basis: 100%;
+    }
+
+    .user-status-filter,
+    .user-role-filter {
+        flex: 1 1 auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .user-search,
+    .user-status-filter,
+    .user-role-filter {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 5px;
+        width: 100%;
+    }
+
+    .user-filters select {
+        max-width: none;
+        width: 100%;
+    }
+}
+
+
+
+
 /* Botão de exclusão */
 button.btn-delete-user {
     all: unset;

@@ -45,6 +45,7 @@ final class UserController extends Controller
     }
 
     
+ 
     public function update(): void
     {
         $user = $this->requireAdmin();
@@ -55,8 +56,19 @@ final class UserController extends Controller
         $name = request('name');
         $email = request('email');
 
+        $roleAction = request('role_action');
+        $statusAction = request('status_action');
+
         if ($idText === '' || !ctype_digit($idText) || (int) $idText <= 0) {
             flash('error', 'ID de usuário inválido.');
+            redirect('/usuarios');
+        }
+
+        if (
+            !in_array($roleAction, ['keep', 'promote', 'demote'], true) ||
+            !in_array($statusAction, ['keep', 'activate', 'deactivate'], true)
+        ) {
+            flash('error', 'Opção de permissão ou status inválida.');
             redirect('/usuarios');
         }
 
@@ -68,11 +80,25 @@ final class UserController extends Controller
             redirect('/usuarios');
         }
 
-        $errors = User::updateProfile($id, $name, $email);
+        // Impede alterações de permissão ou status da própria conta.
+        if ($id === (int) $user['id']) {
+            $roleAction = 'keep';
+            $statusAction = 'keep';
+        }
+
+        $errors = User::updateProfile(
+            $id,
+            $name,
+            $email,
+            $roleAction,
+            $statusAction
+        );
 
         if ($errors !== []) {
             $targetUser['name'] = $name;
             $targetUser['email'] = $email;
+            $targetUser['pending_role'] = $roleAction;
+            $targetUser['pending_status'] = $statusAction;
 
             $this->view('users/edit', [
                 'title' => 'Editar perfil',
@@ -88,6 +114,7 @@ final class UserController extends Controller
         flash('success', 'Perfil atualizado com sucesso.');
         redirect('/usuarios');
     }
+
 
 
     public function delete(): void

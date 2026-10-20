@@ -201,11 +201,14 @@ final class User
         return (bool) $stmt->fetch();
     }
 
+
     /** @return list<string> */
     public static function updateProfile(
         int $id,
         string $name,
-        string $email
+        string $email,
+        string $roleAction = 'keep',
+        string $statusAction = 'keep'
     ): array {
         $errors = [];
 
@@ -220,6 +223,14 @@ final class User
             $errors[] = 'Informe um e-mail válido.';
         }
 
+        if (!in_array($roleAction, ['keep', 'promote', 'demote'], true)) {
+            $errors[] = 'Ação de permissão inválida.';
+        }
+
+        if (!in_array($statusAction, ['keep', 'activate', 'deactivate'], true)) {
+            $errors[] = 'Ação de status inválida.';
+        }
+
         if ($errors !== []) {
             return $errors;
         }
@@ -228,39 +239,101 @@ final class User
             return ['Este e-mail já está cadastrado para outro usuário.'];
         }
 
+        $pdo = db();
+
         try {
-            $pdo = db();
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare(
+                'SELECT u.id, u.ativo,
+                        CASE WHEN a.usuario_id IS NULL THEN 0 ELSE 1 END AS is_admin
+                FROM usuarios u
+                LEFT JOIN admins a ON a.usuario_id = u.id
+                WHERE u.id = :id'
+            );
+            $stmt->execute(['id' => $id]);
+            $target = $stmt->fetch();
+
+            if (!$target) {
+                $pdo->rollBack();
+                return ['Usuário não encontrado.'];
+            }
+
+            $isAdmin = (int) $target['is_admin'] === 1;
+            $isActive = (int) $target['ativo'] === 1;
+
+            $makeAdmin = match ($roleAction) {
+                'promote' => true,
+                'demote' => false,
+                default => $isAdmin,
+            };
+
+            $activate = match ($statusAction) {
+                'activate' => true,
+                'deactivate' => false,
+                default => $isActive,
+            };
+
+            // Não permite que o último administrador ativo perca essa condição.
+            $removingActiveAdmin = $isAdmin
+                && $isActive
+                && (!$makeAdmin || !$activate);
+
+            if ($removingActiveAdmin) {
+                $totalActiveAdmins = (int) $pdo->query(
+                    'SELECT COUNT(*)
+                    FROM usuarios u
+                    INNER JOIN admins a ON a.usuario_id = u.id
+                    WHERE u.ativo = 1'
+                )->fetchColumn();
+
+                if ($totalActiveAdmins <= 1) {
+                    $pdo->rollBack();
+
+                    return [
+                        'Não é possível remover a permissão de administrador ou inativar o último administrador ativo.'
+                    ];
+                }
+            }
+
+            // Atualiza os dados pessoais e o status na mesma transação.
+            $stmt = $pdo->prepare(
                 'UPDATE usuarios
-                SET nome = :nome, email = :email
+                SET nome = :nome,
+                    email = :email,
+                    ativo = :ativo
                 WHERE id = :id'
             );
 
             $stmt->execute([
                 'nome' => $name,
                 'email' => $email,
+                'ativo' => $activate ? 1 : 0,
                 'id' => $id,
             ]);
 
-            if ($stmt->rowCount() === 0) {
-                $check = $pdo->prepare(
-                    'SELECT id FROM usuarios WHERE id = :id'
-                );
-                $check->execute(['id' => $id]);
-
-                if (!$check->fetch()) {
-                    $pdo->rollBack();
-                    return ['Usuário não encontrado.'];
+            // Atualiza a permissão somente quando foi solicitada.
+            if ($makeAdmin !== $isAdmin) {
+                if ($makeAdmin) {
+                    $stmt = $pdo->prepare(
+                        'INSERT INTO admins (usuario_id)
+                        VALUES (:id)'
+                    );
+                } else {
+                    $stmt = $pdo->prepare(
+                        'DELETE FROM admins
+                        WHERE usuario_id = :id'
+                    );
                 }
+
+                $stmt->execute(['id' => $id]);
             }
 
             $pdo->commit();
 
             return [];
         } catch (Throwable $e) {
-            if (isset($pdo) && $pdo->inTransaction()) {
+            if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
 
@@ -269,6 +342,7 @@ final class User
             return ['Não foi possível salvar as alterações. Tente novamente.'];
         }
     }
+
 
     
     public static function changeStatus(

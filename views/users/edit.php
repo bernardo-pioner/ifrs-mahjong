@@ -4,6 +4,18 @@
 /** @var list<string> $errors */
 
 $isActive = (int) ($targetUser['active'] ?? 0) === 1;
+$isAdmin = ($targetUser['role'] ?? '') === 'admin';
+
+$pendingRole = $targetUser['pending_role'] ?? 'keep';
+$pendingStatus = $targetUser['pending_status'] ?? 'keep';
+
+$roleWillBeAdmin = $pendingRole === 'keep'
+    ? $isAdmin
+    : $pendingRole === 'promote';
+
+$statusWillBeActive = $pendingStatus === 'keep'
+    ? $isActive
+    : $pendingStatus === 'activate';
 ?>
 
 <section class="page-head">
@@ -15,132 +27,133 @@ $isActive = (int) ($targetUser['active'] ?? 0) === 1;
 
 <div class="table-wrap profile-edit-card">
 
-    <div class="profile-section">
-        <h2>Dados atuais</h2>
-        <p class="lede">
-            Informações cadastradas atualmente no sistema.
-        </p>
+    <?php if ($errors !== []): ?>
+        <ul class="form-errors">
+            <?php foreach ($errors as $error): ?>
+                <li><?= e($error) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
 
-        <div class="profile-current-data">
-            <div>
-                <span class="profile-label">Nome atual</span>
-                <p><?= e((string) ($targetUser['name'] ?? '')) ?></p>
-            </div>
+    <form
+        method="post"
+        action="/usuarios/editar"
+        class="form"
+        id="edit-user-form"
+        novalidate
+    >
+        <?= csrfField() ?>
 
-            <div>
-                <span class="profile-label">E-mail atual</span>
-                <p><?= e((string) ($targetUser['email'] ?? '')) ?></p>
-            </div>
+        <input
+            type="hidden"
+            name="id"
+            value="<?= (int) $targetUser['id'] ?>"
+        >
 
-            
-            <div>
-                <span class="profile-label">Permissão atual</span>
+        <input
+            type="hidden"
+            name="role_action"
+            id="role-action"
+            value="<?= e($pendingRole) ?>"
+        >
 
-                <p>
-                    <?= ($targetUser['role'] ?? '') === 'admin'
-                        ? 'Administrador'
-                        : 'Participante' ?>
-                </p>
+        <input
+            type="hidden"
+            name="status_action"
+            id="status-action"
+            value="<?= e($pendingStatus) ?>"
+        >
 
-                <div class="profile-role-action">
-                    <form
-                        method="post"
-                        action="/usuarios/permissao"
-                        onsubmit="return confirm('Tem certeza de que deseja <?= ($targetUser['role'] ?? '') === 'admin'
-                            ? 'remover os privilégios de administrador deste usuário'
-                            : 'tornar este usuário administrador' ?>?');"
-                    >
-                        <?= csrfField() ?>
+        <div class="profile-section">
+            <h2>Dados atuais</h2>
+            <p class="lede">
+                Informações cadastradas atualmente no sistema.
+            </p>
 
-                        <input
-                            type="hidden"
-                            name="id"
-                            value="<?= (int) $targetUser['id'] ?>"
+            <div class="profile-current-data">
+                <div>
+                    <span class="profile-label">Nome atual</span>
+                    <p><?= e((string) ($targetUser['name'] ?? '')) ?></p>
+                </div>
+
+                <div>
+                    <span class="profile-label">E-mail atual</span>
+                    <p><?= e((string) ($targetUser['email'] ?? '')) ?></p>
+                </div>
+
+                <div>
+                    <span class="profile-label">Permissão</span>
+
+                    <div class="profile-inline-info">
+                        <p id="role-display">
+                            <?= $roleWillBeAdmin
+                                ? 'Administrador'
+                                : 'Participante' ?>
+                            <?php if ($pendingRole !== 'keep'): ?>
+                                (alteração pendente)
+                            <?php endif; ?>
+                        </p>
+
+                        <?php if ((int) $targetUser['id'] !== (int) $user['id']): ?>
+                            <button
+                                type="button"
+                                id="role-toggle"
+                                class="button <?= $isAdmin
+                                    ? 'button-danger'
+                                    : 'button-promote' ?>"
+                            >
+                                <?= $pendingRole !== 'keep'
+                                    ? 'Desfazer'
+                                    : ($isAdmin
+                                        ? 'Remover privilégios de administrador'
+                                        : 'Tornar administrador') ?>
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="profile-label">Status</span>
+
+                    <div class="profile-inline-info">
+                        <span
+                            id="status-display"
+                            class="status <?= $statusWillBeActive
+                                ? 'is-on'
+                                : 'is-off' ?>"
                         >
+                            <?= $statusWillBeActive ? 'Ativo' : 'Inativo' ?>
+                            <?php if ($pendingStatus !== 'keep'): ?>
+                                (alteração pendente)
+                            <?php endif; ?>
+                        </span>
 
-                        <input
-                            type="hidden"
-                            name="action"
-                            value="<?= ($targetUser['role'] ?? '') === 'admin'
-                                ? 'demote'
-                                : 'promote' ?>"
-                        >
-
-                        <button
-                            type="submit"
-                            class="button <?= ($targetUser['role'] ?? '') === 'admin'
-                                ? 'button-danger'
-                                : 'button-promote' ?>"
-                        >
-                            <?= ($targetUser['role'] ?? '') === 'admin'
-                                ? 'Remover privilégios de administrador'
-                                : 'Tornar administrador' ?>
-                        </button>
-                    </form>
+                        <?php if ((int) $targetUser['id'] !== (int) $user['id']): ?>
+                            <button
+                                type="button"
+                                id="status-toggle"
+                                class="button <?= $isActive
+                                    ? 'button-danger'
+                                    : 'button-reactivate' ?>"
+                            >
+                                <?= $pendingStatus !== 'keep'
+                                    ? 'Desfazer'
+                                    : ($isActive
+                                        ? 'Inativar perfil'
+                                        : 'Reativar perfil') ?>
+                            </button>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
-
-
-            <div>
-                <span class="profile-label">Status atual</span>
-                <span class="status <?= $isActive ? 'is-on' : 'is-off' ?>">
-                    <?= $isActive ? 'Ativo' : 'Inativo' ?>
-                </span>
-            </div>
         </div>
 
-        <div class="profile-status-action">
-            <form
-                method="post"
-                action="/usuarios/status"
-                onsubmit="return confirm('Tem certeza de que deseja <?= $isActive ? 'inativar' : 'reativar' ?> este perfil?');"
-            >
-                <?= csrfField() ?>
-
-                <input
-                    type="hidden"
-                    name="id"
-                    value="<?= (int) $targetUser['id'] ?>"
-                >
-
-                <input
-                    type="hidden"
-                    name="action"
-                    value="<?= $isActive ? 'deactivate' : 'activate' ?>"
-                >
-
-                <button
-                    type="submit"
-                    class="button <?= $isActive ? 'button-danger' : 'button-reactivate' ?>"
-                >
-                    <?= $isActive ? 'Inativar perfil' : 'Reativar perfil' ?>
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <div class="profile-section">
-        <h2>Novos dados</h2>
-        <p class="lede">
-            Preencha os campos abaixo para atualizar o perfil.
-        </p>
-
-        <?php if ($errors !== []): ?>
-            <ul class="form-errors">
-                <?php foreach ($errors as $error): ?>
-                    <li><?= e($error) ?></li>
-                <?php endforeach; ?>
-            </ul>
-        <?php endif; ?>
-
-        <form method="post" action="/usuarios/editar" class="form" novalidate>
-            <?= csrfField() ?>
-
-            <input
-                type="hidden"
-                name="id"
-                value="<?= (int) $targetUser['id'] ?>"
-            >
+        <div class="profile-section">
+            <h2>Novos dados</h2>
+            <p class="lede">
+                Preencha os campos abaixo para atualizar o perfil.
+                As alterações só serão aplicadas ao salvar.
+            </p>
 
             <label>
                 Novo nome
@@ -173,7 +186,106 @@ $isActive = (int) ($targetUser['active'] ?? 0) === 1;
                     Salvar alterações
                 </button>
             </div>
-        </form>
-    </div>
-
+        </div>
+    </form>
 </div>
+
+<script>
+(function () {
+    const isAdmin = <?= $isAdmin ? 'true' : 'false' ?>;
+    const isActive = <?= $isActive ? 'true' : 'false' ?>;
+
+    const roleAction = document.getElementById('role-action');
+    const statusAction = document.getElementById('status-action');
+
+    const roleButton = document.getElementById('role-toggle');
+    const statusButton = document.getElementById('status-toggle');
+
+    const roleDisplay = document.getElementById('role-display');
+    const statusDisplay = document.getElementById('status-display');
+
+    function updateRoleDisplay() {
+        const makeAdmin = roleAction.value === 'promote'
+            ? true
+            : roleAction.value === 'demote'
+                ? false
+                : isAdmin;
+
+        roleDisplay.textContent =
+            (makeAdmin ? 'Administrador' : 'Participante') +
+            (roleAction.value !== 'keep'
+                ? ' (alteração pendente)'
+                : '');
+
+        if (roleButton) {
+            roleButton.textContent = roleAction.value !== 'keep'
+                ? 'Desfazer'
+                : (isAdmin
+                    ? 'Remover privilégios de administrador'
+                    : 'Tornar administrador');
+
+            roleButton.className = 'button ' +
+                (roleAction.value !== 'keep'
+                    ? 'button-undo'
+                    : (isAdmin ? 'button-danger' : 'button-promote'));
+        }
+    }
+
+    function updateStatusDisplay() {
+        const active = statusAction.value === 'activate'
+            ? true
+            : statusAction.value === 'deactivate'
+                ? false
+                : isActive;
+
+        statusDisplay.textContent =
+            (active ? 'Ativo' : 'Inativo') +
+            (statusAction.value !== 'keep'
+                ? ' (alteração pendente)'
+                : '');
+
+        statusDisplay.className = 'status ' +
+            (active ? 'is-on' : 'is-off');
+
+        if (statusButton) {
+            statusButton.textContent = statusAction.value !== 'keep'
+                ? 'Desfazer'
+                : (isActive ? 'Inativar perfil' : 'Reativar perfil');
+
+            statusButton.className = 'button ' +
+                (statusAction.value !== 'keep'
+                    ? 'button-undo'
+                    : (isActive ? 'button-danger' : 'button-reactivate'));
+        }
+    }
+
+    if (roleButton) {
+        roleButton.addEventListener('click', function () {
+            if (roleAction.value !== 'keep') {
+                roleAction.value = 'keep';
+            } else {
+                roleAction.value = isAdmin ? 'demote' : 'promote';
+            }
+
+            updateRoleDisplay();
+        });
+    }
+
+    if (statusButton) {
+        statusButton.addEventListener('click', function () {
+            if (statusAction.value !== 'keep') {
+                statusAction.value = 'keep';
+            } else {
+                statusAction.value = isActive
+                    ? 'deactivate'
+                    : 'activate';
+            }
+
+            updateStatusDisplay();
+        });
+    }
+
+    updateRoleDisplay();
+    updateStatusDisplay();
+})();
+</script>
