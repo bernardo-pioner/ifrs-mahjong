@@ -13,8 +13,8 @@ function eventFormValue(array $old, string $key, string $default = ''): string
     <header class="event-form-header">
         <div>
             <a class="event-back-link" href="/eventos">← Voltar para eventos</a>
-            <h1>Criar novo evento</h1>
-            <p>Informações básicas do evento do clube.</p>
+            <h1><?= e($tituloPagina ?? 'Criar novo evento') ?></h1>
+            <p><?= e($descricaoPagina ?? 'Informações básicas do evento do clube.') ?></p>
         </div>
     </header>
 
@@ -29,7 +29,11 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         </div>
     <?php endif; ?>
 
-    <form class="event-form-card" method="post" action="/eventos/novo">
+    <form
+        class="event-form-card"
+        method="post"
+        action="<?= e($acaoFormulario ?? '/eventos/novo') ?>"
+    >
         <?= csrfField() ?>
 
         <div class="form-field">
@@ -174,8 +178,9 @@ function eventFormValue(array $old, string $key, string $default = ''): string
 
         <div class="event-form-actions">
             <a class="button button-secondary" href="/eventos">Cancelar</a>
+
             <button class="button button-primary" type="submit">
-                Criar evento
+                <?= e($textoBotao ?? 'Criar evento') ?>
                 <span aria-hidden="true">→</span>
             </button>
         </div>

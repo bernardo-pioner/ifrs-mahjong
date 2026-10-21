@@ -1122,7 +1122,7 @@ body.is-guest .lede {
 
 .events-page .event-card h2 {
     color: var(--ink);
-    font-family: var(--font-display);
+    font-family: var(--font-body);
     font-size: 1.3rem;
     letter-spacing: -0.015em;
 }
@@ -1305,4 +1305,8 @@ body.is-guest .lede {
         grid-template-columns: minmax(0, 1fr);
         gap: 16px;
     }
+}
+
+.events-page {
+    font-family: var(--font-body);
 }
