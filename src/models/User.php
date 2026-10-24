@@ -149,14 +149,13 @@ final class User
         $name = trim($name);
         $email = strtolower(trim($email));
     
-        /*if ($name === '' || mb_strlen($name) < 2) {
+        if ($name === '' || mb_strlen($name) < 2) {
             $errors[] = 'Informe um nome com pelo menos 2 caracteres';
         }
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { // Valida apenas formato de e-mail
             $errors[] = 'Informe um e-mail válido';
         }
-
         
         if (mb_strlen($password) < 8 || // mínimo de 8 caracteres
             !preg_match('/[^a-zA-Z0-9]/', $password) || // verifica se NÃO tem caractere especial
@@ -168,10 +167,11 @@ final class User
             return $errors;
         }
 
-        if (self::emailExists($email)) {
+        if (EmailService::emailExists($email)) {
             return ['Este e-mail já está cadastrado. Faça login para acessar nossa plataforma!'];
         }
-        */
+
+        EmailService::sendTestEmail($email, $name);
 
         $id = self::create($name, $email, $password);
         AuthService::login($id);
