@@ -102,14 +102,6 @@ final class User
         return count($rows) === 1 ? $rows[0] : null;
     }
 
-    public static function emailExists(string $email): bool
-    {
-        $stmt = db()->prepare('SELECT id FROM usuarios WHERE email = :email LIMIT 1');
-        $stmt->execute(['email' => $email]);
-
-        return (bool) $stmt->fetch();
-    }
-
     public static function create(string $name, string $email, string $password, string $role = 'member'): int
     {
         $pdo = db();
