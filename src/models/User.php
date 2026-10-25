@@ -110,6 +110,14 @@ final class User
         return (bool) $stmt->fetch();
     }
 
+    public static function nicknameExists(string $name): bool
+    {
+        $stmt = db()->prepare('SELECT id FROM usuarios WHERE nome = :apelido LIMIT 1');
+        $stmt->execute(['apelido' => $name]);
+
+        return (bool) $stmt->fetch();
+    }
+
     public static function create(string $name, string $email, string $password, string $role = 'member'): int
     {
         $pdo = db();
