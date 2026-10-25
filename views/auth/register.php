@@ -9,7 +9,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <script src="checkUsername.js"></script>
+    <script src="..\..\public\assets\js\check-username.js"></script>
 </head>
 <body>
     <section class="auth-card">
@@ -31,7 +31,7 @@
         <?= csrfField() ?>
         <label>
             Apelido
-            <input type="text" name="name" value="<?= e($name) ?>" oninput="checkUsername()" required>
+            <input type="text" name="name" value="<?= e($name) ?>" oninput="debounceCheckUsername($name)" minlength="3" maxlength="20" required>
         </label>
         <label>
             E-mail
