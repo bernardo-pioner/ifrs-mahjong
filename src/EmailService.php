@@ -34,15 +34,15 @@ final class EmailService
             $mail->Host = 'smtp.gmail.com';
             $mail->SMTPAuth = true;
 
-            $mail->Username = 'bepioner16@gmail.com'; //getenv('SMTP_USERNAME');
-            $mail->Password = 'qtggwsuvcthranwq'; //getenv('SMTP_PASSWORD');
+            $mail->Username = getenv('SMTP_USERNAME');
+            $mail->Password = getenv('SMTP_PASSWORD');
 
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
             $mail->Port = 465;
 
             // Use o endereço autenticado como remetente.
             $mail->setFrom(
-                'bepioner16@gmail.com' , //getenv('SMTP_USERNAME');
+                getenv('SMTP_USERNAME'),
                 'Minha Plataforma'
             );
 
