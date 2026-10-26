@@ -84,4 +84,35 @@ final class AuthController extends Controller
         AuthService::logout();
         redirect('/login');
     }
+
+    public function checkUsernameAvailability()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $username = request('username');
+
+            $username_exists = User::usernameExists($username);
+
+            // Resposta de sucesso
+            $resposta = [
+                'available' => !$username_exists
+            ];
+
+            // Define o código de status HTTP (200 OK)
+            http_response_code(200);
+        } catch (Exception $e) {
+            // Resposta de erro
+            $resposta = [
+                'status' => 'error',
+                'mensagem' => $e->getMessage()
+            ];
+            // Define o código de status HTTP de erro (ex: 400 Bad Request)
+            http_response_code(400);
+        }
+
+        // 2. Converte o array para JSON e exibe
+        echo json_encode($resposta);
+        exit; // Garante que nenhum HTML ou espaço em branco seja enviado depois
+    }
 }
