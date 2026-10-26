@@ -44,7 +44,7 @@ final class AuthController extends Controller
             'title' => 'Cadastro',
             'user' => null,
             'currentPath' => '/cadastro',
-            'name' => '',
+            'username' => '',
             'email' => '',
             'errors' => [],
         ]);
@@ -55,18 +55,18 @@ final class AuthController extends Controller
         $this->guestOnly();
         verifyCsrf();
 
-        $name = request('name');
+        $username = request('username');
         $email = request('email');
         $password = $_POST['password'] ?? '';
         $password = is_string($password) ? $password : '';
 
-        $errors = User::register($name, $email, $password);
+        $errors = User::register($username, $email, $password);
         if ($errors !== []) {
             $this->view('auth/register', [
                 'title' => 'Cadastro',
                 'user' => null,
                 'currentPath' => '/cadastro',
-                'name' => $name,
+                'username' => $username,
                 'email' => $email,
                 'errors' => $errors,
             ]);
