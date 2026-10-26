@@ -1,5 +1,5 @@
 <?php
-/** @var string $name */
+/** @var string $username */
 /** @var string $email */
 /** @var list<string> $errors */
 ?>
