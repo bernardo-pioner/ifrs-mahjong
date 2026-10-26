@@ -563,3 +563,30 @@ body.is-guest .lede {
         display: block;
     }
 }
+
+.availabilityMessage {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+#availabilityMessageImg {
+    height: 16px;
+    width: auto;
+}
+
+.username-available-txt {
+    background-color: #dcf8dc;
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.username-not-available-txt {
+    background-color: #f8dcdc;
+    padding: 4px;
+    border-radius: 8px;
+}
