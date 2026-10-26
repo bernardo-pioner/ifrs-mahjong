@@ -31,7 +31,11 @@
         <?= csrfField() ?>
         <label>
             Apelido
-            <input type="text" name="name" value="<?= e($name) ?>" oninput="debounceCheckUsername($name)" minlength="3" maxlength="20" required>
+            <input id="usernameInput" type="text" name="username" value="<?= e($username) ?>" minlength="3" maxlength="20" required>
+            <div id="availabilityMessage" class="hidden">
+                <img id="availabilityMessageImg" src="" alt="">
+                <span class="hint" id="availabilityMessageTxt"></span>
+            </div>
         </label>
         <label>
             E-mail
