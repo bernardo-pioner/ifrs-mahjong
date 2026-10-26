@@ -9,7 +9,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <script src="..\..\public\assets\js\check-username.js"></script>
+    <script src="/assets/js/check-username.js" defer></script>
 </head>
 <body>
     <section class="auth-card">
