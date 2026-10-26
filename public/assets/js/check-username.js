@@ -1,0 +1,83 @@
+function debounce(fn, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer); // Cancela o timer anterior
+    timer = setTimeout(() => {
+      fn.apply(this, args); // Executa a função após o tempo de espera
+    }, delay);
+  };
+}
+
+async function checkUsername(username) {
+  username = username.trim();
+  if (username !== "" && username.length >= 3 && !username.includes(" ")) {
+    try {
+      const response = await fetch(
+        `/username-disponivel?username=${encodeURIComponent(username)}`,
+      );
+      if (!response.ok) {
+        throw new Error("Erro na requisição!");
+      }
+      const data = await response.json();
+      const username_available = data.available;
+      showUsernameAvailabilityMessage(username_available, username);
+    } catch (error) {
+      console.error("Erro ao buscar dados:", error); // verificar que retorno é correto de exibir aqui
+    }
+  } else {
+    showUsernameAvailabilityMessage(false, "");
+  }
+}
+
+const debouncedCheckUsername = debounce((event) => {
+  checkUsername(event.target.value);
+}, 500);
+
+document.addEventListener("DOMContentLoaded", () => {
+  const usernameInput = document.getElementById("usernameInput");
+  usernameInput.addEventListener("input", debouncedCheckUsername);
+});
+
+function showUsernameAvailabilityMessage(isAvailable, username) {
+  const messageDiv = document.getElementById("availabilityMessage");
+  const messageTxt = document.getElementById("availabilityMessageTxt");
+  const messageImg = document.getElementById("availabilityMessageImg");
+
+  if (!username.trim()) {
+    messageTxt.textContent = "";
+    messageImg.removeAttribute("src");
+    messageDiv.classList.add("hidden");
+    messageDiv.classList.remove("availabilityMessage");
+    return;
+  }
+
+  messageTxt.textContent = "";
+  messageTxt.append('O apelido "');
+
+  const strong = document.createElement("strong");
+  strong.textContent = username;
+
+  messageTxt.append(
+    strong,
+    `" ${isAvailable ? "está disponível" : "não está disponível"}`,
+  );
+
+  const textClass = isAvailable
+    ? "username-available-txt"
+    : "username-not-available-txt";
+
+  const imageSrc = isAvailable
+    ? "/assets/img/green_check.png"
+    : "/assets/img/red_x.png";
+
+  messageTxt.classList.remove(
+    "username-available-txt",
+    "username-not-available-txt",
+  );
+  messageTxt.classList.add(textClass);
+
+  messageImg.setAttribute("src", imageSrc);
+
+  messageDiv.classList.remove("hidden");
+  messageDiv.classList.add("availabilityMessage");
+}
