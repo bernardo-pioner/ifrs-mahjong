@@ -165,8 +165,8 @@ final class User
         $username = trim($username);
         $email = strtolower(trim($email));
     
-        if ($name === '' || mb_strlen($name) < 3 || str_contains($name, "")) {
-            $errors[] = 'O apelido deve conter 3 caracteres e não possuir espaços';
+        if ($username === '' || mb_strlen($username) < 3 || str_contains($username, " ")) {
+            $errors[] = 'O apelido deve conter, no mínimo, 3 caracteres e não possuir espaços';
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
