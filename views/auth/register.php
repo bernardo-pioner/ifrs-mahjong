@@ -43,7 +43,7 @@
         </label>
         <label>
             Senha
-            <input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+            <input type="password" name="password" minlength="8" maxlength="128" required>
             <span class="hint">Mínimo de 8 caracteres.</span>
         </label>
         <button type="submit" class="button">Cadastrar</button>
