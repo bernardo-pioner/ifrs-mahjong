@@ -489,11 +489,15 @@ body.is-guest .lede {
 }
 
 .form-errors {
+    display: flex;
     margin: 0.62rem 0 0.62rem 0;
-    padding: 0.3rem;
     background: rgba(156, 43, 26, 0.08);
     color: var(--lacquer-dark);
     border-radius: 0.5rem;
+}
+
+.register-error {
+    padding: 10px;
 }
 
 .button {
