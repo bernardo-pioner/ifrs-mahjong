@@ -23,17 +23,19 @@ export async function checkUsernameAvailability(username) {
     const username_available = data.available;
     return username_available;
   } catch (error) {
-    console.error("Erro ao buscar dados:", error); // verificar que retorno é correto de exibir aqui
+    console.error("Erro ao buscar dados:", error);
   }
 }
 
-function showUsernameAvailabilityMessage(username) {
+async function showUsernameAvailabilityMessage(username) {
   const messageDiv = document.getElementById("availabilityMessage");
   const messageTxt = document.getElementById("availabilityMessageTxt");
   const messageImg = document.getElementById("availabilityMessageImg");
   const usernameInputErrorDiv = document.getElementById("usernameErrorMessage");
 
-  if (!username.trim() || username.length < 3) {
+  username = username.trim()
+
+  if (!username || username.length < 3) {
     messageTxt.textContent = "";
     messageImg.removeAttribute("src");
     messageDiv.classList.add("hidden");
@@ -41,9 +43,8 @@ function showUsernameAvailabilityMessage(username) {
     return;
   }
 
-  const isAvailable = checkUsernameAvailability(username);
+  const isAvailable = await checkUsernameAvailability(username);
 
-  username = username.trim();
   if (username.length >= 3) {
     if (username.includes(" ")) {
       checkUsernameInput();

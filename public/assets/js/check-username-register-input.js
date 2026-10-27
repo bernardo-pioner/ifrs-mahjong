@@ -1,3 +1,5 @@
+import { checkUsernameAvailability } from "./check-username-availability.js";
+
 document.addEventListener("DOMContentLoaded", () => {
   const submitRegisterButton = document.getElementById("submitRegisterButton");
   submitRegisterButton.addEventListener("click", function (event) {
@@ -5,8 +7,6 @@ document.addEventListener("DOMContentLoaded", () => {
     checkUserRegisterInput();
   });
 });
-
-let errors = false;
 
 export function checkUsernameInput() {
   const username = document.getElementById("usernameInput").value;
@@ -22,9 +22,9 @@ export function checkUsernameInput() {
     usernameInputErrorTxt.textContent =
       "Deve conter, no mínimo, 3 caracteres e não haver espaços";
     usernameInputErrorDiv.classList.remove("hidden");
-    errors = true;
+    return false;
   } else {
-    errors = false;
+    return true;
   }
 }
 
@@ -38,9 +38,27 @@ function checkEmailInput() {
     emailInputErrorTxt.textContent =
       "O e-mail informado deve estar em um formato válido";
     emailInputErrorDiv.classList.remove("hidden");
-    errors = true;
+    return false;
   } else {
-    errors = false;
+    emailInputErrorDiv.classList.add("hidden");
+    return true;
+  }
+}
+
+async function checkEmailAvailability(email) {
+  email = email.trim();
+  try {
+    const response = await fetch(
+      `/email-disponivel?email=${encodeURIComponent(email)}`,
+    );
+    if (!response.ok) {
+      throw new Error("Erro na requisição!");
+    }
+    const data = await response.json();
+    const email_available = data.available;
+    return email_available;
+  } catch (error) {
+    console.error("Erro ao buscar dados:", error);
   }
 }
 
@@ -59,18 +77,48 @@ function checkPasswordInput() {
     passwordInputErrorTxt.textContent =
       "Deve incluir caractere especial, maiúsculas e minúsculas";
     passwordInputErrorDiv.classList.remove("hidden");
-    errors = true;
+    return false;
   } else {
-    errors = false;
+    passwordInputErrorDiv.classList.add("hidden");
+    return true;
   }
 }
 
-function checkUserRegisterInput() {
-  checkUsernameInput();
-  checkEmailInput();
-  checkPasswordInput();
+async function checkUserRegisterInput() {
+  const username = document.getElementById("usernameInput").value;
+  const email = document.getElementById("emailInput").value;
 
-  if (!errors){
+  const isUsernameAvailable = await checkUsernameAvailability(username);
+  const isEmailAvailable = await checkEmailAvailability(email);
 
+  const isUsernameValid = checkUsernameInput();
+  const isEmailValid = checkEmailInput();
+  const isPasswordValid = checkPasswordInput();
+
+  if (
+    !isUsernameValid ||
+    !isEmailValid ||
+    !isPasswordValid ||
+    !isUsernameAvailable
+  ) {
+    if (!emailNotAvailableError.classList.contains("hidden")) {
+      emailNotAvailableError.classList.add("hidden");
+    }
+    return false;
   }
+
+  if (!isEmailAvailable) {
+    const emailNotAvailableError = document.getElementById(
+      "emailNotAvailableError",
+    );
+
+    if (emailNotAvailableError.classList.contains("hidden")) {
+      emailNotAvailableError.classList.remove("hidden");
+    }
+    return false;
+  } else {
+    emailNotAvailableError.classList.add("hidden");
+  }
+
+  document.getElementById("registerForm").requestSubmit();
 }
