@@ -45,8 +45,7 @@ final class AuthController extends Controller
             'user' => null,
             'currentPath' => '/cadastro',
             'username' => '',
-            'email' => '',
-            'errors' => [],
+            'email' => ''
         ]);
     }
 
@@ -60,15 +59,14 @@ final class AuthController extends Controller
         $password = $_POST['password'] ?? '';
         $password = is_string($password) ? $password : '';
 
-        $errors = User::register($username, $email, $password);
-        if ($errors !== []) {
+        $registerResponse = User::register($username, $email, $password);
+        if (!$registerResponse) {
             $this->view('auth/register', [
                 'title' => 'Cadastro',
                 'user' => null,
                 'currentPath' => '/cadastro',
                 'username' => $username,
-                'email' => $email,
-                'errors' => $errors,
+                'email' => $email
             ]);
             return;
         }

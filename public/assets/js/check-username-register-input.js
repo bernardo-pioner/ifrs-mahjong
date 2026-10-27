@@ -47,6 +47,7 @@ function checkEmailInput() {
 
 async function checkEmailAvailability(email) {
   email = email.trim();
+  const registerError = document.getElementById("registerError");
   try {
     const response = await fetch(
       `/email-disponivel?email=${encodeURIComponent(email)}`,
@@ -58,7 +59,10 @@ async function checkEmailAvailability(email) {
     const email_available = data.available;
     return email_available;
   } catch (error) {
-    console.error("Erro ao buscar dados:", error);
+    registerError.textContent = "No momento, estamos com problemas técnicos. Tente novamente mais tarde";
+    if (registerError.classList.contains("hidden")) {
+      registerError.classList.remove("hidden");
+    }
   }
 }
 
@@ -101,23 +105,19 @@ async function checkUserRegisterInput() {
     !isPasswordValid ||
     !isUsernameAvailable
   ) {
-    if (!emailNotAvailableError.classList.contains("hidden")) {
-      emailNotAvailableError.classList.add("hidden");
+    if (!registerError.classList.contains("hidden")) {
+      registerError.classList.add("hidden");
     }
     return false;
   }
 
   if (!isEmailAvailable) {
-    const emailNotAvailableError = document.getElementById(
-      "emailNotAvailableError",
-    );
-
-    if (emailNotAvailableError.classList.contains("hidden")) {
-      emailNotAvailableError.classList.remove("hidden");
+    if (registerError.classList.contains("hidden")) {
+      registerError.classList.remove("hidden");
     }
     return false;
   } else {
-    emailNotAvailableError.classList.add("hidden");
+    registerError.classList.add("hidden");
   }
 
   document.getElementById("registerForm").requestSubmit();

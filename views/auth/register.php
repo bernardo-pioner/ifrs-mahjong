@@ -21,8 +21,8 @@
         <p class="lede">O cadastro libera o acesso ao painel do clube. O perfil de membro pode ser completado depois.
         </p>
 
-        <div id="emailNotAvailableError" class="form-errors hidden">
-            <span class="register-error">Este e-mail já está cadastrado. Faça login para acessar nossa plataforma!</span>
+        <div id="registerError" class="form-errors hidden">
+            <span class="register-error"></span>
         </div>
 
         <form id="registerForm" action="/cadastro" method="POST" class="form" novalidate autocomplete="off">

@@ -157,43 +157,35 @@ final class User
         }
     }
 
-    /** @return list<string> */
-    public static function register(string $username, string $email, string $password): array
+    public static function register(string $username, string $email, string $password): bool
     {
-        $errors = [];
-
         $username = trim($username);
         $email = strtolower(trim($email));
     
         if ($username === '' || mb_strlen($username) < 3 || str_contains($username, " ")) {
-            $errors[] = 'O apelido deve conter, no mínimo, 3 caracteres e não possuir espaços';
+            return false;
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'O e-mail informado deve estar em um formato válido';
+            return false;
         }
         
         if (mb_strlen($password) < 8 || // mínimo de 8 caracteres
             !preg_match('/[^a-zA-Z0-9]/', $password) || // verifica se NÃO tem caractere especial
             !preg_match('/(?=.*\p{Ll})(?=.*\p{Lu})/u', $password)) { // verifica se tem pelo menos UMA maiúscula e UMA minúscula
-                $errors[] = 'A senha deve ter pelo menos 8 caracteres, incluindo um caractere especial, letras maiúsculas e minúsculas';
-        }
-         
-        if ($errors !== []) {
-            return $errors;
+            return false;
         }
 
         if (self::emailExists($email)) {
-            return ['Este e-mail já está cadastrado. Faça login para acessar nossa plataforma!'];
+            return false;
         }
 
         if (self::usernameExists($username)) {
-            return ['']; // verificar como retornará e como tratará esse retorno
+            return false;
         }
 
         $id = self::create($username, $email, $password);
         AuthService::login($id);
-
-        return [];
+        return true;
     }
 }
