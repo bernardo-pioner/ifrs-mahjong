@@ -94,25 +94,18 @@ final class AuthController extends Controller
 
             $username_exists = User::usernameExists($username);
 
-            // Resposta de sucesso
             $resposta = [
                 'available' => !$username_exists
             ];
-
-            // Define o código de status HTTP (200 OK)
-            http_response_code(200);
+            http_response_code(200); // 200 - OK
         } catch (Exception $e) {
-            // Resposta de erro
             $resposta = [
                 'status' => 'error',
                 'mensagem' => $e->getMessage()
             ];
-            // Define o código de status HTTP de erro (ex: 400 Bad Request)
-            http_response_code(400);
+            http_response_code(400); // 400 - Bad Request
         }
-
-        // 2. Converte o array para JSON e exibe
         echo json_encode($resposta);
-        exit; // Garante que nenhum HTML ou espaço em branco seja enviado depois
+        exit; 
     }
 }
