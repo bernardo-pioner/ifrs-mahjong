@@ -10,7 +10,7 @@ function debounce(fn, delay) {
   };
 }
 
-async function checkUsername(username) {
+export async function checkUsernameAvailability(username) {
   username = username.trim();
   if (username.length >= 3) {
     if (username.includes(" ")){
@@ -26,25 +26,18 @@ async function checkUsername(username) {
       }
       const data = await response.json();
       const username_available = data.available;
-      showUsernameAvailabilityMessage(username_available, username);
+      return username_available;
     } catch (error) {
       console.error("Erro ao buscar dados:", error); // verificar que retorno é correto de exibir aqui
     }
   } else {
-    showUsernameAvailabilityMessage(false, "");
+    return false;
   }
 }
 
-const debouncedCheckUsername = debounce((event) => {
-  checkUsername(event.target.value);
-}, 500);
+function showUsernameAvailabilityMessage(username) {
+  username = username.trim();
 
-document.addEventListener("DOMContentLoaded", () => {
-  const usernameInput = document.getElementById("usernameInput");
-  usernameInput.addEventListener("input", debouncedCheckUsername);
-});
-
-function showUsernameAvailabilityMessage(isAvailable, username) {
   const messageDiv = document.getElementById("availabilityMessage");
   const messageTxt = document.getElementById("availabilityMessageTxt");
   const messageImg = document.getElementById("availabilityMessageImg");
@@ -92,3 +85,12 @@ function showUsernameAvailabilityMessage(isAvailable, username) {
   messageDiv.classList.remove("hidden");
   messageDiv.classList.add("availabilityMessage");
 }
+
+const debouncedCheckUsernameAvailability = debounce((event) => {
+  showUsernameAvailabilityMessage(event.target.value);
+}, 500);
+
+document.addEventListener("DOMContentLoaded", () => {
+  const usernameInput = document.getElementById("usernameInput");
+  usernameInput.addEventListener("input", debouncedCheckUsernameAvailability);
+});
