@@ -574,19 +574,24 @@ body.is-guest .lede {
     display: none !important;
 }
 
-#availabilityMessageImg {
+.message-icon-img {
     height: 16px;
     width: auto;
 }
 
-.username-available-txt {
-    background-color: #dcf8dc;
+.register-input-msg {
     padding: 4px;
     border-radius: 8px;
 }
 
+.register-input-error {
+    background-color: #f1f1ae;
+}
+
+.username-available-txt {
+    background-color: #dcf8dc;
+}
+
 .username-not-available-txt {
     background-color: #f8dcdc;
-    padding: 4px;
-    border-radius: 8px;
 }
