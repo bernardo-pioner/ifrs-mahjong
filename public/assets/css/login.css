@@ -86,3 +86,4 @@ body.is-login .flash-error {
 body.is-login .flash-success {
     border-left-color: var(--login-aviso-ok);
 }
+
