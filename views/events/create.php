@@ -78,6 +78,25 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             </div>
         </fieldset>
 
+        <div
+            class="form-field"
+            id="campo-limite"
+            <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
+        >
+            <label for="limite">Limite de participantes</label>
+            <input
+                id="limite"
+                name="limite"
+                type="number"
+                min="1"
+                max="10000"
+                value="<?= eventFormValue($old, 'limite', '16') ?>"
+                placeholder="Ex.: 16"
+                <?= $tipoAtual === 'encontro' ? 'disabled' : '' ?>
+            >
+            <small>Opcional. Aplicável a torneios e oficinas.</small>
+        </div>
+
         <div class="event-datetime-grid">
             <div class="event-datetime-field">
                 <label for="data">Data de início</label>
@@ -137,20 +156,6 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         </div>
 
         <div class="form-field">
-            <label for="limite">Limite de participantes</label>
-            <input
-                id="limite"
-                name="limite"
-                type="number"
-                min="1"
-                max="10000"
-                value="<?= eventFormValue($old, 'limite', '16') ?>"
-                placeholder="Ex.: 16"
-            >
-            <small>Opcional. Aplicável a torneios e oficinas nesta versão.</small>
-        </div>
-
-        <div class="form-field">
             <label for="descricao">Descrição</label>
             <textarea
                 id="descricao"
@@ -186,3 +191,34 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         </div>
     </form>
 </section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tipos = document.querySelectorAll('input[name="tipo"]');
+        const campoLimite = document.getElementById('campo-limite');
+        const inputLimite = document.getElementById('limite');
+
+        function atualizarCampoLimite() {
+            const tipoSelecionado = document.querySelector(
+                'input[name="tipo"]:checked'
+            );
+
+            if (!tipoSelecionado) {
+                return;
+            }
+
+            const mostrarLimite =
+                tipoSelecionado.value === 'torneio' ||
+                tipoSelecionado.value === 'oficina';
+
+            campoLimite.hidden = !mostrarLimite;
+            inputLimite.disabled = !mostrarLimite;
+        }
+
+        tipos.forEach(function (tipo) {
+            tipo.addEventListener('change', atualizarCampoLimite);
+        });
+
+        atualizarCampoLimite();
+    });
+</script>

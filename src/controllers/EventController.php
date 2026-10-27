@@ -4,24 +4,101 @@ declare(strict_types=1);
 
 final class EventController extends Controller
 {
+
     public function index(): void
     {
         $user = $this->requireAuth();
 
-        $stmt = db()->query(
-            "SELECT e.*, u.nome AS organizador
-             FROM eventos e
-             LEFT JOIN usuarios u ON u.id = e.admin_id
-             ORDER BY e.data_inicio IS NULL, e.data_inicio ASC, e.id DESC"
-        );
+        // Valores recebidos pelos filtros.
+        $busca = trim((string) ($_GET['busca'] ?? ''));
+        $tipo = (string) ($_GET['tipo'] ?? '');
+        $situacao = (string) ($_GET['situacao'] ?? '');
+
+        // Validação das opções.
+        $tiposValidos = ['encontro', 'oficina', 'torneio'];
+
+        $situacoesValidas = [
+            'nao_iniciado',
+            'em_andamento',
+            'encerrado'
+        ];
+
+        if (!in_array($tipo, $tiposValidos, true)) {
+            $tipo = '';
+        }
+
+        if (!in_array($situacao, $situacoesValidas, true)) {
+            $situacao = '';
+        }
+
+        // Consulta principal.
+        $sql = "
+            SELECT e.*, u.nome AS organizador
+            FROM eventos e
+            LEFT JOIN usuarios u ON u.id = e.admin_id
+            WHERE 1 = 1
+        ";
+
+        $params = [];
+
+        // Filtro por nome.
+        if ($busca !== '') {
+            $sql .= " AND e.titulo LIKE :busca";
+            $params[':busca'] = '%' . $busca . '%';
+        }
+
+        // Filtro por tipo.
+        if ($tipo !== '') {
+            $sql .= " AND e.tipo = :tipo";
+            $params[':tipo'] = $tipo;
+        }
+
+        // Filtro por situação.
+        if ($situacao === 'nao_iniciado') {
+            $sql .= "
+                AND e.data_inicio IS NOT NULL
+                AND datetime(e.data_inicio) > datetime('now', 'localtime')
+            ";
+
+        } elseif ($situacao === 'em_andamento') {
+            $sql .= "
+                AND e.data_inicio IS NOT NULL
+                AND datetime(e.data_inicio) <= datetime('now', 'localtime')
+                AND (
+                    e.data_fim IS NULL
+                    OR datetime(e.data_fim) >= datetime('now', 'localtime')
+                )
+            ";
+
+        } elseif ($situacao === 'encerrado') {
+            $sql .= "
+                AND e.data_fim IS NOT NULL
+                AND datetime(e.data_fim) < datetime('now', 'localtime')
+            ";
+        }
+
+        // Mantém a ordenação original.
+        $sql .= "
+            ORDER BY
+                e.data_inicio IS NULL,
+                e.data_inicio ASC,
+                e.id DESC
+        ";
+
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
 
         $this->view('events/index', [
             'title' => 'Eventos',
             'user' => $user,
             'currentPath' => '/eventos',
             'eventos' => $stmt->fetchAll(),
+            'busca' => $busca,
+            'tipoFiltro' => $tipo,
+            'situacaoFiltro' => $situacao,
         ]);
     }
+
 
     public function create(): void
     {
@@ -555,13 +632,37 @@ final class EventController extends Controller
             return;
         }
 
+        $stmt = db()->prepare(
+            'SELECT
+                u.nome,
+                p.apelido,
+                ep.status,
+                ep.inscrito_em
+            FROM evento_participantes ep
+            INNER JOIN participantes p
+                ON p.usuario_id = ep.participante_id
+            INNER JOIN usuarios u
+                ON u.id = p.usuario_id
+            WHERE ep.evento_id = :evento_id
+            ORDER BY ep.inscrito_em ASC'
+        );
+
+        $stmt->execute([
+            ':evento_id' => (int) $id,
+        ]);
+
+        $participantes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
         $this->view('events/show', [
             'title' => $evento['titulo'],
             'user' => $user,
             'currentPath' => '/eventos',
             'evento' => $evento,
+            'participantes' => $participantes,
         ]);
     }
+
+
     public function destroy(string $id): void
     {
         $this->requireAdmin();

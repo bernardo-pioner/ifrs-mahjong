@@ -86,6 +86,40 @@ $eventoId = (int) $evento['id'];
             </div>
         <?php endif; ?>
 
+        <div class="event-form-divider"></div>
+
+        <section class="event-participants">
+            <h2>Participantes inscritos (<?= count($participantes ?? []) ?>)</h2>
+
+            <?php if (empty($participantes)): ?>
+                <p class="event-participants-empty">
+                    Nenhum participante inscrito neste evento.
+                </p>
+            <?php else: ?>
+                <div class="event-participants-list">
+                    <?php foreach ($participantes as $participante): ?>
+                        <div class="event-participant">
+                            <div>
+                                <strong>
+                                    <?= e($participante['nome']) ?>
+                                </strong>
+
+                                <?php if (!empty($participante['apelido'])): ?>
+                                    <small>
+                                        (<?= e($participante['apelido']) ?>)
+                                    </small>
+                                <?php endif; ?>
+                            </div>
+
+                            <span class="event-participant-status">
+                                <?= e(ucfirst(str_replace('_', ' ', $participante['status']))) ?>
+                            </span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </section>
+
         <?php if ($ehAdmin): ?>
             <div class="event-form-divider"></div>
 

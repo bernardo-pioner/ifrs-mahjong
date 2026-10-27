@@ -496,16 +496,9 @@ body.is-guest .lede {
 }
 
 .button {
-    display: inline-block;
-    border: 0;
     background: var(--sidebar);
     color: #f7f1e3;
-    font: inherit;
-    padding: 0.7rem 1rem;
-    cursor: pointer;
-    text-decoration: none;
     text-align: center;
-    border-radius: 0.4rem;
 }
 
 .button:hover {
@@ -630,7 +623,7 @@ body.is-guest .lede {
     align-items: center;
     justify-content: space-between;
     max-width: 300px;
-    margin-bottom: 22px;
+    margin-bottom: 24px;
     padding: 18px 20px;
     background: var(--surface, #fff);
     border: 1px solid var(--border, #e5e3dc);
@@ -697,11 +690,6 @@ body.is-guest .lede {
     border-radius: 7px;
     font-size: .8rem;
     font-weight: 700;
-}
-
-.event-card-id {
-    color: var(--muted, #7a827d);
-    font-size: .82rem;
 }
 
 .event-card h2 {
@@ -1029,11 +1017,33 @@ body.is-guest .lede {
 }
 
 @media (max-width: 600px) {
-    .event-form-row,
-    .event-type-options {
+
+    /* Campos do formulário em uma coluna */
+    .event-form-row {
         grid-template-columns: minmax(0, 1fr);
     }
 
+    /* Seleção de tipos de evento sem scroll horizontal */
+    .event-type-options {
+        flex-direction: column;
+        overflow-x: visible;
+        padding: 2px;
+        gap: 12px;
+    }
+
+    /* Cada tipo ocupa toda a largura */
+    .event-type-option {
+        width: 100%;
+        flex: none;
+    }
+
+    /* Área de toque maior para celulares */
+    .event-type-option-content {
+        width: 100%;
+        min-height: 56px;
+    }
+
+    /* Botões do formulário organizados verticalmente */
     .event-form-actions {
         flex-direction: column-reverse;
     }
@@ -1114,10 +1124,6 @@ body.is-guest .lede {
     border-radius: 999px;
     font-size: 0.78rem;
     letter-spacing: 0.015em;
-}
-
-.events-page .event-card-id {
-    color: var(--ink-soft);
 }
 
 .events-page .event-card h2 {
@@ -1307,6 +1313,110 @@ body.is-guest .lede {
     }
 }
 
-.events-page {
+
+#campo-limite[hidden] {
+    display: none !important;
+}
+
+.event-participants {
+    margin-top: 24px;
+}
+
+.event-participants h2 {
+    margin-bottom: 20px;
+}
+
+.event-participants-empty {
+    padding: 24px;
+    text-align: center;
+    background: #f8f7f3;
+    border: 1px solid #e5e2d9;
+    border-radius: 12px;
+    color: #647067;
+}
+
+.event-participants-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.event-participant {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid #e5e2d9;
+    border-radius: 12px;
+}
+
+.event-participant-status {
+    font-size: 13px;
+    color: #24563d;
+}
+
+/* Filtros da página de eventos */
+
+.events-filters {
+    background: #fffdf8;
+    border: 1px solid #e5e2d9;
+    border-radius: 18px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.events-filters-header {
+    margin-bottom: 20px;
+}
+
+.events-filters-header h2 {
+    margin: 0 0 6px;
+    font-size: 20px;
     font-family: var(--font-body);
 }
+
+.events-filters-header p {
+    margin: 0;
+    color: #647067;
+    font-size: 14px;
+}
+
+.events-filters-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.events-filters-grid .form-field {
+    min-width: 0;
+}
+
+.events-filters-grid input,
+.events-filters-grid select {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border: 1px solid #d9ddd6;
+    border-radius: 10px;
+    background: #fff;
+    color: #263b30;
+    font: inherit;
+}
+
+.events-filters-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+@media (max-width: 800px) {
+    .events-filters-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
