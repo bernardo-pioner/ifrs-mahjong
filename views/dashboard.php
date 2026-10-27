@@ -4,7 +4,7 @@
 ?>
 <section class="page-head">
     <h1>Dashboard</h1>
-    <p class="lede">Olá, <?= e(explode(' ', $user['name'])[0]) ?>. Este é o ponto de partida da gestão do clube.</p>
+    <p class="lede">Olá, <?= e(explode(' ', $user['username'])[0]) ?>. Este é o ponto de partida da gestão do clube.</p>
 </section>
 
 <div class="cards">
