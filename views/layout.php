@@ -7,8 +7,9 @@
 /** @var string $currentPath */
 $isGuest = $user === null;
 $isAdmin = isAdmin($user);
-$userName = is_array($user) ? (string) ($user['name'] ?? 'Participante') : 'Participante';
+$userName = is_array($user) ? userDisplayName($user) : 'Participante';
 $userRole = $isAdmin ? 'Admin' : 'Participante';
+$userPhoto = is_array($user) ? userPhotoUrl($user) : null;
 $logoUrl = clubLogoUrl();
 $navItems = [
     ['href' => '/', 'label' => 'Dashboard', 'icon' => 'icon-dashboard', 'adminOnly' => false],
@@ -78,12 +79,19 @@ $navItems = [
                 <?php endif; ?>
                 <div class="user-card">
                     <span class="user-card-avatar" aria-hidden="true">
-                        <span class="icon icon-user"></span>
+                        <?php if ($userPhoto): ?>
+                            <img src="<?= e($userPhoto) ?>" alt="">
+                        <?php else: ?>
+                            <span class="icon icon-user"></span>
+                        <?php endif; ?>
                     </span>
                     <span class="user-card-copy">
                         <span class="user-card-name"><?= e($userName) ?></span>
                         <span class="user-card-role"><?= e($userRole) ?></span>
                     </span>
+                    <a class="user-card-settings<?= $currentPath === '/perfil' ? ' is-active' : '' ?>" href="/perfil" aria-label="Configurações de Bio" title="Configurações de Bio">
+                        <span class="icon icon-gear" aria-hidden="true"></span>
+                    </a>
                 </div>
                 <form method="post" action="/logout">
                     <?= csrfField() ?>
@@ -103,7 +111,7 @@ $navItems = [
                 </button>
                 <span class="session-chip">
                     <img class="brand-logo is-compact" src="<?= e($logoUrl) ?>" alt="">
-                    <span class="session-name"><?= e($user['name']) ?></span>
+                    <span class="session-name"><?= e($userName) ?></span>
                 </span>
             </header>
 

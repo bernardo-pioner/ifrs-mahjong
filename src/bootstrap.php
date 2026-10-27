@@ -124,15 +124,41 @@ function isAdmin(?array $user): bool
 
 function clubLogoUrl(): string
 {
-    return '/assets/images/' . rawurlencode('logo clube.png');
+    return '/assets/images/' . rawurlencode('logo mini.png');
 }
 
 function userFirstName(?array $user): string
 {
-    $name = trim((string) ($user['name'] ?? ''));
-    if ($name === '') {
-        return 'Participante';
+    $name = userDisplayName($user);
+    if ($name === 'Participante') {
+        return $name;
     }
 
     return explode(' ', $name)[0];
+}
+
+function userDisplayName(?array $user): string
+{
+    $nickname = trim((string) ($user['nickname'] ?? ''));
+    if ($nickname !== '') {
+        return $nickname;
+    }
+
+    $name = trim((string) ($user['name'] ?? ''));
+
+    return $name !== '' ? $name : 'Participante';
+}
+
+function userPhotoUrl(?array $user): ?string
+{
+    $photo = trim((string) ($user['photo'] ?? ''));
+    if ($photo === '' || str_contains($photo, '..')) {
+        return null;
+    }
+
+    if (!str_starts_with($photo, '/uploads/avatars/')) {
+        return null;
+    }
+
+    return $photo;
 }

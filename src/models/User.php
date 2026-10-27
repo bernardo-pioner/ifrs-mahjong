@@ -11,9 +11,13 @@ final class User
                     u.nome AS name,
                     u.email,
                     u.ativo AS active,
+                    p.apelido AS nickname,
+                    p.bio,
+                    p.foto AS photo,
                     CASE WHEN a.usuario_id IS NOT NULL THEN \'admin\' ELSE \'member\' END AS role
              FROM usuarios u
              LEFT JOIN admins a ON a.usuario_id = u.id
+             LEFT JOIN participantes p ON p.usuario_id = u.id
              WHERE u.id = :id AND u.ativo = 1
              LIMIT 1'
         );
@@ -47,9 +51,13 @@ final class User
                     u.nome AS name,
                     u.email,
                     u.ativo AS active,
+                    p.apelido AS nickname,
+                    p.bio,
+                    p.foto AS photo,
                     CASE WHEN a.usuario_id IS NOT NULL THEN \'admin\' ELSE \'member\' END AS role
              FROM usuarios u
              LEFT JOIN admins a ON a.usuario_id = u.id
+             LEFT JOIN participantes p ON p.usuario_id = u.id
              WHERE u.id = :id
              LIMIT 1'
         );
@@ -179,6 +187,90 @@ final class User
 
         $id = self::create($name, $email, $password);
         AuthService::login($id);
+
+        return [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function bioErrors(string $nickname, string $realName, string $bio): array
+    {
+        $errors = [];
+        $nickname = trim($nickname);
+        $realName = trim($realName);
+        $bio = trim($bio);
+
+        if ($nickname === '' || mb_strlen($nickname) < 2) {
+            $errors[] = 'Informe um apelido com pelo menos 2 caracteres.';
+        } elseif (mb_strlen($nickname) > 40) {
+            $errors[] = 'O apelido deve ter no máximo 40 caracteres.';
+        }
+
+        if ($realName === '' || mb_strlen($realName) < 2) {
+            $errors[] = 'Informe o nome real com pelo menos 2 caracteres.';
+        } elseif (mb_strlen($realName) > 80) {
+            $errors[] = 'O nome real deve ter no máximo 80 caracteres.';
+        }
+
+        if (mb_strlen($bio) > 500) {
+            $errors[] = 'A bio deve ter no máximo 500 caracteres.';
+        }
+
+        return $errors;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function updateBio(int $id, string $nickname, string $realName, string $bio, ?string $photo): array
+    {
+        $nickname = trim($nickname);
+        $realName = trim($realName);
+        $bio = trim($bio);
+        $errors = self::bioErrors($nickname, $realName, $bio);
+
+        if ($errors !== []) {
+            return $errors;
+        }
+
+        $pdo = db();
+        $pdo->beginTransaction();
+
+        try {
+            $userStmt = $pdo->prepare(
+                'UPDATE usuarios
+                 SET nome = :nome, atualizado_em = datetime(\'now\')
+                 WHERE id = :id'
+            );
+            $userStmt->execute([
+                'nome' => $realName,
+                'id' => $id,
+            ]);
+
+            $memberStmt = $pdo->prepare(
+                'INSERT INTO participantes (usuario_id, apelido, bio, foto)
+                 VALUES (:id, :apelido, :bio, :foto)
+                 ON CONFLICT(usuario_id) DO UPDATE SET
+                    apelido = excluded.apelido,
+                    bio = excluded.bio,
+                    foto = CASE
+                        WHEN excluded.foto IS NOT NULL THEN excluded.foto
+                        ELSE participantes.foto
+                    END'
+            );
+            $memberStmt->execute([
+                'id' => $id,
+                'apelido' => $nickname,
+                'bio' => $bio === '' ? null : $bio,
+                'foto' => $photo,
+            ]);
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
 
         return [];
     }

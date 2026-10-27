@@ -33,6 +33,8 @@ $router->get('/partidas', [$matches, 'index']);
 $router->get('/rankings', [$rankings, 'index']);
 
 $router->get('/usuarios', [$users, 'index']);
+$router->get('/perfil', [$users, 'bio']);
+$router->post('/perfil', [$users, 'updateBio']);
 $router->get('/configuracoes', [$pages, 'configuracoes']);
 $router->get('/app', [$pages, 'app']);
 
