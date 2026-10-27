@@ -12,38 +12,28 @@ function debounce(fn, delay) {
 
 export async function checkUsernameAvailability(username) {
   username = username.trim();
-  if (username.length >= 3) {
-    if (username.includes(" ")){
-      checkUsernameInput();
-      return;
+  try {
+    const response = await fetch(
+      `/username-disponivel?username=${encodeURIComponent(username)}`,
+    );
+    if (!response.ok) {
+      throw new Error("Erro na requisição!");
     }
-    try {
-      const response = await fetch(
-        `/username-disponivel?username=${encodeURIComponent(username)}`,
-      );
-      if (!response.ok) {
-        throw new Error("Erro na requisição!");
-      }
-      const data = await response.json();
-      const username_available = data.available;
-      return username_available;
-    } catch (error) {
-      console.error("Erro ao buscar dados:", error); // verificar que retorno é correto de exibir aqui
-    }
-  } else {
-    return false;
+    const data = await response.json();
+    const username_available = data.available;
+    return username_available;
+  } catch (error) {
+    console.error("Erro ao buscar dados:", error); // verificar que retorno é correto de exibir aqui
   }
 }
 
 function showUsernameAvailabilityMessage(username) {
-  username = username.trim();
-
   const messageDiv = document.getElementById("availabilityMessage");
   const messageTxt = document.getElementById("availabilityMessageTxt");
   const messageImg = document.getElementById("availabilityMessageImg");
   const usernameInputErrorDiv = document.getElementById("usernameErrorMessage");
 
-  if (!username.trim()) {
+  if (!username.trim() || username.length < 3) {
     messageTxt.textContent = "";
     messageImg.removeAttribute("src");
     messageDiv.classList.add("hidden");
@@ -51,39 +41,49 @@ function showUsernameAvailabilityMessage(username) {
     return;
   }
 
-  messageTxt.textContent = "";
-  messageTxt.append('O apelido "');
+  const isAvailable = checkUsernameAvailability(username);
 
-  const strong = document.createElement("strong");
-  strong.textContent = username;
+  username = username.trim();
+  if (username.length >= 3) {
+    if (username.includes(" ")) {
+      checkUsernameInput();
+      return;
+    }
 
-  messageTxt.append(
-    strong,
-    `" ${isAvailable ? "está disponível" : "não está disponível"}`,
-  );
+    messageTxt.textContent = "";
+    messageTxt.append('O apelido "');
 
-  const textClass = isAvailable
-    ? "username-available-txt"
-    : "username-not-available-txt";
+    const strong = document.createElement("strong");
+    strong.textContent = username;
 
-  const imageSrc = isAvailable
-    ? "/assets/img/green_check.png"
-    : "/assets/img/red_x.png";
+    messageTxt.append(
+      strong,
+      `" ${isAvailable ? "está disponível" : "não está disponível"}`,
+    );
 
-  messageTxt.classList.remove(
-    "username-available-txt",
-    "username-not-available-txt",
-  );
-  messageTxt.classList.add(textClass);
+    const textClass = isAvailable
+      ? "username-available-txt"
+      : "username-not-available-txt";
 
-  messageImg.setAttribute("src", imageSrc);
+    const imageSrc = isAvailable
+      ? "/assets/img/green_check.png"
+      : "/assets/img/red_x.png";
 
-  if (!usernameInputErrorDiv.classList.contains("hidden")) {
-    usernameInputErrorDiv.classList.add("hidden")
+    messageTxt.classList.remove(
+      "username-available-txt",
+      "username-not-available-txt",
+    );
+    messageTxt.classList.add(textClass);
+
+    messageImg.setAttribute("src", imageSrc);
+
+    if (!usernameInputErrorDiv.classList.contains("hidden")) {
+      usernameInputErrorDiv.classList.add("hidden");
+    }
+
+    messageDiv.classList.remove("hidden");
+    messageDiv.classList.add("availabilityMessage");
   }
-
-  messageDiv.classList.remove("hidden");
-  messageDiv.classList.add("availabilityMessage");
 }
 
 const debouncedCheckUsernameAvailability = debounce((event) => {
