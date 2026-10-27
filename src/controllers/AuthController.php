@@ -108,4 +108,28 @@ final class AuthController extends Controller
         echo json_encode($resposta);
         exit; 
     }
+
+    public function checkEmailAvailability()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $email = request('email');
+
+            $email_exists = User::emailExists($email);
+
+            $resposta = [
+                'available' => !$email_exists
+            ];
+            http_response_code(200); // 200 - OK
+        } catch (Exception $e) {
+            $resposta = [
+                'status' => 'error',
+                'mensagem' => $e->getMessage()
+            ];
+            http_response_code(400); // 400 - Bad Request
+        }
+        echo json_encode($resposta);
+        exit; 
+    }
 }
