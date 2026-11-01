@@ -1,6 +1,4 @@
-import { checkUsernameInput } from "./check-username-register-input.js";
-
-function debounce(fn, delay) {
+export function debounce(fn, delay) {
   let timer;
   return function (...args) {
     clearTimeout(timer); // Cancela o timer anterior
@@ -12,28 +10,32 @@ function debounce(fn, delay) {
 
 export async function checkUsernameAvailability(username) {
   username = username.trim();
-  try {
-    const response = await fetch(
-      `/username-disponivel?username=${encodeURIComponent(username)}`,
-    );
-    if (!response.ok) {
-      throw new Error("Erro na requisição!");
+  if (!username) {
+    return false;
+  } else {
+    try {
+      const response = await fetch(
+        `/username-disponivel?username=${encodeURIComponent(username)}`,
+      );
+      if (!response.ok) {
+        throw new Error("Erro na requisição!");
+      }
+      const data = await response.json();
+      const username_available = data.available;
+      return username_available;
+    } catch (error) {
+      return error;
     }
-    const data = await response.json();
-    const username_available = data.available;
-    return username_available;
-  } catch (error) {
-    console.error("Erro ao buscar dados:", error);
   }
 }
 
 async function showUsernameAvailabilityMessage(username) {
-  const messageDiv = document.getElementById("availabilityMessage");
-  const messageTxt = document.getElementById("availabilityMessageTxt");
-  const messageImg = document.getElementById("availabilityMessageImg");
+  const messageDiv = document.getElementById("usernameAvailabilityMessage");
+  const messageTxt = document.getElementById("usernameAvailabilityMessageTxt");
+  const messageImg = document.getElementById("usernameAvailabilityMessageImg");
   const usernameInputErrorDiv = document.getElementById("usernameErrorMessage");
 
-  username = username.trim()
+  username = username.trim();
 
   if (!username || username.length < 3) {
     messageTxt.textContent = "";
@@ -44,6 +46,16 @@ async function showUsernameAvailabilityMessage(username) {
   }
 
   const isAvailable = await checkUsernameAvailability(username);
+
+  if (isAvailable instanceof Error) {
+    messageTxt.textContent =
+      "Não foi possível identificar a disponibilidade do apelido. Tente novamente";
+    messageImg.setAttribute("src", "/assets/img/red_x.png");
+    messageTxt.classList.add("username-not-available-txt");
+    messageDiv.classList.add("availabilityMessage");
+    messageDiv.classList.remove("hidden");
+    return;
+  }
 
   if (username.length >= 3) {
     if (username.includes(" ")) {
@@ -63,16 +75,16 @@ async function showUsernameAvailabilityMessage(username) {
     );
 
     const textClass = isAvailable
-      ? "username-available-txt"
-      : "username-not-available-txt";
+      ? "field-available-txt"
+      : "field-not-available-txt";
 
     const imageSrc = isAvailable
       ? "/assets/img/green_check.png"
       : "/assets/img/red_x.png";
 
     messageTxt.classList.remove(
-      "username-available-txt",
-      "username-not-available-txt",
+      "field-available-txt",
+      "field-not-available-txt",
     );
     messageTxt.classList.add(textClass);
 
