@@ -169,6 +169,10 @@ final class User
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return false;
         }
+
+        if (!preg_match('/^[^\s@]+@[^\s@]+\.[^\s@]+$/', $email)) {
+            return false;
+        }
         
         if (mb_strlen($password) < 8 || // mínimo de 8 caracteres
             !preg_match('/[^a-zA-Z0-9]/', $password) || // verifica se NÃO tem caractere especial
@@ -186,6 +190,9 @@ final class User
 
         $id = self::create($username, $email, $password);
         AuthService::login($id);
-        return true;
+
+        $registerResponse = true;
+
+        return $registerResponse;
     }
 }

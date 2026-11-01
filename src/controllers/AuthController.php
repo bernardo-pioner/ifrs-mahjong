@@ -45,7 +45,8 @@ final class AuthController extends Controller
             'user' => null,
             'currentPath' => '/cadastro',
             'username' => '',
-            'email' => ''
+            'email' => '',
+            'registerResponse' => null,
         ]);
     }
 
@@ -65,8 +66,9 @@ final class AuthController extends Controller
                 'title' => 'Cadastro',
                 'user' => null,
                 'currentPath' => '/cadastro',
-                'username' => $username,
-                'email' => $email
+                'username' => '',
+                'email' => '',
+                'registerResponse' => $registerResponse,
             ]);
             return;
         }
