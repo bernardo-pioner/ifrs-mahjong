@@ -592,10 +592,25 @@ body.is-guest .lede {
     background-color: #f1f1ae;
 }
 
-.username-available-txt {
+.field-available-txt {
     background-color: #dcf8dc;
 }
 
-.username-not-available-txt {
+.field-not-available-txt {
     background-color: #f8dcdc;
+}
+
+#passwordInputDiv {
+    display: flex;
+    position: relative;
+}
+
+#password-visibility-icon{
+    width: auto;
+    height: 16px;
+    right: 12px;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
 }
