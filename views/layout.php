@@ -86,7 +86,7 @@ $navItems = [
                     <span class="icon icon-menu" aria-hidden="true"></span>
                     Menu
                 </button>
-                <span class="session-name"><?= e($user['name']) ?></span>
+                <span class="session-name"><?= e($user['username']) ?></span>
             </header>
 
             <?php if ($flash): ?>

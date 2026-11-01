@@ -498,10 +498,15 @@ body.is-guest .lede {
 }
 
 .form-errors {
-    margin: 0 0 1rem;
-    padding: 0.75rem 0.75rem 0.75rem 1.2rem;
+    display: flex;
+    margin: 0.62rem 0 0.62rem 0;
     background: rgba(156, 43, 26, 0.08);
     color: var(--lacquer-dark);
+    border-radius: 0.5rem;
+}
+
+.register-error {
+    padding: 10px;
 }
 
 .button {
@@ -570,4 +575,51 @@ body.is-guest .lede {
     body.sidebar-open .sidebar-backdrop {
         display: block;
     }
+}
+
+.availabilityMessage {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.message-icon-img {
+    height: 16px;
+    width: auto;
+}
+
+.register-input-msg {
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.register-input-error {
+    background-color: #f1f1ae;
+}
+
+.field-available-txt {
+    background-color: #dcf8dc;
+}
+
+.field-not-available-txt {
+    background-color: #f8dcdc;
+}
+
+#passwordInputDiv {
+    display: flex;
+    position: relative;
+}
+
+#password-visibility-icon{
+    width: auto;
+    height: 16px;
+    right: 12px;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
 }

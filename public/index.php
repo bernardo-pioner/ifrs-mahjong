@@ -26,6 +26,8 @@ $router->post('/login', [$auth, 'login']);
 $router->get('/cadastro', [$auth, 'showRegister']);
 $router->post('/cadastro', [$auth, 'register']);
 $router->post('/logout', [$auth, 'logout']);
+$router->get('/username-disponivel', [$auth, 'checkUsernameAvailability']);
+$router->get('/email-disponivel', [$auth, 'checkEmailAvailability']);
 
 $router->get('/', [$dashboard, 'index']);
 $router->get('/eventos', [$events, 'index']);
