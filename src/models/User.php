@@ -171,9 +171,8 @@ final class User
             return ['Este e-mail já está cadastrado. Faça login para acessar nossa plataforma!'];
         }
 
-        EmailService::sendTestEmail($email, $name);
-
         $id = self::create($name, $email, $password);
+        EmailService::sendEmailConfirmationLink($email, $name);
         AuthService::login($id);
 
         return [];
