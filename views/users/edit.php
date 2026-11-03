@@ -1,4 +1,3 @@
-
 <?php
 /** @var array<string, mixed> $targetUser */
 /** @var list<string> $errors */
@@ -44,11 +43,7 @@ $statusWillBeActive = $pendingStatus === 'keep'
     >
         <?= csrfField() ?>
 
-        <input
-            type="hidden"
-            name="id"
-            value="<?= (int) $targetUser['id'] ?>"
-        >
+        <input type="hidden" name="id" value="<?= (int) $targetUser['id'] ?>">
 
         <input
             type="hidden"
@@ -64,6 +59,7 @@ $statusWillBeActive = $pendingStatus === 'keep'
             value="<?= e($pendingStatus) ?>"
         >
 
+        <!-- Dados atuais -->
         <div class="profile-section">
             <h2>Dados atuais</h2>
             <p class="lede">
@@ -83,71 +79,36 @@ $statusWillBeActive = $pendingStatus === 'keep'
 
                 <div>
                     <span class="profile-label">Permissão</span>
-
-                    <div class="profile-inline-info">
-                        <p id="role-display">
-                            <?= $roleWillBeAdmin
-                                ? 'Administrador'
-                                : 'Participante' ?>
-                            <?php if ($pendingRole !== 'keep'): ?>
-                                (alteração pendente)
-                            <?php endif; ?>
-                        </p>
-
-                        <?php if ((int) $targetUser['id'] !== (int) $user['id']): ?>
-                            <button
-                                type="button"
-                                id="role-toggle"
-                                class="button <?= $isAdmin
-                                    ? 'button-danger'
-                                    : 'button-promote' ?>"
-                            >
-                                <?= $pendingRole !== 'keep'
-                                    ? 'Desfazer'
-                                    : ($isAdmin
-                                        ? 'Remover privilégios de administrador'
-                                        : 'Tornar administrador') ?>
-                            </button>
+                    <p id="role-display">
+                        <?= $roleWillBeAdmin
+                            ? 'Administrador'
+                            : 'Participante' ?>
+                        <?php if ($pendingRole !== 'keep'): ?>
+                            (alteração pendente)
                         <?php endif; ?>
-                    </div>
+                    </p>
                 </div>
 
                 <div>
                     <span class="profile-label">Status</span>
-
-                    <div class="profile-inline-info">
-                        <span
-                            id="status-display"
-                            class="status <?= $statusWillBeActive
-                                ? 'is-on'
-                                : 'is-off' ?>"
-                        >
-                            <?= $statusWillBeActive ? 'Ativo' : 'Inativo' ?>
-                            <?php if ($pendingStatus !== 'keep'): ?>
-                                (alteração pendente)
-                            <?php endif; ?>
-                        </span>
-
-                        <?php if ((int) $targetUser['id'] !== (int) $user['id']): ?>
-                            <button
-                                type="button"
-                                id="status-toggle"
-                                class="button <?= $isActive
-                                    ? 'button-danger'
-                                    : 'button-reactivate' ?>"
-                            >
-                                <?= $pendingStatus !== 'keep'
-                                    ? 'Desfazer'
-                                    : ($isActive
-                                        ? 'Inativar perfil'
-                                        : 'Reativar perfil') ?>
-                            </button>
+                    <span
+                        id="status-display"
+                        class="status <?= $statusWillBeActive
+                            ? 'is-on'
+                            : 'is-off' ?>"
+                    >
+                        <?= $statusWillBeActive ? 'Ativo' : 'Inativo' ?>
+                        <?php if ($pendingStatus !== 'keep'): ?>
+                            (alteração pendente)
                         <?php endif; ?>
-                    </div>
+                    </span>
                 </div>
             </div>
         </div>
 
+        <div class="profile-divider"></div>
+
+        <!-- Novos dados -->
         <div class="profile-section">
             <h2>Novos dados</h2>
             <p class="lede">
@@ -176,16 +137,88 @@ $statusWillBeActive = $pendingStatus === 'keep'
                     required
                 >
             </label>
+        </div>
 
-            <div class="profile-actions">
-                <a href="/usuarios" class="button button-secondary">
-                    Cancelar
-                </a>
+        <div class="profile-divider"></div>
 
-                <button type="submit" class="button">
-                    Salvar alterações
-                </button>
-            </div>
+        <!-- Permissão e status -->
+        <div class="profile-section">
+            <h2>Permissão e status</h2>
+            <p class="lede">
+                Gerencie o nível de acesso e a situação da conta.
+                As alterações só serão aplicadas ao salvar.
+            </p>
+
+            <?php if ((int) $targetUser['id'] !== (int) $user['id']): ?>
+                <div class="profile-management-actions">
+
+                    <div class="profile-management-item">
+                        <div class="profile-management-info">
+                            <strong>Permissão</strong>
+                            <span>
+                                <?= $roleWillBeAdmin
+                                    ? 'Administrador'
+                                    : 'Participante' ?>
+                            </span>
+                        </div>
+
+                        <button
+                            type="button"
+                            id="role-toggle"
+                            class="button <?= $isAdmin
+                                ? 'button-danger'
+                                : 'button-promote' ?>"
+                        >
+                            <?= $pendingRole !== 'keep'
+                                ? 'Desfazer'
+                                : ($isAdmin
+                                    ? 'Remover privilégios de administrador'
+                                    : 'Tornar administrador') ?>
+                        </button>
+                    </div>
+
+                    <div class="profile-management-item">
+                        <div class="profile-management-info">
+                            <strong>Status</strong>
+                            <span>
+                                <?= $statusWillBeActive
+                                    ? 'Ativo'
+                                    : 'Inativo' ?>
+                            </span>
+                        </div>
+
+                        <button
+                            type="button"
+                            id="status-toggle"
+                            class="button <?= $isActive
+                                ? 'button-danger'
+                                : 'button-reactivate' ?>"
+                        >
+                            <?= $pendingStatus !== 'keep'
+                                ? 'Desfazer'
+                                : ($isActive
+                                    ? 'Inativar perfil'
+                                    : 'Reativar perfil') ?>
+                        </button>
+                    </div>
+
+                </div>
+            <?php else: ?>
+                <p class="profile-management-notice">
+                    Não é possível alterar a própria permissão ou o próprio status.
+                </p>
+            <?php endif; ?>
+        </div>
+
+        <!-- Ações finais -->
+        <div class="profile-actions">
+            <a href="/usuarios" class="button button-secondary">
+                Cancelar
+            </a>
+
+            <button type="submit" class="button">
+                Salvar alterações
+            </button>
         </div>
     </form>
 </div>
@@ -211,8 +244,10 @@ $statusWillBeActive = $pendingStatus === 'keep'
                 ? false
                 : isAdmin;
 
+        const roleText = makeAdmin ? 'Administrador' : 'Participante';
+
         roleDisplay.textContent =
-            (makeAdmin ? 'Administrador' : 'Participante') +
+            roleText +
             (roleAction.value !== 'keep'
                 ? ' (alteração pendente)'
                 : '');

@@ -1034,3 +1034,88 @@ button.btn-delete-user svg {
 @media (max-width: 600px) { .data-table th, .data-table td { padding: 0.7rem 0.65rem; }
 
 .data-table th.actions-column, .data-table td.actions-column { width: 60px; } }
+
+
+/* Alinhamento dos textos explicativos na edição de perfil */
+.profile-section .lede {
+    max-width: none;
+    margin: 0 0 0.5rem;
+    text-align: left;
+}
+
+/* Espaçamento entre os campos da edição de perfil */
+.profile-section label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+}
+
+/* Separação entre as seções do perfil */
+.profile-divider {
+    height: 1px;
+    background: rgba(28, 36, 28, 0.12);
+    margin: 1.8rem 0;
+}
+
+/* Área de gerenciamento de permissão e status */
+.profile-management-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1.3rem;
+    max-width: 650px;
+}
+
+/* Cada linha de gerenciamento */
+.profile-management-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 0.5rem 0;
+}
+
+/* Informações da permissão e status */
+.profile-management-info {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    min-width: 230px;
+}
+
+.profile-management-info strong {
+    min-width: 90px;
+}
+
+.profile-management-info span {
+    color: var(--ink-soft);
+}
+
+/* Botões de gerenciamento */
+.profile-management-item .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    min-width: 190px;
+}
+
+/* Aviso para o próprio perfil */
+.profile-management-notice {
+    color: var(--ink-soft);
+    margin-top: 1rem;
+}
+
+/* Ajuste para telas menores */
+@media (max-width: 600px) {
+    .profile-management-item {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+
+    .profile-management-info {
+        flex-wrap: wrap;
+    }
+}
