@@ -23,7 +23,7 @@ final class EmailService
         return (bool) $stmt->fetch();
     }
 
-    public static function sendTestEmail(
+    public static function sendEmailConfirmationLink(
         string $email,
         string $name
     ): bool {
@@ -43,15 +43,15 @@ final class EmailService
             // Use o endereço autenticado como remetente.
             $mail->setFrom(
                 getenv('SMTP_USERNAME'),
-                'Minha Plataforma'
+                'Clube de Mahjong POA'
             );
 
             $mail->addAddress($email, $name);
 
             $mail->isHTML(true);
-            $mail->Subject = 'Teste de envio de e-mail';
-            $mail->Body = '<h1>Olá!</h1><p>O envio funcionou.</p>';
-            $mail->AltBody = 'Olá! O envio de e-mail funcionou.';
+            $mail->Subject = 'Verifique seu e-mail';
+            $mail->Body = '<p>Olá, seja bem-vindo(a) ao clube!</p> <p>Estamos muito felizes com a sua inscrição. Clique no link abaixo para confirmar seu cadastro</p> <p>Link:</p>';
+            $mail->AltBody = 'Olá, seja bem-vindo(a) ao clube! Estamos muito felizes com a sua inscrição. Clique no link abaixo para confirmar seu cadastro Link:';
 
             $mail->send();
 
