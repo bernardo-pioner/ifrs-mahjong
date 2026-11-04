@@ -200,3 +200,91 @@ CREATE INDEX IF NOT EXISTS idx_rankings_usuario ON rankings(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_rankings_competitivos_torneio ON rankings_competitivos(torneio_id);
 CREATE INDEX IF NOT EXISTS idx_rankings_casuais_encontro ON rankings_casuais(encontro_id);
 CREATE INDEX IF NOT EXISTS idx_pagamentos_evento ON pagamentos(evento_id);
+
+/*
+-- ============================================
+-- DADOS DE TESTE: PARTIDA CASUAL
+-- ============================================
+
+-- Criar encontro de teste, caso ainda não exista
+INSERT INTO eventos (
+    admin_id,
+    tipo,
+    titulo,
+    descricao,
+    local
+)
+SELECT
+    usuario_id,
+    'encontro',
+    'Encontro de teste',
+    'Encontro criado para testar a tela de partidas.',
+    'Sala do clube'
+FROM admins
+ORDER BY usuario_id
+LIMIT 1;
+
+-- Criar o registro específico do encontro
+INSERT INTO encontros (
+    evento_id,
+    quantidade_mesas,
+    aberto_publico,
+    observacoes
+)
+SELECT
+    id,
+    4,
+    1,
+    'Encontro para teste de partidas casuais.'
+FROM eventos
+WHERE titulo = 'Encontro de teste'
+  AND tipo = 'encontro'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM encontros en
+      WHERE en.evento_id = eventos.id
+  );
+
+-- Criar uma partida casual vinculada ao encontro
+
+-- Criar uma partida casual de teste somente se ela não existir
+INSERT INTO partidas (
+    modalidade,
+    tipo,
+    status,
+    mesa,
+    observacoes
+)
+SELECT
+    'riichi',
+    'casual',
+    'agendada',
+    'Mesa 1',
+    'Partida casual para teste da interface.'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM partidas
+    WHERE observacoes = 'Partida casual para teste da interface.'
+      AND tipo = 'casual'
+);
+
+-- Vincular a partida ao encontro sem duplicar o vínculo
+INSERT INTO partidas_casuais (
+    partida_id,
+    encontro_id,
+    duracao_minutos
+)
+SELECT
+    p.id,
+    en.evento_id,
+    60
+FROM partidas p
+JOIN encontros en
+    ON en.observacoes = 'Encontro para teste de partidas casuais.'
+WHERE p.observacoes = 'Partida casual para teste da interface.'
+  AND p.tipo = 'casual'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM partidas_casuais pc
+      WHERE pc.partida_id = p.id
+  );
