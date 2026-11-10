@@ -7,7 +7,10 @@
 /** @var string $currentPath */
 $isGuest = $user === null;
 $isAdmin = isAdmin($user);
-$brandRole = $isAdmin ? 'Admin' : (is_array($user) ? (string) ($user['name'] ?? 'Participante') : 'Participante');
+$userName = is_array($user) ? userDisplayName($user) : 'Participante';
+$userRole = $isAdmin ? 'Admin' : 'Participante';
+$userPhoto = is_array($user) ? userPhotoUrl($user) : null;
+$logoUrl = clubLogoUrl();
 $navItems = [
     ['href' => '/', 'label' => 'Dashboard', 'icon' => 'icon-dashboard', 'adminOnly' => false],
     ['href' => '/eventos', 'label' => 'Eventos', 'icon' => 'icon-calendar', 'adminOnly' => false],
@@ -23,15 +26,19 @@ $navItems = [
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($title) ?> · <?= e($appName) ?></title>
+    <link rel="icon" href="<?= e($logoUrl) ?>" type="image/png">
     <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body class="<?= $isGuest ? 'is-guest' : 'is-app' ?>">
     <?php if ($isGuest): ?>
         <div class="shell">
             <header class="guest-brand">
-                <a class="brand" href="/login">
-                    <span class="brand-mark" aria-hidden="true">M</span>
-                    <span class="brand-text">Mahjong</span>
+                <a class="brand" href="/login" aria-label="<?= e($appName) ?>">
+                    <img class="brand-logo" src="<?= e($logoUrl) ?>" alt="">
+                    <span class="brand-copy">
+                        <span class="brand-text">Mahjong</span>
+                        <span class="brand-role">Clube</span>
+                    </span>
                 </a>
             </header>
             <?php if ($flash): ?>
@@ -43,11 +50,11 @@ $navItems = [
         </div>
     <?php else: ?>
         <aside class="sidebar" id="sidebar">
-            <a class="brand" href="/">
-                <span class="brand-mark" aria-hidden="true">M</span>
+            <a class="brand" href="/" aria-label="<?= e($appName) ?>">
+                <img class="brand-logo" src="<?= e($logoUrl) ?>" alt="">
                 <span class="brand-copy">
                     <span class="brand-text">Mahjong</span>
-                    <span class="brand-role<?= $isAdmin ? '' : ' is-user-name' ?>"><?= e($brandRole) ?></span>
+                    <span class="brand-role">Clube</span>
                 </span>
             </a>
 
@@ -70,6 +77,22 @@ $navItems = [
                         <span>Voltar ao app</span>
                     </a>
                 <?php endif; ?>
+                <div class="user-card">
+                    <span class="user-card-avatar" aria-hidden="true">
+                        <?php if ($userPhoto): ?>
+                            <img src="<?= e($userPhoto) ?>" alt="">
+                        <?php else: ?>
+                            <span class="icon icon-user"></span>
+                        <?php endif; ?>
+                    </span>
+                    <span class="user-card-copy">
+                        <span class="user-card-name"><?= e($userName) ?></span>
+                        <span class="user-card-role"><?= e($userRole) ?></span>
+                    </span>
+                    <a class="user-card-settings<?= $currentPath === '/perfil' ? ' is-active' : '' ?>" href="/perfil" aria-label="Configurações de Bio" title="Configurações de Bio">
+                        <span class="icon icon-gear" aria-hidden="true"></span>
+                    </a>
+                </div>
                 <form method="post" action="/logout">
                     <?= csrfField() ?>
                     <button type="submit" class="sidebar-logout">
@@ -86,6 +109,10 @@ $navItems = [
                     <span class="icon icon-menu" aria-hidden="true"></span>
                     Menu
                 </button>
+                <span class="session-chip">
+                    <img class="brand-logo is-compact" src="<?= e($logoUrl) ?>" alt="">
+                    <span class="session-name"><?= e($userName) ?></span>
+                </span>
                 <span class="session-name"><?= e($user['username']) ?></span>
             </header>
 
