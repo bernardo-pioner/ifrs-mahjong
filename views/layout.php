@@ -6,6 +6,19 @@
 /** @var array|null $flash */
 /** @var string $currentPath */
 $isGuest = $user === null;
+$isAdmin = isAdmin($user);
+$userName = is_array($user) ? userDisplayName($user) : 'Participante';
+$userRole = $isAdmin ? 'Admin' : 'Participante';
+$userPhoto = is_array($user) ? userPhotoUrl($user) : null;
+$logoUrl = clubLogoUrl();
+$navItems = [
+    ['href' => '/', 'label' => 'Dashboard', 'icon' => 'icon-dashboard', 'adminOnly' => false],
+    ['href' => '/eventos', 'label' => 'Eventos', 'icon' => 'icon-calendar', 'adminOnly' => false],
+    ['href' => '/partidas', 'label' => 'Partidas', 'icon' => 'icon-layers', 'adminOnly' => false],
+    ['href' => '/rankings', 'label' => 'Rankings', 'icon' => 'icon-chart', 'adminOnly' => false],
+    ['href' => '/usuarios', 'label' => 'Usuários', 'icon' => 'icon-user-search', 'adminOnly' => true],
+    ['href' => '/configuracoes', 'label' => 'Configurações', 'icon' => 'icon-sliders', 'adminOnly' => true],
+];
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -13,15 +26,19 @@ $isGuest = $user === null;
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($title) ?> · <?= e($appName) ?></title>
+    <link rel="icon" href="<?= e($logoUrl) ?>" type="image/png">
     <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body class="<?= $isGuest ? 'is-guest' : 'is-app' ?>">
     <?php if ($isGuest): ?>
         <div class="shell">
             <header class="guest-brand">
-                <a class="brand" href="/login">
-                    <span class="brand-mark" aria-hidden="true">M</span>
-                    <span class="brand-text">Mahjong</span>
+                <a class="brand" href="/login" aria-label="<?= e($appName) ?>">
+                    <img class="brand-logo" src="<?= e($logoUrl) ?>" alt="">
+                    <span class="brand-copy">
+                        <span class="brand-text">Mahjong</span>
+                        <span class="brand-role">Clube</span>
+                    </span>
                 </a>
             </header>
             <?php if ($flash): ?>
@@ -33,58 +50,49 @@ $isGuest = $user === null;
         </div>
     <?php else: ?>
         <aside class="sidebar" id="sidebar">
-            <a class="brand" href="/">
-                <span class="brand-mark" aria-hidden="true">M</span>
+            <a class="brand" href="/" aria-label="<?= e($appName) ?>">
+                <img class="brand-logo" src="<?= e($logoUrl) ?>" alt="">
                 <span class="brand-copy">
                     <span class="brand-text">Mahjong</span>
-                    <span class="brand-role">Admin</span>
+                    <span class="brand-role">Clube</span>
                 </span>
             </a>
 
             <nav id="main-nav" class="nav">
-                <a href="/" class="<?= isActivePath($currentPath, '/') ? 'is-active' : '' ?>">
-                    <span class="icon icon-dashboard" aria-hidden="true"></span>
-                    <span>Dashboard</span>
-                </a>
-                <a href="/torneios" class="<?= isActivePath($currentPath, '/torneios') ? 'is-active' : '' ?>">
-                    <span class="icon icon-trophy" aria-hidden="true"></span>
-                    <span>Torneios</span>
-                </a>
-                <a href="/eventos" class="<?= isActivePath($currentPath, '/eventos') ? 'is-active' : '' ?>">
-                    <span class="icon icon-calendar" aria-hidden="true"></span>
-                    <span>Eventos</span>
-                </a>
-                <a href="/partidas" class="<?= isActivePath($currentPath, '/partidas') ? 'is-active' : '' ?>">
-                    <span class="icon icon-layers" aria-hidden="true"></span>
-                    <span>Partidas</span>
-                </a>
-                <a href="/participantes" class="<?= isActivePath($currentPath, '/participantes') ? 'is-active' : '' ?>">
-                    <span class="icon icon-users" aria-hidden="true"></span>
-                    <span>Participantes</span>
-                </a>
-                <a href="/rankings" class="<?= isActivePath($currentPath, '/rankings') ? 'is-active' : '' ?>">
-                    <span class="icon icon-chart" aria-hidden="true"></span>
-                    <span>Rankings</span>
-                </a>
-                <a href="/noticias" class="<?= isActivePath($currentPath, '/noticias') ? 'is-active' : '' ?>">
-                    <span class="icon icon-news" aria-hidden="true"></span>
-                    <span>Notícias</span>
-                </a>
-                <a href="/usuarios" class="<?= isActivePath($currentPath, '/usuarios') ? 'is-active' : '' ?>">
-                    <span class="icon icon-user-search" aria-hidden="true"></span>
-                    <span>Usuários</span>
-                </a>
-                <a href="/configuracoes" class="<?= isActivePath($currentPath, '/configuracoes') ? 'is-active' : '' ?>">
-                    <span class="icon icon-sliders" aria-hidden="true"></span>
-                    <span>Configurações</span>
-                </a>
+                <?php foreach ($navItems as $item): ?>
+                    <?php if ($item['adminOnly'] && !$isAdmin) {
+                        continue;
+                    } ?>
+                    <a href="<?= e($item['href']) ?>" class="<?= isActivePath($currentPath, $item['href']) ? 'is-active' : '' ?>">
+                        <span class="icon <?= e($item['icon']) ?>" aria-hidden="true"></span>
+                        <span><?= e($item['label']) ?></span>
+                    </a>
+                <?php endforeach; ?>
             </nav>
 
             <div class="sidebar-foot">
-                <a href="/app">
-                    <span class="icon icon-back" aria-hidden="true"></span>
-                    <span>Voltar ao app</span>
-                </a>
+                <?php if ($isAdmin): ?>
+                    <a href="/app">
+                        <span class="icon icon-back" aria-hidden="true"></span>
+                        <span>Voltar ao app</span>
+                    </a>
+                <?php endif; ?>
+                <div class="user-card">
+                    <span class="user-card-avatar" aria-hidden="true">
+                        <?php if ($userPhoto): ?>
+                            <img src="<?= e($userPhoto) ?>" alt="">
+                        <?php else: ?>
+                            <span class="icon icon-user"></span>
+                        <?php endif; ?>
+                    </span>
+                    <span class="user-card-copy">
+                        <span class="user-card-name"><?= e($userName) ?></span>
+                        <span class="user-card-role"><?= e($userRole) ?></span>
+                    </span>
+                    <a class="user-card-settings<?= $currentPath === '/perfil' ? ' is-active' : '' ?>" href="/perfil" aria-label="Configurações de Bio" title="Configurações de Bio">
+                        <span class="icon icon-gear" aria-hidden="true"></span>
+                    </a>
+                </div>
                 <form method="post" action="/logout">
                     <?= csrfField() ?>
                     <button type="submit" class="sidebar-logout">
@@ -101,7 +109,11 @@ $isGuest = $user === null;
                     <span class="icon icon-menu" aria-hidden="true"></span>
                     Menu
                 </button>
-                <span class="session-name"><?= e($user['name']) ?></span>
+                <span class="session-chip">
+                    <img class="brand-logo is-compact" src="<?= e($logoUrl) ?>" alt="">
+                    <span class="session-name"><?= e($userName) ?></span>
+                </span>
+                <span class="session-name"><?= e($user['username']) ?></span>
             </header>
 
             <?php if ($flash): ?>

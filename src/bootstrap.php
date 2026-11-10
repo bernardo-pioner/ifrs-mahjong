@@ -92,14 +92,14 @@ function verifyCsrf(): void
     }
 }
 
-function view(string $name, array $data = []): void
+function view(string $viewName, array $data = []): void
 {
     $data['flash'] = $data['flash'] ?? takeFlash();
     $data['appName'] = $data['appName'] ?? (string) config('app_name');
     extract($data, EXTR_SKIP);
 
     ob_start();
-    require ROOT_PATH . '/views/' . $name . '.php';
+    require ROOT_PATH . '/views/' . $viewName . '.php';
     $content = ob_get_clean();
 
     require ROOT_PATH . '/views/layout.php';
@@ -115,4 +115,50 @@ function request(string $key, string $default = ''): string
 function isActivePath(string $currentPath, string $path): bool
 {
     return $currentPath === $path;
+}
+
+function isAdmin(?array $user): bool
+{
+    return ($user['role'] ?? '') === 'admin';
+}
+
+function clubLogoUrl(): string
+{
+    return '/assets/images/' . rawurlencode('logo mini.png');
+}
+
+function userFirstName(?array $user): string
+{
+    $name = userDisplayName($user);
+    if ($name === 'Participante') {
+        return $name;
+    }
+
+    return explode(' ', $name)[0];
+}
+
+function userDisplayName(?array $user): string
+{
+    $nickname = trim((string) ($user['nickname'] ?? ''));
+    if ($nickname !== '') {
+        return $nickname;
+    }
+
+    $name = trim((string) ($user['name'] ?? ''));
+
+    return $name !== '' ? $name : 'Participante';
+}
+
+function userPhotoUrl(?array $user): ?string
+{
+    $photo = trim((string) ($user['photo'] ?? ''));
+    if ($photo === '' || str_contains($photo, '..')) {
+        return null;
+    }
+
+    if (!str_starts_with($photo, '/uploads/avatars/')) {
+        return null;
+    }
+
+    return $photo;
 }

@@ -49,7 +49,7 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Nome</th>
+                    <th>Apelido</th>
                     <th>E-mail</th>
                     <th>Permissão</th>
                     <th>Status</th>
@@ -84,6 +84,10 @@
                             <?= $isAdmin ? 'Administrador' : 'Participante' ?>
                         </td>
 
+                    <tr>
+                        <td><?= e((string) ($row['username'] ?? '')) ?></td>
+                        <td><?= e((string) ($row['email'] ?? '')) ?></td>
+                        <td><?= $isAdmin ? 'Administrador' : 'Participante' ?></td>
                         <td>
                             <span class="status <?= $isActive ? 'is-on' : 'is-off' ?>">
                                 <?= $isActive ? 'Ativo' : 'Inativo' ?>

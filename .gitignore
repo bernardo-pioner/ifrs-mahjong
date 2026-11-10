@@ -1,3 +1,7 @@
+# Uploads de perfil
+/public/uploads/avatars/*
+!/public/uploads/avatars/.gitkeep
+
 # SQLite local
 /data/*.sqlite
 /data/*.sqlite-journal
