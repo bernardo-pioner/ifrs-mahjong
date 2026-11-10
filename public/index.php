@@ -41,6 +41,9 @@ $router->get('/partidas', [$matches, 'index']);
 $router->get('/rankings', [$rankings, 'index']);
 
 $router->get('/usuarios', [$users, 'index']);
+$router->get('/usuarios/editar', [$users, 'edit']);
+$router->post('/usuarios/editar', [$users, 'update']);
+$router->post('/users/delete', [$users, 'delete']);
 $router->get('/perfil', [$users, 'bio']);
 $router->post('/perfil', [$users, 'updateBio']);
 $router->get('/configuracoes', [$pages, 'configuracoes']);
