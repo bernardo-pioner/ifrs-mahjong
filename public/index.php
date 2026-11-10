@@ -31,6 +31,12 @@ $router->get('/email-disponivel', [$auth, 'checkEmailAvailability']);
 
 $router->get('/', [$dashboard, 'index']);
 $router->get('/eventos', [$events, 'index']);
+$router->get('/eventos/novo', [$events, 'create']);
+$router->post('/eventos/novo', [$events, 'store']);
+$router->get('/eventos/{id}/editar', [$events, 'edit']);
+$router->post('/eventos/{id}/editar', [$events, 'update']);
+$router->get('/eventos/{id}', [$events, 'show']);
+$router->post('/eventos/{id}/excluir', [$events, 'destroy']);
 $router->get('/partidas', [$matches, 'index']);
 $router->get('/rankings', [$rankings, 'index']);
 
