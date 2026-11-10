@@ -15,7 +15,7 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Nome</th>
+                    <th>Apelido</th>
                     <th>E-mail</th>
                     <th>Papel</th>
                     <th>Status</th>
@@ -28,7 +28,7 @@
                     $isActive = (int) ($row['active'] ?? 0) === 1;
                     ?>
                     <tr>
-                        <td><?= e((string) ($row['name'] ?? '')) ?></td>
+                        <td><?= e((string) ($row['username'] ?? '')) ?></td>
                         <td><?= e((string) ($row['email'] ?? '')) ?></td>
                         <td><?= $isAdmin ? 'Administrador' : 'Participante' ?></td>
                         <td>
