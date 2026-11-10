@@ -92,14 +92,14 @@ function verifyCsrf(): void
     }
 }
 
-function view(string $name, array $data = []): void
+function view(string $viewName, array $data = []): void
 {
     $data['flash'] = $data['flash'] ?? takeFlash();
     $data['appName'] = $data['appName'] ?? (string) config('app_name');
     extract($data, EXTR_SKIP);
 
     ob_start();
-    require ROOT_PATH . '/views/' . $name . '.php';
+    require ROOT_PATH . '/views/' . $viewName . '.php';
     $content = ob_get_clean();
 
     require ROOT_PATH . '/views/layout.php';

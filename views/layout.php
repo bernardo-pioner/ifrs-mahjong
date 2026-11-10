@@ -113,6 +113,7 @@ $navItems = [
                     <img class="brand-logo is-compact" src="<?= e($logoUrl) ?>" alt="">
                     <span class="session-name"><?= e($userName) ?></span>
                 </span>
+                <span class="session-name"><?= e($user['username']) ?></span>
             </header>
 
             <?php if ($flash): ?>

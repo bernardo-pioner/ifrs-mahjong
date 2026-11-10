@@ -44,9 +44,9 @@ final class AuthController extends Controller
             'title' => 'Cadastro',
             'user' => null,
             'currentPath' => '/cadastro',
-            'name' => '',
+            'username' => '',
             'email' => '',
-            'errors' => [],
+            'registerResponse' => null,
         ]);
     }
 
@@ -55,20 +55,20 @@ final class AuthController extends Controller
         $this->guestOnly();
         verifyCsrf();
 
-        $name = request('name');
+        $username = request('username');
         $email = request('email');
         $password = $_POST['password'] ?? '';
         $password = is_string($password) ? $password : '';
 
-        $errors = User::register($name, $email, $password);
-        if ($errors !== []) {
+        $registerResponse = User::register($username, $email, $password);
+        if (!$registerResponse) {
             $this->view('auth/register', [
                 'title' => 'Cadastro',
                 'user' => null,
                 'currentPath' => '/cadastro',
-                'name' => $name,
-                'email' => $email,
-                'errors' => $errors,
+                'username' => '',
+                'email' => '',
+                'registerResponse' => $registerResponse,
             ]);
             return;
         }
@@ -83,5 +83,53 @@ final class AuthController extends Controller
         verifyCsrf();
         AuthService::logout();
         redirect('/login');
+    }
+
+    public function checkUsernameAvailability()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $username = request('username');
+
+            $username_exists = User::usernameExists($username);
+
+            $resposta = [
+                'available' => !$username_exists
+            ];
+            http_response_code(200); // 200 - OK
+        } catch (Exception $e) {
+            $resposta = [
+                'status' => 'error',
+                'mensagem' => $e->getMessage()
+            ];
+            http_response_code(400); // 400 - Bad Request
+        }
+        echo json_encode($resposta);
+        exit; 
+    }
+
+    public function checkEmailAvailability()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $email = request('email');
+
+            $email_exists = User::emailExists($email);
+
+            $resposta = [
+                'available' => !$email_exists
+            ];
+            http_response_code(200); // 200 - OK
+        } catch (Exception $e) {
+            $resposta = [
+                'status' => 'error',
+                'mensagem' => $e->getMessage()
+            ];
+            http_response_code(400); // 400 - Bad Request
+        }
+        echo json_encode($resposta);
+        exit; 
     }
 }

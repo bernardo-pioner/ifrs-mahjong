@@ -8,7 +8,7 @@ final class User
     {
         $stmt = db()->prepare(
             'SELECT u.id,
-                    u.nome AS name,
+                    u.apelido AS username,
                     u.email,
                     u.ativo AS active,
                     p.apelido AS nickname,
@@ -32,13 +32,13 @@ final class User
     {
         $stmt = db()->query(
             'SELECT u.id,
-                    u.nome AS name,
+                    u.apelido AS username,
                     u.email,
                     u.ativo AS active,
                     CASE WHEN a.usuario_id IS NOT NULL THEN \'admin\' ELSE \'member\' END AS role
              FROM usuarios u
              LEFT JOIN admins a ON a.usuario_id = u.id
-             ORDER BY u.nome COLLATE NOCASE'
+             ORDER BY u.apelido COLLATE NOCASE'
         );
 
         return $stmt->fetchAll();
@@ -48,7 +48,7 @@ final class User
     {
         $stmt = db()->prepare(
             'SELECT u.id,
-                    u.nome AS name,
+                    u.apelido AS username,
                     u.email,
                     u.ativo AS active,
                     p.apelido AS nickname,
@@ -101,10 +101,10 @@ final class User
         $stmt = db()->prepare(
             'SELECT id, senha_hash AS password_hash, ativo AS active
              FROM usuarios
-             WHERE nome = :nome COLLATE NOCASE
+             WHERE apelido = :apelido COLLATE NOCASE
              LIMIT 2'
         );
-        $stmt->execute(['nome' => $login]);
+        $stmt->execute(['apelido' => $login]);
         $rows = $stmt->fetchAll();
 
         return count($rows) === 1 ? $rows[0] : null;
@@ -118,18 +118,26 @@ final class User
         return (bool) $stmt->fetch();
     }
 
-    public static function create(string $name, string $email, string $password, string $role = 'member'): int
+    public static function usernameExists(string $username): bool
+    {
+        $stmt = db()->prepare('SELECT id FROM usuarios WHERE apelido = :apelido LIMIT 1');
+        $stmt->execute(['apelido' => $username]);
+
+        return (bool) $stmt->fetch();
+    }
+
+    public static function create(string $username, string $email, string $password, string $role = 'member'): int
     {
         $pdo = db();
         $pdo->beginTransaction();
 
         try {
             $stmt = $pdo->prepare(
-                'INSERT INTO usuarios (nome, email, senha_hash, ativo)
-                 VALUES (:nome, :email, :senha_hash, 1)'
+                'INSERT INTO usuarios (apelido, email, senha_hash, ativo)
+                 VALUES (:apelido, :email, :senha_hash, 1)'
             );
             $stmt->execute([
-                'nome' => $name,
+                'apelido' => $username,
                 'email' => $email,
                 'senha_hash' => password_hash($password, PASSWORD_DEFAULT),
             ]);
@@ -146,7 +154,7 @@ final class User
             $participante = $pdo->prepare(
                 'INSERT INTO participantes (usuario_id, apelido) VALUES (:id, :apelido)'
             );
-            $participante->execute(['id' => $id, 'apelido' => $name]);
+            $participante->execute(['id' => $id, 'apelido' => $username]);
 
             $pdo->commit();
 
@@ -157,38 +165,43 @@ final class User
         }
     }
 
-    /** @return list<string> */
-    public static function register(string $name, string $email, string $password): array
+    public static function register(string $username, string $email, string $password): bool
     {
-        $errors = [];
-
-        $name = trim($name);
+        $username = trim($username);
         $email = strtolower(trim($email));
-
-        if ($name === '' || mb_strlen($name) < 2) {
-            $errors[] = 'Informe um nome com pelo menos 2 caracteres.';
+    
+        if ($username === '' || mb_strlen($username) < 3 || str_contains($username, " ")) {
+            return false;
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Informe um e-mail válido.';
+            return false;
         }
 
-        if (mb_strlen($password) < 8) {
-            $errors[] = 'A senha deve ter pelo menos 8 caracteres.';
+        if (!preg_match('/^[^\s@]+@[^\s@]+\.[^\s@]+$/', $email)) {
+            return false;
         }
-
-        if ($errors !== []) {
-            return $errors;
+        
+        if (mb_strlen($password) < 8 || // mínimo de 8 caracteres
+            !preg_match('/[^a-zA-Z0-9]/', $password) || // verifica se NÃO tem caractere especial
+            !preg_match('/(?=.*\p{Ll})(?=.*\p{Lu})/u', $password)) { // verifica se tem pelo menos UMA maiúscula e UMA minúscula
+            return false;
         }
 
         if (self::emailExists($email)) {
-            return ['Este e-mail já está cadastrado.'];
+            return false;
         }
 
-        $id = self::create($name, $email, $password);
+        if (self::usernameExists($username)) {
+            return false;
+        }
+
+        $id = self::create($username, $email, $password);
         AuthService::login($id);
 
-        return [];
+        $registerResponse = true;
+
+        return $registerResponse;
     }
 
     /**

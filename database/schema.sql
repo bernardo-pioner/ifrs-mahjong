@@ -6,7 +6,8 @@ PRAGMA foreign_keys = ON;
 -- Usuário (idUsuario, Nome) + e-mail/senha/ativo para autenticação
 CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT NOT NULL,
+    nome TEXT,
+    apelido TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE COLLATE NOCASE,
     senha_hash TEXT NOT NULL,
     ativo INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
