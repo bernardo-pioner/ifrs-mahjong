@@ -63,7 +63,6 @@ $podeEnviarComprovante = !$ehAdmin
 
         <div class="event-details">
             <div class="event-detail">
-                <span class="icon icon-calendar" aria-hidden="true"></span>
                 <span>
                     <strong>Início:</strong>
                     <?= e($formatarData($evento['data_inicio'])) ?>
@@ -77,7 +76,6 @@ $podeEnviarComprovante = !$ehAdmin
 
             <?php if (!empty($evento['local'])): ?>
                 <div class="event-detail">
-                    <span class="icon icon-map-pin" aria-hidden="true"></span>
                     <span>
                         <strong>Local:</strong>
                         <?= e($evento['local']) ?>

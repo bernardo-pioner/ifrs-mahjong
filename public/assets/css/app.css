@@ -632,6 +632,207 @@ body.is-guest .main {
     flex-shrink: 0;
 }
 
+.events-browse {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+
+.events-browse .page-head {
+    margin-bottom: 0;
+}
+
+.events-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+}
+
+.events-toolbar .user-filters {
+    width: auto;
+    margin: 0;
+    justify-content: flex-end;
+    flex: 1 1 18rem;
+}
+
+.event-type-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: 0.7rem;
+    background: rgba(28, 36, 28, 0.06);
+}
+
+.event-type-tabs a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.15rem;
+    padding: 0.3rem 0.85rem;
+    border-radius: 0.5rem;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    font-weight: 650;
+    text-decoration: none;
+}
+
+.event-type-tabs a[aria-current="page"] {
+    background: #fff;
+    color: var(--ink);
+    box-shadow: var(--shadow);
+}
+
+.event-type-tabs a:hover {
+    color: var(--ink);
+}
+
+.event-type-tabs a:focus-visible,
+.event-row:focus-visible {
+    outline: 2px solid var(--brand-m);
+    outline-offset: 2px;
+}
+
+.event-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.event-group h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 650;
+}
+
+.event-mark {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--moss);
+}
+
+.event-mark.is-oficina {
+    background: var(--gold);
+}
+
+.event-mark.is-torneio {
+    background: var(--lacquer);
+}
+
+.event-panel {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.event-row {
+    display: grid;
+    grid-template-columns: 3.25rem minmax(0, 1fr) auto;
+    gap: 0.9rem;
+    align-items: center;
+    padding: 0.8rem 1rem;
+    color: inherit;
+    text-decoration: none;
+}
+
+.event-row + .event-row {
+    border-top: 1px solid var(--line);
+}
+
+.event-row:hover {
+    background: rgba(47, 143, 115, 0.05);
+}
+
+.event-row time {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.05;
+}
+
+.event-date-day {
+    font-size: 1.35rem;
+    font-weight: 650;
+}
+
+.event-date-mon,
+.event-meta {
+    color: var(--ink-soft);
+}
+
+.event-date-mon {
+    font-size: 0.75rem;
+}
+
+.event-copy {
+    min-width: 0;
+}
+
+.event-title {
+    display: block;
+    font-weight: 650;
+    line-height: 1.35;
+}
+
+.event-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.2rem 0;
+    margin-top: 0.15rem;
+    font-size: 0.88rem;
+}
+
+.event-meta > span + span::before {
+    content: "·";
+    margin: 0 0.35rem;
+    color: var(--ink-soft);
+}
+
+.event-kind {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(47, 74, 58, 0.12);
+    color: var(--moss);
+    font-size: 0.75rem;
+    font-weight: 650;
+}
+
+.event-kind.is-oficina {
+    background: rgba(184, 137, 58, 0.18);
+    color: var(--gold);
+}
+
+.event-kind.is-torneio {
+    background: rgba(156, 43, 26, 0.1);
+    color: var(--lacquer-dark);
+}
+
+@media (max-width: 720px) {
+    .events-toolbar .user-filters {
+        flex-basis: 100%;
+        justify-content: flex-start;
+    }
+
+    .event-row {
+        grid-template-columns: 2.75rem minmax(0, 1fr);
+    }
+
+    .event-row .status {
+        grid-column: 2;
+        justify-self: start;
+    }
+}
+
 .data-table .button.button-secondary {
     min-height: 2rem;
     padding: 0.35rem 0.7rem;

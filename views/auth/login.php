@@ -5,8 +5,7 @@
 <section class="auth-card">
     <p class="eyebrow">Acesso</p>
     <h1>Entrar no clube</h1>
-    <p class="lede">Use sua conta para acompanhar membros, eventos e amistosos.</p>
-
+<br>
     <form method="post" action="/login" class="form" novalidate>
         <?= csrfField() ?>
         <label>
