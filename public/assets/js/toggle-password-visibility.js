@@ -1,13 +1,40 @@
 document.addEventListener("DOMContentLoaded", () => {
   const passwordInput = document.getElementById("passwordInput");
   const passwordToggler = document.getElementById("password-visibility-icon");
-  passwordToggler.addEventListener("click", () => {
-    if (passwordToggler.getAttribute("src").includes("login-eye-open")) {
-      passwordToggler.setAttribute("src", "/assets/img/login-eye-closed.png");
-      passwordInput.setAttribute("type","text");
+
+  if (!passwordInput || !passwordToggler) return;
+
+  const showPassword = () => {
+    passwordToggler.setAttribute("src", "/assets/img/login-eye-closed.png");
+    passwordToggler.setAttribute("alt", "Ocultar senha");
+    passwordToggler.setAttribute("aria-label", "Ocultar senha");
+    passwordInput.setAttribute("type", "text");
+  };
+
+  const hidePassword = () => {
+    passwordToggler.setAttribute("src", "/assets/img/login-eye-open.png");
+    passwordToggler.setAttribute("alt", "Mostrar senha");
+    passwordToggler.setAttribute("aria-label", "Mostrar senha");
+    passwordInput.setAttribute("type", "password");
+  };
+
+  passwordToggler.setAttribute("role", "button");
+  passwordToggler.setAttribute("tabindex", "0");
+  hidePassword();
+
+  const togglePasswordVisibility = () => {
+    if (passwordInput.getAttribute("type") === "password") {
+      showPassword();
     } else {
-      passwordToggler.setAttribute("src", "/assets/img/login-eye-open.png");
-      passwordInput.setAttribute("type","password");
+      hidePassword();
+    }
+  };
+
+  passwordToggler.addEventListener("click", togglePasswordVisibility);
+  passwordToggler.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      togglePasswordVisibility();
     }
   });
 });

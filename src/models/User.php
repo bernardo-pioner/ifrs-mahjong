@@ -9,6 +9,7 @@ final class User
         $stmt = db()->prepare(
             'SELECT u.id,
                     u.apelido AS username,
+                    u.nome AS name,
                     u.email,
                     u.ativo AS active,
                     p.apelido AS nickname,
@@ -49,6 +50,7 @@ final class User
         $stmt = db()->prepare(
             'SELECT u.id,
                     u.apelido AS username,
+                    u.nome AS name,
                     u.email,
                     u.ativo AS active,
                     p.apelido AS nickname,
@@ -120,8 +122,27 @@ final class User
 
     public static function usernameExists(string $username): bool
     {
-        $stmt = db()->prepare('SELECT id FROM usuarios WHERE apelido = :apelido LIMIT 1');
+        $stmt = db()->prepare(
+            'SELECT id FROM usuarios WHERE apelido = :apelido COLLATE NOCASE LIMIT 1'
+        );
         $stmt->execute(['apelido' => $username]);
+
+        return (bool) $stmt->fetch();
+    }
+
+    public static function usernameExistsForOtherUser(string $username, int $id): bool
+    {
+        $stmt = db()->prepare(
+            'SELECT id
+             FROM usuarios
+             WHERE apelido = :apelido COLLATE NOCASE
+               AND id <> :id
+             LIMIT 1'
+        );
+        $stmt->execute([
+            'apelido' => $username,
+            'id' => $id,
+        ]);
 
         return (bool) $stmt->fetch();
     }
@@ -169,8 +190,8 @@ final class User
     {
         $username = trim($username);
         $email = strtolower(trim($email));
-    
-        if ($username === '' || mb_strlen($username) < 3 || str_contains($username, " ")) {
+
+        if (!preg_match('/^[a-zA-Z0-9]{3,20}$/', $username)) {
             return false;
         }
 
@@ -178,13 +199,7 @@ final class User
             return false;
         }
 
-        if (!preg_match('/^[^\s@]+@[^\s@]+\.[^\s@]+$/', $email)) {
-            return false;
-        }
-        
-        if (mb_strlen($password) < 8 || // mínimo de 8 caracteres
-            !preg_match('/[^a-zA-Z0-9]/', $password) || // verifica se NÃO tem caractere especial
-            !preg_match('/(?=.*\p{Ll})(?=.*\p{Lu})/u', $password)) { // verifica se tem pelo menos UMA maiúscula e UMA minúscula
+        if (mb_strlen($password) < 8 || !preg_match('/\d/', $password)) {
             return false;
         }
 
@@ -199,30 +214,29 @@ final class User
         $id = self::create($username, $email, $password);
         AuthService::login($id);
 
-        $registerResponse = true;
-
-        return $registerResponse;
+        return true;
     }
 
     /**
      * @return list<string>
      */
-    public static function bioErrors(string $nickname, string $realName, string $bio): array
+    public static function bioErrors(string $nickname, string $realName, string $bio, ?int $userId = null): array
     {
         $errors = [];
         $nickname = trim($nickname);
         $realName = trim($realName);
         $bio = trim($bio);
 
-        if ($nickname === '' || mb_strlen($nickname) < 2) {
-            $errors[] = 'Informe um apelido com pelo menos 2 caracteres.';
-        } elseif (mb_strlen($nickname) > 40) {
-            $errors[] = 'O apelido deve ter no máximo 40 caracteres.';
+        if (!preg_match('/^[a-zA-Z0-9]{3,20}$/', $nickname)) {
+            $errors[] = 'O apelido deve ter de 3 a 20 caracteres, apenas letras e números.';
+        } elseif (
+            $userId !== null
+            && self::usernameExistsForOtherUser($nickname, $userId)
+        ) {
+            $errors[] = 'Este apelido já está em uso.';
         }
 
-        if ($realName === '' || mb_strlen($realName) < 2) {
-            $errors[] = 'Informe o nome real com pelo menos 2 caracteres.';
-        } elseif (mb_strlen($realName) > 80) {
+        if ($realName !== '' && mb_strlen($realName) > 80) {
             $errors[] = 'O nome real deve ter no máximo 80 caracteres.';
         }
 
@@ -241,7 +255,7 @@ final class User
         $nickname = trim($nickname);
         $realName = trim($realName);
         $bio = trim($bio);
-        $errors = self::bioErrors($nickname, $realName, $bio);
+        $errors = self::bioErrors($nickname, $realName, $bio, $id);
 
         if ($errors !== []) {
             return $errors;
@@ -253,11 +267,14 @@ final class User
         try {
             $userStmt = $pdo->prepare(
                 'UPDATE usuarios
-                 SET nome = :nome, atualizado_em = datetime(\'now\')
+                 SET apelido = :apelido,
+                     nome = :nome,
+                     atualizado_em = datetime(\'now\')
                  WHERE id = :id'
             );
             $userStmt->execute([
-                'nome' => $realName,
+                'apelido' => $nickname,
+                'nome' => $realName !== '' ? $realName : null,
                 'id' => $id,
             ]);
 

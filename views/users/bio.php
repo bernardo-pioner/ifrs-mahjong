@@ -9,7 +9,7 @@ $photoUrl = userPhotoUrl($user);
 <section class="page-head">
     <p class="eyebrow">Perfil</p>
     <h1>Configurações de Bio</h1>
-    <p class="lede">Atualize o apelido, o nome real, a bio e a foto que aparecem no clube.</p>
+    <p class="lede">Atualize o apelido, o nome, a bio e a foto que aparecem no clube.</p>
 </section>
 
 <section class="profile-card">
@@ -41,11 +41,28 @@ $photoUrl = userPhotoUrl($user);
 
         <label>
             Apelido
-            <input type="text" name="nickname" value="<?= e($nickname) ?>" maxlength="40" autocomplete="nickname" required>
+            <input
+                type="text"
+                name="nickname"
+                value="<?= e($nickname) ?>"
+                minlength="3"
+                maxlength="20"
+                pattern="[A-Za-z0-9]{3,20}"
+                autocomplete="username"
+                required
+            >
+            <span class="hint">De 3 a 20 caracteres, apenas letras e números. Também é usado no login.</span>
         </label>
         <label>
-            Nome real
-            <input type="text" name="real_name" value="<?= e($realName) ?>" maxlength="80" autocomplete="name" required>
+            Nome
+            <input
+                type="text"
+                name="real_name"
+                value="<?= e($realName) ?>"
+                maxlength="80"
+                autocomplete="name"
+            >
+            <span class="hint">Opcional.</span>
         </label>
         <label>
             Bio

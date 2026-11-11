@@ -1,10 +1,15 @@
-
 <?php
 
 $tiposEvento = [
     'encontro' => 'Encontro casual',
     'oficina' => 'Oficina',
     'torneio' => 'Torneio',
+];
+
+$statusLabels = [
+    'pendente' => 'Pendente',
+    'aprovado' => 'Aprovado',
+    'cancelado' => 'Cancelado',
 ];
 
 $formatarData = static function (?string $data): string {
@@ -21,6 +26,12 @@ $formatarData = static function (?string $data): string {
 
 $ehAdmin = ($user['role'] ?? '') === 'admin';
 $eventoId = (int) $evento['id'];
+$taxa = (float) ($details['taxa'] ?? 0);
+$limite = $details['limite'] ?? null;
+$inscricoesAbertas = (int) ($evento['inscricoes_abertas'] ?? 0) === 1;
+$precisaPagamento = in_array($evento['tipo'], ['torneio', 'oficina'], true) && $taxa > 0;
+$jaInscrito = $minhaParticipacao !== null && ($minhaParticipacao['status'] ?? '') !== 'cancelado';
+$podeInscrever = !$ehAdmin && $inscricoesAbertas && !$jaInscrito && $temVaga;
 
 ?>
 
@@ -40,11 +51,6 @@ $eventoId = (int) $evento['id'];
         <div class="event-card-top">
             <span class="event-type">
                 <?= e($tiposEvento[$evento['tipo']] ?? 'Outro') ?>
-            </span>
-
-            <span class="event-card-id">
-                #<?= $eventoId ?>
-            </span>
         </div>
 
         <div class="event-details">
@@ -57,7 +63,7 @@ $eventoId = (int) $evento['id'];
                     <br>
 
                     <strong>Término:</strong>
-                    <?= e($formatarData($evento['data_fim'] ?? null)) ?>
+                    <?= e(!empty($evento['data_fim']) ? $formatarData($evento['data_fim']) : 'Não informado') ?>
                 </span>
             </div>
 
@@ -77,6 +83,24 @@ $eventoId = (int) $evento['id'];
                     <?= e($evento['organizador'] ?? 'Clube de Mahjong') ?>
                 </span>
             </div>
+
+            <?php if ($limite !== null): ?>
+                <div class="event-detail">
+                    <span>
+                        <strong>Vagas:</strong>
+                        <?= (int) $vagasOcupadas ?> / <?= (int) $limite ?>
+                    </span>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($precisaPagamento): ?>
+                <div class="event-detail">
+                    <span>
+                        <strong>Taxa:</strong>
+                        R$ <?= e(number_format($taxa, 2, ',', '.')) ?>
+                    </span>
+                </div>
+            <?php endif; ?>
         </div>
 
         <?php if (!empty($evento['descricao'])): ?>
@@ -84,6 +108,60 @@ $eventoId = (int) $evento['id'];
                 <h2>Descrição</h2>
                 <p><?= nl2br(e($evento['descricao'])) ?></p>
             </div>
+        <?php endif; ?>
+
+        <?php if (!$ehAdmin): ?>
+            <div class="event-form-divider"></div>
+
+            <section class="event-registration-box">
+                <h2>Sua inscrição</h2>
+
+                <?php if ($jaInscrito): ?>
+                    <p>
+                        Status:
+                        <strong class="event-participant-status is-<?= e($minhaParticipacao['status']) ?>">
+                            <?= e($statusLabels[$minhaParticipacao['status']] ?? $minhaParticipacao['status']) ?>
+                        </strong>
+                    </p>
+                <?php elseif (!$inscricoesAbertas): ?>
+                    <p>As inscrições para este evento estão fechadas.</p>
+                <?php elseif (!$temVaga): ?>
+                    <p>Não há mais vagas disponíveis neste evento.</p>
+                <?php elseif ($podeInscrever): ?>
+                    <form
+                        method="post"
+                        action="/eventos/<?= $eventoId ?>/inscrever"
+                        enctype="multipart/form-data"
+                        class="event-register-form"
+                    >
+                        <?= csrfField() ?>
+
+                        <?php if ($precisaPagamento): ?>
+                            <p>
+                                Este evento exige pagamento de
+                                <strong>R$ <?= e(number_format($taxa, 2, ',', '.')) ?></strong>.
+                                Anexe o comprovante para concluir a inscrição.
+                            </p>
+                            <div class="form-field">
+                                <label for="comprovante">Comprovante (PDF, PNG ou JPEG)</label>
+                                <input
+                                    id="comprovante"
+                                    name="comprovante"
+                                    type="file"
+                                    accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                                    required
+                                >
+                            </div>
+                        <?php else: ?>
+                            <p>Confirme sua inscrição neste evento.</p>
+                        <?php endif; ?>
+
+                        <button class="button button-primary" type="submit">
+                            Inscrever-se
+                        </button>
+                    </form>
+                <?php endif; ?>
+            </section>
         <?php endif; ?>
 
         <div class="event-form-divider"></div>
@@ -101,7 +179,7 @@ $eventoId = (int) $evento['id'];
                         <div class="event-participant">
                             <div>
                                 <strong>
-                                    <?= e($participante['nome']) ?>
+                                    <?= e($participante['nome'] ?: ($participante['apelido'] ?? 'Participante')) ?>
                                 </strong>
 
                                 <?php if (!empty($participante['apelido'])): ?>
@@ -109,11 +187,37 @@ $eventoId = (int) $evento['id'];
                                         (<?= e($participante['apelido']) ?>)
                                     </small>
                                 <?php endif; ?>
+
+                                <div class="event-participant-meta">
+                                    <span class="event-participant-status is-<?= e($participante['status']) ?>">
+                                        <?= e($statusLabels[$participante['status']] ?? $participante['status']) ?>
+                                    </span>
+
+                                    <?php if (!empty($participante['comprovante'])): ?>
+                                        <a
+                                            href="<?= e($participante['comprovante']) ?>"
+                                            target="_blank"
+                                            rel="noopener"
+                                        >
+                                            Ver comprovante
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
                             </div>
 
-                            <span class="event-participant-status">
-                                <?= e(ucfirst(str_replace('_', ' ', $participante['status']))) ?>
-                            </span>
+                            <?php if ($ehAdmin && $participante['status'] === 'pendente'): ?>
+                                <form
+                                    method="post"
+                                    action="/eventos/<?= $eventoId ?>/participantes/<?= (int) $participante['usuario_id'] ?>/status"
+                                    class="event-status-form"
+                                >
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="status" value="aprovado">
+                                    <button class="button button-primary" type="submit">
+                                        Aprovar
+                                    </button>
+                                </form>
+                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>

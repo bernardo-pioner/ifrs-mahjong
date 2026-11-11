@@ -28,6 +28,9 @@ $navItems = [
     <title><?= e($title) ?> · <?= e($appName) ?></title>
     <link rel="icon" href="<?= e($logoUrl) ?>" type="image/png">
     <link rel="stylesheet" href="/assets/css/app.css">
+    <?php if ($isGuest): ?>
+        <link rel="stylesheet" href="/assets/css/login.css">
+    <?php endif; ?>
 </head>
 <body class="<?= $isGuest ? 'is-guest' : 'is-app' ?>">
     <?php if ($isGuest): ?>
@@ -113,7 +116,6 @@ $navItems = [
                     <img class="brand-logo is-compact" src="<?= e($logoUrl) ?>" alt="">
                     <span class="session-name"><?= e($userName) ?></span>
                 </span>
-                <span class="session-name"><?= e($user['username']) ?></span>
             </header>
 
             <?php if ($flash): ?>

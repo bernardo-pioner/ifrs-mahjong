@@ -1,10 +1,16 @@
 import { checkEmailAvailability } from "./check-email-availability.js";
-import { checkUsernameAvailability, debounce } from "./check-username-availability.js";
+import { checkUsernameAvailability } from "./check-username-availability.js";
+import {
+  checkEmailInput,
+  checkPasswordInput,
+  checkUsernameInput,
+  setElementHidden,
+} from "./auth-form-utils.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   const submitRegisterButton = document.getElementById("submitRegisterButton");
 
-  submitRegisterButton.addEventListener("click", async (event) => {
+  submitRegisterButton?.addEventListener("click", async (event) => {
     event.preventDefault();
 
     if (submitRegisterButton.disabled) return;
@@ -19,39 +25,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-export function checkUsernameInput(username) {
-  return !(
-    username.trim() === "" ||
-    username.length < 3 ||
-    username.includes(" ")
-  );
-}
-
-export function checkEmailInput(email) {
-  const emailRegexPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegexPattern.test(email);
-}
-
-function checkPasswordInput(password) {
-  const nonSpecialCharactersRegexPattern = /[^a-zA-Z0-9]/;
-  const lowerUpperLettersRegexPattern = /(?=.*\p{Ll})(?=.*\p{Lu})/u;
-  return !(
-    password.length < 8 ||
-    !nonSpecialCharactersRegexPattern.test(password) ||
-    !lowerUpperLettersRegexPattern.test(password)
-  );
-}
-
 async function checkUserRegisterInput() {
   const registerError = document.getElementById("registerError");
-
-  if (
-    registerError !== null &&
-    registerError !== undefined &&
-    !registerError.classList.contains("hidden")
-  ) {
-    registerError.classList.add("hidden");
-  }
+  setElementHidden(registerError, true);
 
   const username = document.getElementById("usernameInput").value;
   const email = document.getElementById("emailInput").value;
@@ -66,56 +42,54 @@ async function checkUserRegisterInput() {
 
   const usernameInputErrorDiv = document.getElementById("usernameErrorMessage");
   const usernameInputErrorTxt = document.getElementById("usernameErrorTxt");
-
   const emailInputErrorTxt = document.getElementById("emailErrorTxt");
   const emailInputErrorDiv = document.getElementById("emailErrorMessage");
-
   const passwordInputErrorTxt = document.getElementById("passwordErrorTxt");
   const passwordInputErrorDiv = document.getElementById("passwordErrorMessage");
-
-  const isUsernameAvailable = await checkUsernameAvailability(username);
-  const isEmailAvailable = await checkEmailAvailability(email);
 
   const isUsernameValid = checkUsernameInput(username);
   const isEmailValid = checkEmailInput(email);
   const isPasswordValid = checkPasswordInput(password);
 
+  const isUsernameAvailable = isUsernameValid
+    ? await checkUsernameAvailability(username)
+    : false;
+  const isEmailAvailable = isEmailValid
+    ? await checkEmailAvailability(email)
+    : false;
+
   if (!isUsernameValid) {
-    if (!usernameAvailabilityMessage.classList.contains("hidden")) {
-      usernameAvailabilityMessage.classList.add("hidden");
-    }
+    setElementHidden(usernameAvailabilityMessage, true);
     usernameInputErrorTxt.textContent =
-      "Deve conter, no mínimo, 3 caracteres e não haver espaços";
-    usernameInputErrorDiv.classList.remove("hidden");
+      "O apelido deve ter de 3 a 20 caracteres, apenas letras e números";
+    setElementHidden(usernameInputErrorDiv, false);
   } else {
-    usernameInputErrorDiv.classList.add("hidden");
+    setElementHidden(usernameInputErrorDiv, true);
   }
 
   if (!isEmailValid) {
-    if (!emailAvailabilityMessage.classList.contains("hidden")) {
-      emailAvailabilityMessage.classList.add("hidden");
-    }
+    setElementHidden(emailAvailabilityMessage, true);
     emailInputErrorTxt.textContent =
       "O e-mail informado deve estar em um formato válido";
-    emailInputErrorDiv.classList.remove("hidden");
+    setElementHidden(emailInputErrorDiv, false);
   } else {
-    emailInputErrorDiv.classList.add("hidden");
+    setElementHidden(emailInputErrorDiv, true);
   }
 
   if (!isPasswordValid) {
     passwordInputErrorTxt.textContent =
-      "Deve incluir caractere especial, maiúsculas e minúsculas";
-    passwordInputErrorDiv.classList.remove("hidden");
+      "A senha deve ter no mínimo 8 caracteres e conter pelo menos um número";
+    setElementHidden(passwordInputErrorDiv, false);
   } else {
-    passwordInputErrorDiv.classList.add("hidden");
+    setElementHidden(passwordInputErrorDiv, true);
   }
 
   if (
     !isUsernameValid ||
     !isEmailValid ||
     !isPasswordValid ||
-    !isUsernameAvailable ||
-    !isEmailAvailable
+    isUsernameAvailable !== true ||
+    isEmailAvailable !== true
   ) {
     return false;
   }

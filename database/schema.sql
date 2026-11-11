@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS eventos (
     data_inicio TEXT,
     data_fim TEXT,
     local TEXT,
+    inscricoes_abertas INTEGER NOT NULL DEFAULT 1 CHECK (inscricoes_abertas IN (0, 1)),
     criado_em TEXT NOT NULL DEFAULT (datetime('now')),
     atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (admin_id) REFERENCES admins(usuario_id)
@@ -57,8 +58,8 @@ CREATE TABLE IF NOT EXISTS evento_participantes (
     evento_id INTEGER NOT NULL,
     participante_id INTEGER NOT NULL,
     inscrito_em TEXT NOT NULL DEFAULT (datetime('now')),
-    status TEXT NOT NULL DEFAULT 'inscrito'
-        CHECK (status IN ('inscrito', 'confirmado', 'lista_espera', 'cancelado')),
+    status TEXT NOT NULL DEFAULT 'pendente'
+        CHECK (status IN ('pendente', 'aprovado', 'cancelado')),
     PRIMARY KEY (evento_id, participante_id),
     FOREIGN KEY (evento_id) REFERENCES eventos(id) ON DELETE CASCADE,
     FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id)
@@ -185,6 +186,7 @@ CREATE TABLE IF NOT EXISTS pagamentos (
     status TEXT NOT NULL DEFAULT 'pendente'
         CHECK (status IN ('pendente', 'pago', 'isento', 'estornado')),
     forma TEXT CHECK (forma IS NULL OR forma IN ('pix', 'dinheiro', 'cartao', 'outro')),
+    comprovante TEXT,
     pago_em TEXT,
     criado_em TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (evento_id) REFERENCES eventos(id) ON DELETE CASCADE,

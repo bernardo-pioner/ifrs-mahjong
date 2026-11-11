@@ -358,6 +358,8 @@ a.btn-view-user svg {
     color: #f4fff9;
     font-weight: 700;
     font-size: 0.95rem;
+}
+
 .brand-logo {
     width: 2.75rem;
     height: 2.75rem;
@@ -876,19 +878,58 @@ body.is-guest .lede {
 }
 
 .button {
-    background: var(--sidebar);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 44px;
+    padding: 11px 17px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: #000000;
     color: #f7f1e3;
+    font: inherit;
+    font-weight: 650;
     text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    /*transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;*/
 }
 
 .button:hover {
     background: #143833;
+    transform: translateY(-1px);
 }
 
 .form.is-busy .button,
 .form.is-busy button[type="submit"] {
     opacity: 0.7;
     pointer-events: none;
+}
+
+.auth-card .button {
+    width: 100%;
+    min-height: 48px;
+    margin-top: 0.35rem;
+    border-radius: 0.55rem;
+    background: linear-gradient(180deg, #3aa384 0%, var(--brand-m) 100%);
+    box-shadow: 0 8px 18px rgba(47, 143, 115, 0.28);
+    letter-spacing: 0.01em;
+}
+
+.auth-card .button:hover {
+    background: linear-gradient(180deg, #45b091 0%, #277a62 100%);
+    box-shadow: 0 10px 22px rgba(47, 143, 115, 0.34);
+}
+
+.auth-card .button:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(47, 143, 115, 0.22);
+}
+
+.auth-card .button:focus-visible {
+    outline: 2px solid var(--brand-m);
+    outline-offset: 2px;
 }
 
 .auth-switch {
@@ -1326,17 +1367,30 @@ button.btn-delete-user svg {
     position: relative;
 }
 
-#password-visibility-icon{
+#passwordInputDiv #passwordInput {
+    padding-right: 2.5rem;
+}
+
+#password-visibility-icon {
     width: auto;
-    height: 16px;
+    height: 18px;
     right: 12px;
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
     cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.15s ease;
 }
+
+#password-visibility-icon:hover,
+#password-visibility-icon:focus-visible {
+    opacity: 1;
+}
+
 /* ========================================
    EVENTOS
+   ======================================== */
 
 .events-page {
     width: 100%;
@@ -1364,26 +1418,6 @@ button.btn-delete-user svg {
     margin: 8px 0 0;
     color: var(--muted, #66736d);
     line-height: 1.6;
-}
-
-.button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 9px;
-    min-height: 44px;
-    padding: 11px 17px;
-    border: 1px solid transparent;
-    border-radius: 10px;
-    font: inherit;
-    font-weight: 650;
-    text-decoration: none;
-    cursor: pointer;
-    transition: transform .18s ease, background .18s ease;
-}
-
-.button:hover {
-    transform: translateY(-1px);
 }
 
 .button-primary {
@@ -1836,6 +1870,7 @@ button.btn-delete-user svg {
 /* ========================================
    EVENTOS — ajustes visuais isolados
    Escopo restrito: páginas e componentes de eventos.
+   ======================================== */
 
 .events-page,
 .event-form-page {
@@ -2091,8 +2126,71 @@ button.btn-delete-user svg {
 }
 
 
-#campo-limite[hidden] {
+#campo-limite[hidden],
+#campo-pagamento[hidden],
+#campo-taxa[hidden],
+#campo-termino[hidden],
+#campo-recorrencia[hidden] {
     display: none !important;
+}
+
+.event-nested-field {
+    margin-top: 12px;
+}
+
+.event-nested-field label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.event-registration-box {
+    display: grid;
+    gap: 12px;
+}
+
+.event-register-form {
+    display: grid;
+    gap: 14px;
+}
+
+.event-participant-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.event-participant-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 650;
+    background: #f1efe7;
+    color: #4d5a54;
+}
+
+.event-participant-status.is-pendente {
+    background: #fff3d6;
+    color: #8a5a00;
+}
+
+.event-participant-status.is-aprovado {
+    background: #dff5ea;
+    color: #1b554b;
+}
+
+.event-participant-status.is-cancelado {
+    background: #f8e2e0;
+    color: #8a2d22;
+}
+
+.event-status-form {
+    margin: 0;
 }
 
 .event-participants {

@@ -22,29 +22,23 @@ $formatarData = static function (?string $data): string {
     <header class="events-header">
         <div>
             <h1>Eventos</h1>
-            <p class="events-subtitle">
-                Organize encontros, oficinas e torneios do clube.
-            </p>
+
         </div>
 
-        <a class="button button-primary" href="/eventos/novo">
-            <span aria-hidden="true">＋</span>
-            Novo evento
-        </a>
+        <?php if (($user['role'] ?? '') === 'admin'): ?>
+            <a class="button button-primary" href="/eventos/novo">
+                <span aria-hidden="true">＋</span>
+                Novo evento
+            </a>
+        <?php endif; ?>
     </header>
 
-    <div class="events-summary">
-        <div>
-            <span class="events-summary-label">Eventos cadastrados</span>
-            <strong><?= count($eventos) ?></strong>
-        </div>
-        <span class="icon icon-calendar" aria-hidden="true"></span>
-    </div>
+
 
     <form id="events-filters" class="events-filters" method="get" action="/eventos">
         <div class="events-filters-header">
             <h2>Filtrar eventos</h2>
-            <p>Encontre eventos pelo nome, tipo ou situação.</p>
+            
         </div>
 
         <div class="events-filters-grid">
@@ -107,13 +101,19 @@ $formatarData = static function (?string $data): string {
 
             <h2>Nenhum evento por enquanto</h2>
             <p>
-                Crie o primeiro evento do clube e reúna a comunidade
-                para jogar Mahjong.
+                <?php if (($user['role'] ?? '') === 'admin'): ?>
+                    Crie o primeiro evento do clube e reúna a comunidade
+                    para jogar Mahjong.
+                <?php else: ?>
+                    Assim que a administração publicar um evento, ele aparecerá aqui.
+                <?php endif; ?>
             </p>
 
-            <a class="button button-primary" href="/eventos/novo">
-                Criar primeiro evento
-            </a>
+            <?php if (($user['role'] ?? '') === 'admin'): ?>
+                <a class="button button-primary" href="/eventos/novo">
+                    Criar primeiro evento
+                </a>
+            <?php endif; ?>
         </section>
     <?php else: ?>
         <div class="events-grid">

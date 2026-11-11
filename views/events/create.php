@@ -1,7 +1,10 @@
-
 <?php
 $old = $old ?? [];
 $tipoAtual = $old['tipo'] ?? 'encontro';
+$temTermino = ($old['tem_termino'] ?? '0') === '1';
+$temPagamento = ($old['tem_pagamento'] ?? '0') === '1';
+$recorrente = ($old['recorrente'] ?? '0') === '1';
+$isEdit = isset($evento);
 
 function eventFormValue(array $old, string $key, string $default = ''): string
 {
@@ -13,8 +16,6 @@ function eventFormValue(array $old, string $key, string $default = ''): string
     <header class="event-form-header">
         <div>
             <a class="event-back-link" href="/eventos">← Voltar para eventos</a>
-            <h1><?= e($tituloPagina ?? 'Criar novo evento') ?></h1>
-            <p><?= e($descricaoPagina ?? 'Informações básicas do evento do clube.') ?></p>
         </div>
     </header>
 
@@ -97,6 +98,41 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             <small>Opcional. Aplicável a torneios e oficinas.</small>
         </div>
 
+        <div
+            class="form-field event-payment-block"
+            id="campo-pagamento"
+            <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
+        >
+            <label class="event-registration-option">
+                <input
+                    type="checkbox"
+                    id="tem_pagamento"
+                    name="tem_pagamento"
+                    value="1"
+                    <?= $temPagamento ? 'checked' : '' ?>
+                    <?= $tipoAtual === 'encontro' ? 'disabled' : '' ?>
+                >
+                <span>
+                    <strong>Cobrar taxa de participação</strong>
+                    <small>Para torneios e oficinas, informe se há pagamento e o valor.</small>
+                </span>
+            </label>
+
+            <div id="campo-taxa" class="event-nested-field" <?= $temPagamento ? '' : 'hidden' ?>>
+                <label for="taxa">Valor (R$)</label>
+                <input
+                    id="taxa"
+                    name="taxa"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value="<?= eventFormValue($old, 'taxa') ?>"
+                    placeholder="Ex.: 25.00"
+                    <?= $temPagamento ? '' : 'disabled' ?>
+                >
+            </div>
+        </div>
+
         <div class="event-datetime-grid">
             <div class="event-datetime-field">
                 <label for="data">Data de início</label>
@@ -119,15 +155,35 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                     value="<?= eventFormValue($old, 'horario', '14:00') ?>"
                 >
             </div>
+        </div>
 
+        <label class="event-registration-option">
+            <input
+                type="checkbox"
+                id="tem_termino"
+                name="tem_termino"
+                value="1"
+                <?= $temTermino ? 'checked' : '' ?>
+            >
+            <span>
+                <strong>Informar data de término</strong>
+                <small>Marque para definir quando o evento termina.</small>
+            </span>
+        </label>
+
+        <div
+            class="event-datetime-grid"
+            id="campo-termino"
+            <?= $temTermino ? '' : 'hidden' ?>
+        >
             <div class="event-datetime-field">
                 <label for="data_fim">Data de término</label>
                 <input
                     id="data_fim"
                     name="data_fim"
                     type="date"
-                    required
                     value="<?= eventFormValue($old, 'data_fim') ?>"
+                    <?= $temTermino ? '' : 'disabled' ?>
                 >
             </div>
 
@@ -137,8 +193,8 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                     id="horario_fim"
                     name="horario_fim"
                     type="time"
-                    required
                     value="<?= eventFormValue($old, 'horario_fim', '16:00') ?>"
+                    <?= $temTermino ? '' : 'disabled' ?>
                 >
             </div>
         </div>
@@ -165,6 +221,56 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                 placeholder="Conte aos participantes como será o evento."
             ><?= eventFormValue($old, 'descricao') ?></textarea>
         </div>
+
+        <?php if (!$isEdit): ?>
+            <div class="event-form-divider"></div>
+
+            <label class="event-registration-option">
+                <input
+                    type="checkbox"
+                    id="recorrente"
+                    name="recorrente"
+                    value="1"
+                    <?= $recorrente ? 'checked' : '' ?>
+                >
+                <span>
+                    <strong>Evento recorrente</strong>
+                    <small>Cria várias ocorrências com o mesmo intervalo de dias.</small>
+                </span>
+            </label>
+
+            <div
+                class="event-datetime-grid"
+                id="campo-recorrencia"
+                <?= $recorrente ? '' : 'hidden' ?>
+            >
+                <div class="event-datetime-field">
+                    <label for="recorrencia_dias">Repetir a cada (dias)</label>
+                    <input
+                        id="recorrencia_dias"
+                        name="recorrencia_dias"
+                        type="number"
+                        min="1"
+                        max="365"
+                        value="<?= eventFormValue($old, 'recorrencia_dias', '7') ?>"
+                        <?= $recorrente ? '' : 'disabled' ?>
+                    >
+                </div>
+
+                <div class="event-datetime-field">
+                    <label for="recorrencia_ocorrencias">Número de ocorrências</label>
+                    <input
+                        id="recorrencia_ocorrencias"
+                        name="recorrencia_ocorrencias"
+                        type="number"
+                        min="2"
+                        max="52"
+                        value="<?= eventFormValue($old, 'recorrencia_ocorrencias', '4') ?>"
+                        <?= $recorrente ? '' : 'disabled' ?>
+                    >
+                </div>
+            </div>
+        <?php endif; ?>
 
         <div class="event-form-divider"></div>
 
@@ -197,28 +303,71 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         const tipos = document.querySelectorAll('input[name="tipo"]');
         const campoLimite = document.getElementById('campo-limite');
         const inputLimite = document.getElementById('limite');
+        const campoPagamento = document.getElementById('campo-pagamento');
+        const temPagamento = document.getElementById('tem_pagamento');
+        const campoTaxa = document.getElementById('campo-taxa');
+        const inputTaxa = document.getElementById('taxa');
+        const temTermino = document.getElementById('tem_termino');
+        const campoTermino = document.getElementById('campo-termino');
+        const dataFim = document.getElementById('data_fim');
+        const horarioFim = document.getElementById('horario_fim');
+        const recorrente = document.getElementById('recorrente');
+        const campoRecorrencia = document.getElementById('campo-recorrencia');
+        const recorrenciaDias = document.getElementById('recorrencia_dias');
+        const recorrenciaOcorrencias = document.getElementById('recorrencia_ocorrencias');
+
+        function tipoEhPago() {
+            const tipoSelecionado = document.querySelector('input[name="tipo"]:checked');
+            return tipoSelecionado &&
+                (tipoSelecionado.value === 'torneio' || tipoSelecionado.value === 'oficina');
+        }
 
         function atualizarCampoLimite() {
-            const tipoSelecionado = document.querySelector(
-                'input[name="tipo"]:checked'
-            );
+            const mostrar = tipoEhPago();
+            campoLimite.hidden = !mostrar;
+            inputLimite.disabled = !mostrar;
+            campoPagamento.hidden = !mostrar;
+            temPagamento.disabled = !mostrar;
+            if (!mostrar) {
+                temPagamento.checked = false;
+            }
+            atualizarCampoTaxa();
+        }
 
-            if (!tipoSelecionado) {
+        function atualizarCampoTaxa() {
+            const mostrar = tipoEhPago() && temPagamento.checked;
+            campoTaxa.hidden = !mostrar;
+            inputTaxa.disabled = !mostrar;
+        }
+
+        function atualizarCampoTermino() {
+            const mostrar = temTermino.checked;
+            campoTermino.hidden = !mostrar;
+            dataFim.disabled = !mostrar;
+            horarioFim.disabled = !mostrar;
+        }
+
+        function atualizarCampoRecorrencia() {
+            if (!recorrente || !campoRecorrencia) {
                 return;
             }
-
-            const mostrarLimite =
-                tipoSelecionado.value === 'torneio' ||
-                tipoSelecionado.value === 'oficina';
-
-            campoLimite.hidden = !mostrarLimite;
-            inputLimite.disabled = !mostrarLimite;
+            const mostrar = recorrente.checked;
+            campoRecorrencia.hidden = !mostrar;
+            if (recorrenciaDias) recorrenciaDias.disabled = !mostrar;
+            if (recorrenciaOcorrencias) recorrenciaOcorrencias.disabled = !mostrar;
         }
 
         tipos.forEach(function (tipo) {
             tipo.addEventListener('change', atualizarCampoLimite);
         });
+        temPagamento.addEventListener('change', atualizarCampoTaxa);
+        temTermino.addEventListener('change', atualizarCampoTermino);
+        if (recorrente) {
+            recorrente.addEventListener('change', atualizarCampoRecorrencia);
+        }
 
         atualizarCampoLimite();
+        atualizarCampoTermino();
+        atualizarCampoRecorrencia();
     });
 </script>

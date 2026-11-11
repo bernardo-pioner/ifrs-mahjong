@@ -40,14 +40,23 @@ final class UserController extends Controller
             'user' => $user,
             'currentPath' => '/usuarios',
             'targetUser' => $targetUser,
+            'errors' => [],
+        ]);
+    }
+
     public function bio(): void
     {
         $user = $this->requireAuth();
+        $nickname = trim((string) ($user['nickname'] ?? ''));
+        if ($nickname === '') {
+            $nickname = trim((string) ($user['username'] ?? ''));
+        }
+
         $this->view('users/bio', [
             'title' => 'Configurações de Bio',
             'user' => $user,
             'currentPath' => '/perfil',
-            'nickname' => (string) ($user['nickname'] ?? ''),
+            'nickname' => $nickname,
             'realName' => (string) ($user['name'] ?? ''),
             'bio' => (string) ($user['bio'] ?? ''),
             'errors' => [],
@@ -312,7 +321,7 @@ final class UserController extends Controller
         $nickname = request('nickname');
         $realName = request('real_name');
         $bio = request('bio');
-        $errors = User::bioErrors($nickname, $realName, $bio);
+        $errors = User::bioErrors($nickname, $realName, $bio, (int) $user['id']);
         $photo = null;
 
         if ($errors === []) {

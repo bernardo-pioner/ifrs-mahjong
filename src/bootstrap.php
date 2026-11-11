@@ -144,6 +144,11 @@ function userDisplayName(?array $user): string
         return $nickname;
     }
 
+    $username = trim((string) ($user['username'] ?? ''));
+    if ($username !== '') {
+        return $username;
+    }
+
     $name = trim((string) ($user['name'] ?? ''));
 
     return $name !== '' ? $name : 'Participante';

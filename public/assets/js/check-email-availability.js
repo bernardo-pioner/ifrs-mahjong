@@ -1,82 +1,100 @@
-import { debounce } from "./check-username-availability.js";
-import { checkEmailInput } from "./check-user-register-input.js";
+import {
+  checkEmailInput,
+  debounce,
+  setElementHidden,
+} from "./auth-form-utils.js";
 
 export async function checkEmailAvailability(email) {
   email = email.trim();
   if (!email) {
     return false;
-  } else {
-    try {
-      const response = await fetch(
-        `/email-disponivel?email=${encodeURIComponent(email)}`,
-      );
-      if (!response.ok) {
-        throw new Error("Erro na requisição!");
-      }
-      const data = await response.json();
-      const email_available = data.available;
-      return email_available;
-    } catch (error) {
-      return error;
-    }
   }
+
+  try {
+    const response = await fetch(
+      `/email-disponivel?email=${encodeURIComponent(email)}`,
+    );
+    if (!response.ok) {
+      throw new Error("Erro na requisição!");
+    }
+    const data = await response.json();
+    return data.available === true;
+  } catch {
+    return null;
+  }
+}
+
+function showEmailFormatError() {
+  const messageDiv = document.getElementById("emailAvailabilityMessage");
+  const errorDiv = document.getElementById("emailErrorMessage");
+  const errorTxt = document.getElementById("emailErrorTxt");
+
+  setElementHidden(messageDiv, true);
+  messageDiv?.classList.remove("availabilityMessage");
+
+  if (errorTxt) {
+    errorTxt.textContent = "Informe um e-mail em formato válido";
+  }
+  setElementHidden(errorDiv, false);
 }
 
 async function showEmailAvailabilityMessage(email) {
   const messageDiv = document.getElementById("emailAvailabilityMessage");
   const messageTxt = document.getElementById("emailAvailabilityMessageTxt");
   const messageImg = document.getElementById("emailAvailabilityMessageImg");
-  const emailInputErrorDiv = document.getElementById("emailErrorMessage");
+  const errorDiv = document.getElementById("emailErrorMessage");
 
   email = email.trim();
 
-  if (!email || !checkEmailInput(email)) {
+  if (!email) {
     messageTxt.textContent = "";
     messageImg.removeAttribute("src");
-    messageDiv.classList.add("hidden");
+    setElementHidden(messageDiv, true);
     messageDiv.classList.remove("availabilityMessage");
+    setElementHidden(errorDiv, true);
     return;
   }
+
+  if (!checkEmailInput(email)) {
+    showEmailFormatError();
+    return;
+  }
+
+  setElementHidden(errorDiv, true);
 
   const isAvailable = await checkEmailAvailability(email);
 
-  if (isAvailable instanceof Error) {
+  if (isAvailable === null) {
     messageTxt.textContent =
       "Não foi possível identificar a disponibilidade do e-mail. Tente novamente";
     messageImg.setAttribute("src", "/assets/img/red_x.png");
-    messageTxt.classList.add("username-not-available-txt");
+    messageTxt.classList.remove("field-available-txt", "field-not-available-txt");
+    messageTxt.classList.add("field-not-available-txt");
     messageDiv.classList.add("availabilityMessage");
-    messageDiv.classList.remove("hidden");
+    setElementHidden(messageDiv, false);
     return;
   }
 
-  const strong = document.createElement("strong");
-  strong.textContent = '"Entrar"';
-
   if (!isAvailable) {
+    const strong = document.createElement("strong");
+    strong.textContent = "Entrar";
+
     messageTxt.textContent = "";
     messageTxt.append(
       "O e-mail já está em uso. Clique em ",
       strong,
       " para fazer login.",
     );
-
+    messageTxt.classList.remove("field-available-txt", "field-not-available-txt");
     messageTxt.classList.add("field-not-available-txt");
     messageImg.setAttribute("src", "/assets/img/red_x.png");
-
-    if (!emailInputErrorDiv.classList.contains("hidden")) {
-      emailInputErrorDiv.classList.add("hidden");
-    }
-
-    messageDiv.classList.remove("hidden");
     messageDiv.classList.add("availabilityMessage");
-
+    setElementHidden(messageDiv, false);
     return;
-  } else {
-    if (!messageDiv.classList.contains("hidden")) {
-        messageDiv.classList.add("hidden");
-    }
   }
+
+  setElementHidden(messageDiv, true);
+  messageDiv.classList.remove("availabilityMessage");
 }
 
 const debouncedCheckEmailAvailability = debounce((event) => {
@@ -85,5 +103,5 @@ const debouncedCheckEmailAvailability = debounce((event) => {
 
 document.addEventListener("DOMContentLoaded", () => {
   const emailInput = document.getElementById("emailInput");
-  emailInput.addEventListener("input", debouncedCheckEmailAvailability);
+  emailInput?.addEventListener("input", debouncedCheckEmailAvailability);
 });
