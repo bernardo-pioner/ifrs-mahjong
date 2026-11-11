@@ -12,6 +12,7 @@ final class User
                     u.nome AS name,
                     u.email,
                     u.ativo AS active,
+                    u.criado_em AS created_at,
                     p.apelido AS nickname,
                     p.bio,
                     p.foto AS photo,
@@ -34,11 +35,18 @@ final class User
         $stmt = db()->query(
             'SELECT u.id,
                     u.apelido AS username,
+                    u.nome AS name,
                     u.email,
                     u.ativo AS active,
+                    u.criado_em AS created_at,
+                    p.apelido AS nickname,
+                    p.bio,
+                    p.foto AS photo,
+                    p.nivel AS level,
                     CASE WHEN a.usuario_id IS NOT NULL THEN \'admin\' ELSE \'member\' END AS role
              FROM usuarios u
              LEFT JOIN admins a ON a.usuario_id = u.id
+             LEFT JOIN participantes p ON p.usuario_id = u.id
              ORDER BY u.apelido COLLATE NOCASE'
         );
 
@@ -53,6 +61,7 @@ final class User
                     u.nome AS name,
                     u.email,
                     u.ativo AS active,
+                    u.criado_em AS created_at,
                     p.apelido AS nickname,
                     p.bio,
                     p.foto AS photo,

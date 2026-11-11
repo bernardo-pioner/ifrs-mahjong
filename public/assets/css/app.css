@@ -27,7 +27,7 @@
 html,
 body {
     margin: 0;
-    min-height: 100%;
+    height: 100%;
 }
 
 body {
@@ -103,6 +103,9 @@ body {
 }
 
 body.is-guest {
+    min-height: 100%;
+    height: auto;
+    overflow: auto;
     background:
         linear-gradient(180deg, rgba(13, 42, 38, 0.08), transparent 28%),
         var(--paper);
@@ -120,7 +123,9 @@ body.is-guest {
 
 body.is-app {
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
     background: var(--paper);
 }
 
@@ -128,11 +133,13 @@ body.is-app {
     display: flex;
     flex-direction: column;
     width: var(--sidebar-width);
-    min-height: 100vh;
+    height: 100%;
+    min-height: 0;
     padding: 1.25rem 0.9rem 1rem;
     background: var(--sidebar);
     color: var(--sidebar-text);
     flex-shrink: 0;
+    overflow: hidden;
 }
 
 .brand {
@@ -145,41 +152,6 @@ body.is-app {
     padding-bottom: 1.1rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-
-/* Botão para visualizar o perfil do usuário */
-a.btn-view-user {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    padding: 6px;
-
-    color: var(--ink);
-    background: var(--paper);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-
-    text-decoration: none;
-    cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-a.btn-view-user:hover {
-    color: #fff;
-    background: var(--sidebar);
-    border-color: var(--sidebar);
-}
-
-a.btn-view-user svg {
-    display: block;
-    width: 18px;
-    height: 18px;
-    fill: none;
-    stroke: currentColor;
-    pointer-events: none;
-}
-
 
 /*   configuração tela edição perfil usuário*/
 
@@ -546,16 +518,22 @@ body.is-guest .brand-role {
 }
 
 .workspace {
+    display: flex;
+    flex-direction: column;
     flex: 1;
     min-width: 0;
-    padding: 1.5rem 2rem 3rem;
+    min-height: 0;
+    height: 100%;
+    padding: 1.25rem 1.75rem 1.25rem;
+    overflow: hidden;
 }
 
 .workspace-bar {
     display: none;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
+    flex-shrink: 0;
 }
 
 .session-chip {
@@ -591,11 +569,25 @@ body.is-guest .brand-role {
     padding: 0.8rem 1rem;
     border-left: 4px solid var(--gold);
     background: #fff;
-    transition: opacity 240ms ease;
+    transition: opacity 240ms ease, transform 240ms ease, max-height 240ms ease, margin 240ms ease, padding 240ms ease;
+}
+
+.workspace > .flash {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 60;
+    width: min(22rem, calc(100vw - 2rem));
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: 0.55rem;
+    box-shadow: var(--shadow);
 }
 
 .flash.is-hiding {
     opacity: 0;
+    transform: translateY(-0.35rem);
+    pointer-events: none;
 }
 
 .flash-error {
@@ -607,16 +599,43 @@ body.is-guest .brand-role {
 }
 
 .main {
-    padding-top: 0.5rem;
+    flex: 1;
+    min-height: 0;
+    padding-top: 0.25rem;
+    overflow: auto;
 }
 
 body.is-guest .main {
+    flex: none;
+    overflow: visible;
     padding-top: 2rem;
 }
 
 .page-head {
     text-align: center;
     margin-bottom: 1.75rem;
+}
+
+.events-list-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    text-align: left;
+}
+
+.events-list-head h1 {
+    margin: 0;
+}
+
+.events-list-head .button {
+    flex-shrink: 0;
+}
+
+.data-table .button.button-secondary {
+    min-height: 2rem;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.82rem;
 }
 
 body.is-guest .page-head {
@@ -773,6 +792,11 @@ body.is-guest .lede {
     color: var(--moss);
 }
 
+.status.is-pending {
+    background: rgba(184, 137, 58, 0.16);
+    color: var(--gold);
+}
+
 .status.is-off {
     background: rgba(156, 43, 26, 0.1);
     color: var(--lacquer-dark);
@@ -860,6 +884,12 @@ body.is-guest .lede {
     min-width: 0;
 }
 
+.member-since {
+    margin: 0.15rem 0 0;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+}
+
 .hint {
     color: var(--ink-soft);
     font-size: 0.82rem;
@@ -945,20 +975,27 @@ body.is-guest .lede {
 
 @media (max-width: 860px) {
     body.is-app {
-        display: block;
+        display: flex;
+        flex-direction: column;
     }
 
     .sidebar {
         position: fixed;
         inset: 0 auto 0 0;
         z-index: 20;
+        width: min(var(--sidebar-width), 86vw);
+        height: 100%;
         transform: translateX(-100%);
         transition: transform 180ms ease;
-        min-height: 100%;
     }
 
     body.sidebar-open .sidebar {
         transform: translateX(0);
+    }
+
+    .workspace {
+        width: 100%;
+        padding: 1rem 1rem 1.1rem;
     }
 
     .workspace-bar {
@@ -978,13 +1015,215 @@ body.is-guest .lede {
     }
 }
 
-/* Coluna de ações */ .data-table th.actions-column, .data-table td.actions-column { width: 80px; text-align: center; }
+.data-table th.actions-column,
+.data-table td.actions-column {
+    width: 72px;
+    text-align: center;
+}
 
-.data-table td.actions-column { padding: 0.45rem 0.75rem; }
+.data-table td.actions-column {
+    padding: 0.45rem 0.75rem;
+}
 
-.data-table td.actions-column form { display: flex; align-items: center; justify-content: center; margin: 0; }
+.user-table-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+}
 
+.user-table-avatar {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--sidebar);
+    color: #f4fff9;
+    flex-shrink: 0;
+}
 
+.user-table-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-table-avatar .icon {
+    width: 1rem;
+    height: 1rem;
+}
+
+.user-table-identity > span:last-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Menu de ações da listagem de usuários */
+.user-actions-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.45rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.user-actions-trigger:hover,
+.user-actions-trigger[aria-expanded="true"] {
+    color: var(--ink);
+    background: rgba(47, 143, 115, 0.08);
+    border-color: var(--line);
+}
+
+.user-actions-dots {
+    display: block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 -6px 0 currentColor, 0 6px 0 currentColor;
+}
+
+.user-actions-menu {
+    position: fixed;
+    z-index: 40;
+    min-width: 14.5rem;
+    padding: 0.35rem;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+    box-shadow: var(--shadow);
+}
+
+.user-actions-form {
+    margin: 0;
+}
+
+.user-actions-item {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0.7rem 0.85rem;
+    border: 0;
+    border-radius: 0.45rem;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.92rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.user-actions-item:hover,
+.user-actions-item:focus-visible {
+    background: rgba(47, 143, 115, 0.1);
+    outline: none;
+}
+
+.user-actions-item:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Popup de detalhes do usuário (reusa .profile-card / .profile-*) */
+.user-details-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 1.25rem;
+}
+
+.user-details-modal[hidden] {
+    display: none;
+}
+
+.user-details-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(13, 42, 38, 0.35);
+}
+
+.user-details-dialog.profile-card {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 32rem);
+    max-width: 32rem;
+    max-height: min(88vh, 40rem);
+    margin: 0;
+    overflow: auto;
+}
+
+.user-details-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.user-details-close:hover {
+    color: var(--ink);
+    background: rgba(28, 36, 28, 0.06);
+}
+
+.user-details-header {
+    margin-bottom: 0.25rem;
+    padding-right: 1.75rem;
+}
+
+.user-details-heading h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 650;
+    color: var(--ink);
+}
+
+.user-details-heading .lede {
+    margin: 0.2rem 0 0;
+}
+
+.user-details-dialog .profile-current-data {
+    margin-top: 1.25rem;
+}
+
+.user-details-bio {
+    margin-top: 1.25rem;
+}
+
+.user-details-bio p {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--ink);
+    line-height: 1.55;
+}
+
+.user-details-dialog .is-empty {
+    color: var(--ink-soft);
+    font-style: italic;
+}
+
+body.user-details-open {
+    overflow: hidden;
+}
 
 /* Botões de permissão e status da tela editar perfil */
 
@@ -1493,7 +1732,8 @@ button.btn-delete-user svg {
     gap: 12px;
 }
 
-.event-type {
+.event-type,
+.event-modality {
     display: inline-flex;
     align-items: center;
     padding: 6px 10px;
@@ -1502,6 +1742,12 @@ button.btn-delete-user svg {
     border-radius: 7px;
     font-size: .8rem;
     font-weight: 700;
+}
+
+.event-modality {
+    color: var(--ink-soft);
+    background: rgba(28, 36, 28, 0.06);
+    font-weight: 650;
 }
 
 .event-card h2 {
@@ -1634,29 +1880,32 @@ button.btn-delete-user svg {
 /* Formulário de eventos */
 
 .event-form-page {
-    max-width: 900px;
+    max-width: 44rem;
     margin: 0 auto;
 }
 
 .event-form-header {
-    margin-bottom: 24px;
+    margin-bottom: 1.25rem;
 }
 
 .event-form-header h1 {
-    margin: 12px 0 8px;
-    color: var(--text, #17352e);
-    font-size: clamp(1.7rem, 3vw, 2.1rem);
-    letter-spacing: -.03em;
+    margin: 0.55rem 0 0.35rem;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    font-weight: 650;
+    line-height: 1.2;
 }
 
 .event-form-header p {
     margin: 0;
-    color: var(--muted, #66736d);
+    color: var(--ink-soft);
+    font-size: 0.95rem;
 }
 
 .event-back-link {
-    color: var(--primary, #1b554b);
-    font-size: .9rem;
+    color: var(--brand-m);
+    font-size: 0.9rem;
     font-weight: 650;
     text-decoration: none;
 }
@@ -1667,82 +1916,119 @@ button.btn-delete-user svg {
 
 .event-form-card {
     display: grid;
-    gap: 22px;
-    padding: clamp(20px, 4vw, 32px);
-    background: var(--surface, #fff);
-    border: 1px solid var(--border, #e5e3dc);
-    border-radius: 16px;
-    box-shadow: 0 4px 16px rgb(24 43 35 / 4%);
+    gap: 0.95rem;
+    padding: 1.35rem 1.4rem 1.25rem;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+    box-shadow: var(--shadow);
 }
 
 .form-field {
     display: grid;
-    gap: 9px;
+    gap: 0.4rem;
     min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-inline-size: 0;
 }
 
 .form-field label,
 .form-field legend {
-    color: var(--text, #17352e);
-    font-size: .92rem;
+    padding: 0;
+    color: var(--ink);
+    font-size: 0.9rem;
     font-weight: 650;
 }
 
-.form-field input:not([type="radio"]),
+.form-field input:not([type="radio"]):not([type="checkbox"]),
 .form-field textarea,
 .form-field select {
     width: 100%;
-    min-height: 46px;
-    padding: 12px 14px;
-    color: var(--text, #17352e);
-    background: var(--surface, #fff);
-    border: 1px solid var(--border, #d8d9d1);
-    border-radius: 10px;
+    min-height: 2.65rem;
+    padding: 0.65rem 0.8rem;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
     font: inherit;
     box-sizing: border-box;
-    transition: border-color .18s ease, box-shadow .18s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .form-field textarea {
-    min-height: 110px;
+    min-height: 6.5rem;
     resize: vertical;
-    line-height: 1.55;
+    line-height: 1.5;
 }
 
-.form-field input:focus,
+.form-field input:not([type="radio"]):not([type="checkbox"]):focus,
 .form-field textarea:focus,
 .form-field select:focus {
     outline: none;
-    border-color: var(--primary, #1b554b);
-    box-shadow: 0 0 0 3px rgb(27 85 75 / 12%);
+    border-color: var(--brand-m);
+    box-shadow: 0 0 0 3px rgba(47, 143, 115, 0.14);
 }
 
 .form-field small,
 .event-registration-option small {
-    color: var(--muted, #66736d);
-    font-size: .82rem;
-    line-height: 1.5;
+    color: var(--ink-soft);
+    font-size: 0.82rem;
+    line-height: 1.4;
 }
 
-.event-form-row {
+.event-form-row,
+.event-datetime-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+    gap: 0.85rem;
+    min-width: 0;
+}
+
+.event-datetime-field {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.event-datetime-field label {
+    color: var(--ink);
+    font-size: 0.9rem;
+    font-weight: 650;
+}
+
+.event-datetime-field input[type="date"],
+.event-datetime-field input[type="time"] {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.65rem;
+    padding: 0.65rem 0.8rem;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    font: inherit;
+    box-sizing: border-box;
+}
+
+.event-datetime-field input:focus {
+    outline: none;
+    border-color: var(--brand-m);
+    box-shadow: 0 0 0 3px rgba(47, 143, 115, 0.14);
 }
 
 .event-type-options {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
     width: 100%;
-    overflow-x: auto;
-    padding: 2px 2px 8px;
 }
 
 .event-type-option {
     position: relative;
     cursor: pointer;
-    flex: 1;
+    min-width: 0;
 }
 
 .event-type-option input {
@@ -1755,107 +2041,151 @@ button.btn-delete-user svg {
 .event-type-option-content {
     display: flex;
     align-items: center;
-    gap: 11px;
-    min-height: 50px;
-    padding: 12px;
-    color: var(--text, #33453d);
-    background: var(--surface, #fff);
-    border: 1px solid var(--border, #d8d9d1);
-    border-radius: 10px;
+    justify-content: center;
+    gap: 0.45rem;
+    min-height: 2.85rem;
+    padding: 0.65rem 0.55rem;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
     font-weight: 600;
-    transition: border-color .18s ease, background .18s ease;
+    text-align: center;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
 .event-type-symbol {
-    color: var(--primary, #1b554b);
-    font-size: 1.15rem;
+    color: var(--brand-m);
+    font-size: 1rem;
 }
 
 .event-type-option input:checked + .event-type-option-content {
-    color: var(--primary, #1b554b);
-    background: var(--primary-soft, #e2eee8);
-    border-color: var(--primary, #1b554b);
+    color: var(--moss);
+    background: rgba(47, 143, 115, 0.1);
+    border-color: var(--brand-m);
 }
 
 .event-type-option input:focus-visible + .event-type-option-content {
-    outline: 3px solid rgb(27 85 75 / 20%);
+    outline: 2px solid rgba(47, 143, 115, 0.35);
     outline-offset: 2px;
 }
 
 .event-form-divider {
     height: 1px;
-    background: var(--border, #e5e3dc);
+    margin: 0.15rem 0;
+    background: var(--line);
 }
 
 .event-registration-option {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    justify-content: flex-start;
+    gap: 0.65rem;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0.65rem 0.75rem;
+    box-sizing: border-box;
+    background: rgba(246, 243, 235, 0.55);
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    text-align: left;
     cursor: pointer;
 }
 
-.event-registration-option input {
-    width: 19px;
-    height: 19px;
-    margin: 2px 0 0;
-    accent-color: var(--primary, #1b554b);
+.event-registration-option input[type="checkbox"] {
+    width: 1.05rem;
+    height: 1.05rem;
+    min-width: 1.05rem;
+    min-height: 1.05rem;
+    margin: 0.2rem 0 0;
+    padding: 0;
+    flex: 0 0 auto;
+    align-self: flex-start;
+    accent-color: var(--brand-m);
+    box-shadow: none;
 }
 
 .event-registration-option span {
     display: grid;
-    gap: 5px;
+    gap: 0.15rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: left;
 }
 
 .event-registration-option strong {
-    color: var(--text, #17352e);
-    font-size: .92rem;
+    color: var(--ink);
+    font-size: 0.9rem;
+    font-weight: 650;
+}
+
+.event-option-block {
+    display: grid;
+    gap: 0.65rem;
+    width: 100%;
+    justify-items: stretch;
+    text-align: left;
+}
+
+.event-nested-field {
+    margin: 0;
+    padding-left: 0;
 }
 
 .event-form-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
-    padding-top: 6px;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 0.25rem;
+    padding-top: 0.35rem;
 }
 
 .button-secondary {
-    color: var(--text, #33453d);
-    background: var(--surface, #fff);
-    border-color: var(--border, #d8d9d1);
+    color: var(--ink);
+    background: #fff;
+    border-color: var(--line);
 }
 
 .button-secondary:hover {
-    background: var(--surface-hover, #f5f2e9);
+    background: var(--paper);
+}
+
+.event-form-actions .button-primary {
+    color: #fff;
+    background: var(--sidebar);
+    border-color: var(--sidebar);
+}
+
+.event-form-actions .button-primary:hover {
+    background: #143833;
+    border-color: #143833;
+}
+
+#campo-limite[hidden],
+#campo-limite-valor[hidden],
+#campo-pagamento[hidden],
+#campo-taxa[hidden],
+#campo-termino[hidden],
+#campo-recorrencia[hidden] {
+    display: none !important;
 }
 
 @media (max-width: 600px) {
-
-    /* Campos do formulário em uma coluna */
-    .event-form-row {
+    .event-form-row,
+    .event-datetime-grid,
+    .event-type-options {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    /* Seleção de tipos de evento sem scroll horizontal */
-    .event-type-options {
-        flex-direction: column;
-        overflow-x: visible;
-        padding: 2px;
-        gap: 12px;
-    }
-
-    /* Cada tipo ocupa toda a largura */
-    .event-type-option {
-        width: 100%;
-        flex: none;
-    }
-
-    /* Área de toque maior para celulares */
     .event-type-option-content {
-        width: 100%;
-        min-height: 56px;
+        justify-content: flex-start;
+        min-height: 3rem;
+        padding-inline: 0.85rem;
     }
 
-    /* Botões do formulário organizados verticalmente */
     .event-form-actions {
         flex-direction: column-reverse;
     }
@@ -1868,12 +2198,10 @@ button.btn-delete-user svg {
 
 
 /* ========================================
-   EVENTOS — ajustes visuais isolados
-   Escopo restrito: páginas e componentes de eventos.
+   EVENTOS — listagem
    ======================================== */
 
-.events-page,
-.event-form-page {
+.events-page {
     color: var(--ink);
 }
 
@@ -1882,23 +2210,21 @@ button.btn-delete-user svg {
     margin-bottom: 30px;
 }
 
-.events-page .events-header h1,
-.event-form-page .event-form-header h1 {
+.events-page .events-header h1 {
     color: var(--ink);
     letter-spacing: -0.035em;
 }
 
-.events-page .events-subtitle,
-.event-form-page .event-form-header p {
+.events-page .events-subtitle {
     color: var(--ink-soft);
 }
 
 .events-page .events-summary {
     max-width: 320px;
     padding: 18px 22px;
-    background: #fffefa;
-    border-color: rgba(28, 36, 28, 0.12);
-    border-radius: 14px;
+    background: #fff;
+    border-color: var(--line);
+    border-radius: 0.7rem;
     box-shadow: var(--shadow);
 }
 
@@ -1919,10 +2245,10 @@ button.btn-delete-user svg {
 
 .events-page .event-card {
     padding: 24px;
-    background: #fffefa;
-    border-color: rgba(28, 36, 28, 0.11);
-    border-radius: 16px;
-    box-shadow: 0 4px 16px rgba(28, 36, 28, 0.045);
+    background: #fff;
+    border-color: var(--line);
+    border-radius: 0.7rem;
+    box-shadow: var(--shadow);
 }
 
 .events-page .event-card:hover {
@@ -1930,12 +2256,21 @@ button.btn-delete-user svg {
     box-shadow: 0 10px 24px rgba(28, 36, 28, 0.085);
 }
 
-.events-page .event-type {
-    color: var(--moss);
-    background: rgba(47, 143, 115, 0.12);
+.events-page .event-type,
+.events-page .event-modality {
     border-radius: 999px;
     font-size: 0.78rem;
     letter-spacing: 0.015em;
+}
+
+.events-page .event-type {
+    color: var(--moss);
+    background: rgba(47, 143, 115, 0.12);
+}
+
+.events-page .event-modality {
+    color: var(--ink-soft);
+    background: rgba(28, 36, 28, 0.06);
 }
 
 .events-page .event-card h2 {
@@ -1950,7 +2285,7 @@ button.btn-delete-user svg {
 }
 
 .events-page .event-detail {
-    color: #33453d;
+    color: var(--ink);
 }
 
 .events-page .event-detail .icon {
@@ -1965,21 +2300,20 @@ button.btn-delete-user svg {
     color: var(--ink-soft);
 }
 
-.events-page .event-action,
-.event-form-page .event-back-link {
+.events-page .event-action {
     color: var(--brand-m);
 }
 
 .events-page .events-empty {
-    background: #fffefa;
-    border-color: rgba(28, 36, 28, 0.11);
-    border-radius: 16px;
+    background: #fff;
+    border-color: var(--line);
+    border-radius: 0.7rem;
 }
 
 .events-page .events-empty-icon {
     color: var(--brand-m);
     background: rgba(47, 143, 115, 0.12);
-    border-radius: 18px;
+    border-radius: 0.7rem;
 }
 
 .events-page .events-empty h2 {
@@ -1988,72 +2322,6 @@ button.btn-delete-user svg {
 
 .events-page .events-empty p {
     color: var(--ink-soft);
-}
-
-/* Formulário de eventos: sem alterar campos nem validações. */
-.event-form-page .event-form-card {
-    gap: 24px;
-    background: #fffefa;
-    border-color: rgba(28, 36, 28, 0.11);
-    border-radius: 16px;
-    box-shadow: var(--shadow);
-}
-
-.event-form-page .form-field label,
-.event-form-page .form-field legend {
-    color: var(--ink);
-}
-
-.event-form-page .form-field input:not([type="radio"]),
-.event-form-page .form-field textarea,
-.event-form-page .form-field select {
-    color: var(--ink);
-    background: #fffefa;
-    border-color: #d9d8ce;
-    border-radius: 10px;
-}
-
-.event-form-page .form-field input:focus,
-.event-form-page .form-field textarea:focus,
-.event-form-page .form-field select:focus {
-    border-color: var(--brand-m);
-    box-shadow: 0 0 0 3px rgba(47, 143, 115, 0.14);
-}
-
-.event-form-page .event-type-option-content {
-    border-color: #d9d8ce;
-    border-radius: 11px;
-}
-
-.event-form-page .event-type-option input:checked + .event-type-option-content {
-    color: var(--moss);
-    background: rgba(47, 143, 115, 0.10);
-    border-color: var(--brand-m);
-}
-
-.event-form-page .event-form-divider {
-    background: var(--line);
-}
-
-.event-form-page .event-form-actions .button-primary {
-    color: #fff;
-    background: var(--sidebar);
-    border-color: var(--sidebar);
-}
-
-.event-form-page .event-form-actions .button-primary:hover {
-    background: #143833;
-    border-color: #143833;
-}
-
-.event-form-page .event-form-actions .button-secondary {
-    color: var(--ink);
-    background: #fffefa;
-    border-color: #d9d8ce;
-}
-
-.event-form-page .event-form-actions .button-secondary:hover {
-    background: #f0ede4;
 }
 
 @media (max-width: 760px) {
@@ -2066,93 +2334,137 @@ button.btn-delete-user svg {
     }
 }
 
-@media (max-width: 600px) {
-    .event-form-page .event-form-card {
-        gap: 20px;
-        padding: 20px;
-    }
-}
-/* Data e horário de início e término */
-.event-form-card .event-datetime-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px 24px;
-    margin: 24px 0;
-}
-
-.event-form-card .event-datetime-field {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-width: 0;
-}
-
-.event-form-card .event-datetime-field label {
-    display: block;
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: #173c32;
-}
-
-.event-form-card .event-datetime-field input[type="date"],
-.event-form-card .event-datetime-field input[type="time"] {
-    display: block;
-    width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-    min-height: 48px;
-    padding: 10px 12px;
-    border: 1px solid #ded9cc;
-    border-radius: 11px;
-    background-color: #fffefa;
-    color: #173c32;
-    font: inherit;
-    font-size: 14px;
-}
-
-.event-form-card .event-datetime-field input:focus {
-    outline: none;
-    border-color: #16856b;
-    box-shadow: 0 0 0 3px rgba(22, 133, 107, 0.12);
-}
-
-/* Em telas pequenas, organizar em uma coluna */
-@media (max-width: 600px) {
-    .event-form-card .event-datetime-grid {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 16px;
-    }
-}
-
-
-#campo-limite[hidden],
-#campo-pagamento[hidden],
-#campo-taxa[hidden],
-#campo-termino[hidden],
-#campo-recorrencia[hidden] {
-    display: none !important;
-}
-
-.event-nested-field {
-    margin-top: 12px;
-}
-
-.event-nested-field label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 14px;
-    font-weight: 600;
-}
-
 .event-registration-box {
     display: grid;
-    gap: 12px;
+    gap: 0.55rem;
+}
+
+.event-registration-box h2,
+.event-form-page .form-field h2,
+.event-participants h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1.05rem;
 }
 
 .event-register-form {
     display: grid;
-    gap: 14px;
+    gap: 0.65rem;
+}
+
+.file-field-label {
+    color: var(--ink);
+    font-size: 0.9rem;
+    font-weight: 650;
+}
+
+.file-picker {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin: 0;
+    cursor: pointer;
+}
+
+.file-picker input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.file-picker-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.4rem;
+    padding: 0.45rem 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: #fff;
+    color: var(--ink);
+    font-size: 0.9rem;
+    font-weight: 650;
+}
+
+.file-picker:hover .file-picker-button,
+.file-picker:focus-within .file-picker-button {
+    border-color: var(--brand-m);
+    color: var(--moss);
+}
+
+.file-picker-name {
+    color: var(--ink-soft);
+    font-size: 0.88rem;
+    overflow-wrap: anywhere;
+}
+
+.event-show-page .event-form-header {
+    margin-bottom: 0.75rem;
+}
+
+.event-show-page .event-form-header h1 {
+    margin: 0.35rem 0 0;
+    font-size: clamp(1.35rem, 2.6vw, 1.7rem);
+}
+
+.event-show-page .event-form-card {
+    gap: 0.7rem;
+    padding: 1rem 1.1rem;
+}
+
+.event-show-page .event-card-top {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.event-show-page .event-details {
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.event-show-page .event-detail {
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.event-show-page .event-form-divider {
+    margin: 0.05rem 0;
+}
+
+.event-show-page .event-registration-box p,
+.event-show-page .event-register-form p {
+    margin: 0;
+}
+
+.event-show-page .event-participants {
+    margin-top: 0;
+}
+
+.event-show-page .event-participants h2 {
+    margin-bottom: 0.5rem;
+}
+
+.event-show-page .event-participants-empty {
+    padding: 0.7rem 0.8rem;
+    border-radius: 0.5rem;
+}
+
+.event-show-page .event-participant {
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.5rem;
+    gap: 0.75rem;
+}
+
+.event-show-page .event-form-actions {
+    margin-top: 0;
+    padding-top: 0;
 }
 
 .event-participant-meta {
@@ -2194,19 +2506,16 @@ button.btn-delete-user svg {
 }
 
 .event-participants {
-    margin-top: 24px;
-}
-
-.event-participants h2 {
-    margin-bottom: 20px;
+    margin-top: 0;
 }
 
 .event-participants-empty {
-    padding: 24px;
+    margin: 0;
+    padding: 0.75rem;
     text-align: center;
     background: #f8f7f3;
     border: 1px solid #e5e2d9;
-    border-radius: 12px;
+    border-radius: 0.5rem;
     color: #647067;
 }
 
@@ -2224,6 +2533,34 @@ button.btn-delete-user svg {
     padding: 14px 16px;
     border: 1px solid #e5e2d9;
     border-radius: 12px;
+}
+
+.event-participant-name {
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 650;
+    text-align: left;
+    cursor: pointer;
+}
+
+.event-participant-name:hover,
+.event-participant-name:focus-visible {
+    color: var(--brand-m);
+    text-decoration: underline;
+    outline: none;
+}
+
+.event-participant-name small {
+    color: var(--ink-soft);
+    font-weight: 500;
 }
 
 .event-participant-status {

@@ -1,10 +1,15 @@
 <?php
 $old = $old ?? [];
 $tipoAtual = $old['tipo'] ?? 'encontro';
+$modalidadeAtual = $old['modalidade'] ?? 'livre';
 $temTermino = ($old['tem_termino'] ?? '0') === '1';
+$temLimite = ($old['tem_limite'] ?? '0') === '1';
 $temPagamento = ($old['tem_pagamento'] ?? '0') === '1';
 $recorrente = ($old['recorrente'] ?? '0') === '1';
 $isEdit = isset($evento);
+$tituloPagina = $tituloPagina ?? 'Criar evento';
+$descricaoPagina = $descricaoPagina ?? 'Preencha os dados para publicar um novo evento do clube.';
+$modalidades = eventModalidadeOptions();
 
 function eventFormValue(array $old, string $key, string $default = ''): string
 {
@@ -14,9 +19,9 @@ function eventFormValue(array $old, string $key, string $default = ''): string
 
 <section class="event-form-page">
     <header class="event-form-header">
-        <div>
-            <a class="event-back-link" href="/eventos">← Voltar para eventos</a>
-        </div>
+        <a class="event-back-link" href="/eventos">← Voltar para eventos</a>
+        <h1><?= e($tituloPagina) ?></h1>
+        <p><?= e($descricaoPagina) ?></p>
     </header>
 
     <?php if (!empty($errors)): ?>
@@ -56,9 +61,9 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             <div class="event-type-options">
                 <?php
                 $tipos = [
-                    'encontro' => ['Encontro casual', '♧'],
-                    'oficina' => ['Oficina', '▤'],
-                    'torneio' => ['Torneio', '♜'],
+                    'encontro' => ['Encontro casual', ''],
+                    'oficina' => ['Oficina', ''],
+                    'torneio' => ['Torneio', ''],
                 ];
                 ?>
 
@@ -79,31 +84,64 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             </div>
         </fieldset>
 
-        <div
-            class="form-field"
-            id="campo-limite"
-            <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
-        >
-            <label for="limite">Limite de participantes</label>
-            <input
-                id="limite"
-                name="limite"
-                type="number"
-                min="1"
-                max="10000"
-                value="<?= eventFormValue($old, 'limite', '16') ?>"
-                placeholder="Ex.: 16"
-                <?= $tipoAtual === 'encontro' ? 'disabled' : '' ?>
-            >
-            <small>Opcional. Aplicável a torneios e oficinas.</small>
+        <div class="form-field">
+            <label for="modalidade">Modalidade</label>
+            <select id="modalidade" name="modalidade" required>
+                <?php foreach ($modalidades as $valor => $rotulo): ?>
+                    <option
+                        value="<?= e($valor) ?>"
+                        <?= $modalidadeAtual === $valor ? 'selected' : '' ?>
+                    >
+                        <?= e($rotulo) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </div>
 
         <div
-            class="form-field event-payment-block"
+            class="event-option-block"
+            id="campo-limite"
+            <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
+        >
+            <label class="event-registration-option" for="tem_limite">
+                <input
+                    type="checkbox"
+                    id="tem_limite"
+                    name="tem_limite"
+                    value="1"
+                    <?= $temLimite ? 'checked' : '' ?>
+                    <?= $tipoAtual === 'encontro' ? 'disabled' : '' ?>
+                >
+                <span>
+                    <strong>Definir limite de participantes</strong>
+                </span>
+            </label>
+
+            <div
+                id="campo-limite-valor"
+                class="form-field event-nested-field"
+                <?= $temLimite ? '' : 'hidden' ?>
+            >
+                <label for="limite">Limite de participantes</label>
+                <input
+                    id="limite"
+                    name="limite"
+                    type="number"
+                    min="1"
+                    max="10000"
+                    value="<?= eventFormValue($old, 'limite') ?>"
+                    placeholder="Ex.: 16"
+                    <?= $temLimite ? '' : 'disabled' ?>
+                >
+            </div>
+        </div>
+
+        <div
+            class="event-option-block"
             id="campo-pagamento"
             <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
         >
-            <label class="event-registration-option">
+            <label class="event-registration-option" for="tem_pagamento">
                 <input
                     type="checkbox"
                     id="tem_pagamento"
@@ -114,11 +152,10 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                 >
                 <span>
                     <strong>Cobrar taxa de participação</strong>
-                    <small>Para torneios e oficinas, informe se há pagamento e o valor.</small>
                 </span>
             </label>
 
-            <div id="campo-taxa" class="event-nested-field" <?= $temPagamento ? '' : 'hidden' ?>>
+            <div id="campo-taxa" class="form-field event-nested-field" <?= $temPagamento ? '' : 'hidden' ?>>
                 <label for="taxa">Valor (R$)</label>
                 <input
                     id="taxa"
@@ -167,7 +204,6 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             >
             <span>
                 <strong>Informar data de término</strong>
-                <small>Marque para definir quando o evento termina.</small>
             </span>
         </label>
 
@@ -235,7 +271,6 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                 >
                 <span>
                     <strong>Evento recorrente</strong>
-                    <small>Cria várias ocorrências com o mesmo intervalo de dias.</small>
                 </span>
             </label>
 
@@ -283,7 +318,6 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             >
             <span>
                 <strong>Permitir inscrições de participantes</strong>
-                <small>Indica se o evento aceitará inscrições pelo sistema.</small>
             </span>
         </label>
 
@@ -302,6 +336,8 @@ function eventFormValue(array $old, string $key, string $default = ''): string
     document.addEventListener('DOMContentLoaded', function () {
         const tipos = document.querySelectorAll('input[name="tipo"]');
         const campoLimite = document.getElementById('campo-limite');
+        const temLimite = document.getElementById('tem_limite');
+        const campoLimiteValor = document.getElementById('campo-limite-valor');
         const inputLimite = document.getElementById('limite');
         const campoPagamento = document.getElementById('campo-pagamento');
         const temPagamento = document.getElementById('tem_pagamento');
@@ -316,26 +352,34 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         const recorrenciaDias = document.getElementById('recorrencia_dias');
         const recorrenciaOcorrencias = document.getElementById('recorrencia_ocorrencias');
 
-        function tipoEhPago() {
+        function tipoComExtras() {
             const tipoSelecionado = document.querySelector('input[name="tipo"]:checked');
             return tipoSelecionado &&
                 (tipoSelecionado.value === 'torneio' || tipoSelecionado.value === 'oficina');
         }
 
-        function atualizarCampoLimite() {
-            const mostrar = tipoEhPago();
+        function atualizarCamposTipo() {
+            const mostrar = tipoComExtras();
             campoLimite.hidden = !mostrar;
-            inputLimite.disabled = !mostrar;
             campoPagamento.hidden = !mostrar;
+            temLimite.disabled = !mostrar;
             temPagamento.disabled = !mostrar;
             if (!mostrar) {
+                temLimite.checked = false;
                 temPagamento.checked = false;
             }
+            atualizarCampoLimiteValor();
             atualizarCampoTaxa();
         }
 
+        function atualizarCampoLimiteValor() {
+            const mostrar = tipoComExtras() && temLimite.checked;
+            campoLimiteValor.hidden = !mostrar;
+            inputLimite.disabled = !mostrar;
+        }
+
         function atualizarCampoTaxa() {
-            const mostrar = tipoEhPago() && temPagamento.checked;
+            const mostrar = tipoComExtras() && temPagamento.checked;
             campoTaxa.hidden = !mostrar;
             inputTaxa.disabled = !mostrar;
         }
@@ -358,15 +402,16 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         }
 
         tipos.forEach(function (tipo) {
-            tipo.addEventListener('change', atualizarCampoLimite);
+            tipo.addEventListener('change', atualizarCamposTipo);
         });
+        temLimite.addEventListener('change', atualizarCampoLimiteValor);
         temPagamento.addEventListener('change', atualizarCampoTaxa);
         temTermino.addEventListener('change', atualizarCampoTermino);
         if (recorrente) {
             recorrente.addEventListener('change', atualizarCampoRecorrencia);
         }
 
-        atualizarCampoLimite();
+        atualizarCamposTipo();
         atualizarCampoTermino();
         atualizarCampoRecorrencia();
     });

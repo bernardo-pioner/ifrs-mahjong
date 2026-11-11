@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (flash) {
         window.setTimeout(() => {
             flash.classList.add('is-hiding');
-        }, 4200);
+            window.setTimeout(() => {
+                flash.remove();
+            }, 280);
+        }, 3200);
     }
 });

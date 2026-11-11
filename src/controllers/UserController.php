@@ -59,6 +59,7 @@ final class UserController extends Controller
             'nickname' => $nickname,
             'realName' => (string) ($user['name'] ?? ''),
             'bio' => (string) ($user['bio'] ?? ''),
+            'memberSince' => formatMemberSince($user['created_at'] ?? null),
             'errors' => [],
         ]);
     }
@@ -246,7 +247,7 @@ final class UserController extends Controller
                 break;
         }
 
-        redirect('/usuarios/editar?id=' . $id);
+        redirect('/usuarios');
     }
 
     
@@ -309,7 +310,7 @@ final class UserController extends Controller
                 break;
         }
 
-        redirect('/usuarios/editar?id=' . $id);
+        redirect('/usuarios');
     }
 
 
@@ -345,6 +346,7 @@ final class UserController extends Controller
                 'nickname' => $nickname,
                 'realName' => $realName,
                 'bio' => $bio,
+                'memberSince' => formatMemberSince($user['created_at'] ?? null),
                 'errors' => $errors,
             ]);
             return;

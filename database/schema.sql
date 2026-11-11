@@ -41,6 +41,14 @@ CREATE TABLE IF NOT EXISTS eventos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     admin_id INTEGER NOT NULL,
     tipo TEXT NOT NULL CHECK (tipo IN ('torneio', 'oficina', 'encontro')),
+    modalidade TEXT NOT NULL DEFAULT 'livre'
+        CHECK (modalidade IN (
+            'livre',
+            '4_jogadores_leste',
+            '4_jogadores_sul',
+            '3_jogadores_leste',
+            '3_jogadores_sul'
+        )),
     titulo TEXT NOT NULL,
     descricao TEXT,
     imagem TEXT,

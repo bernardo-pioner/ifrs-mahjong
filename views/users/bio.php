@@ -3,14 +3,14 @@
 /** @var string $nickname */
 /** @var string $realName */
 /** @var string $bio */
+/** @var string $memberSince */
 /** @var list<string> $errors */
 $photoUrl = userPhotoUrl($user);
 ?>
 <section class="page-head">
     <p class="eyebrow">Perfil</p>
     <h1>Configurações de Bio</h1>
-    <p class="lede">Atualize o apelido, o nome, a bio e a foto que aparecem no clube.</p>
-</section>
+    </section>
 
 <section class="profile-card">
     <?php if ($errors !== []): ?>
@@ -38,6 +38,10 @@ $photoUrl = userPhotoUrl($user);
                 <span class="hint">JPG, PNG, WEBP ou GIF. Máximo de 2 MB.</span>
             </label>
         </div>
+
+        <?php if ($memberSince !== ''): ?>
+            <p class="member-since">Membro desde <?= e($memberSince) ?></p>
+        <?php endif; ?>
 
         <label>
             Apelido

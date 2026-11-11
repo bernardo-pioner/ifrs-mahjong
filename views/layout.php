@@ -74,12 +74,6 @@ $navItems = [
             </nav>
 
             <div class="sidebar-foot">
-                <?php if ($isAdmin): ?>
-                    <a href="/app">
-                        <span class="icon icon-back" aria-hidden="true"></span>
-                        <span>Voltar ao app</span>
-                    </a>
-                <?php endif; ?>
                 <div class="user-card">
                     <span class="user-card-avatar" aria-hidden="true">
                         <?php if ($userPhoto): ?>

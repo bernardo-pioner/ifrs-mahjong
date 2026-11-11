@@ -10,27 +10,36 @@ final class EventController extends Controller
 
         $busca = trim((string) ($_GET['busca'] ?? ''));
         $tipo = (string) ($_GET['tipo'] ?? '');
-        $situacao = (string) ($_GET['situacao'] ?? '');
+        $inscricao = (string) ($_GET['inscricao'] ?? '');
 
         $tiposValidos = ['encontro', 'oficina', 'torneio'];
-        $situacoesValidas = ['nao_iniciado', 'em_andamento', 'encerrado'];
+        $inscricoesValidas = ['pendente', 'inscrito', 'nao_inscrito'];
 
         if (!in_array($tipo, $tiposValidos, true)) {
             $tipo = '';
         }
 
-        if (!in_array($situacao, $situacoesValidas, true)) {
-            $situacao = '';
+        if (!in_array($inscricao, $inscricoesValidas, true)) {
+            $inscricao = '';
         }
 
+        $userId = (int) $user['id'];
+
         $sql = '
-            SELECT e.*, u.nome AS organizador
+            SELECT
+                e.*,
+                u.nome AS organizador,
+                ep.status AS minha_inscricao
             FROM eventos e
             LEFT JOIN usuarios u ON u.id = e.admin_id
+            LEFT JOIN evento_participantes ep
+                ON ep.evento_id = e.id
+               AND ep.participante_id = :user_id
+               AND ep.status <> \'cancelado\'
             WHERE 1 = 1
         ';
 
-        $params = [];
+        $params = [':user_id' => $userId];
 
         if ($busca !== '') {
             $sql .= ' AND e.titulo LIKE :busca';
@@ -42,25 +51,12 @@ final class EventController extends Controller
             $params[':tipo'] = $tipo;
         }
 
-        if ($situacao === 'nao_iniciado') {
-            $sql .= "
-                AND e.data_inicio IS NOT NULL
-                AND datetime(e.data_inicio) > datetime('now', 'localtime')
-            ";
-        } elseif ($situacao === 'em_andamento') {
-            $sql .= "
-                AND e.data_inicio IS NOT NULL
-                AND datetime(e.data_inicio) <= datetime('now', 'localtime')
-                AND (
-                    e.data_fim IS NULL
-                    OR datetime(e.data_fim) >= datetime('now', 'localtime')
-                )
-            ";
-        } elseif ($situacao === 'encerrado') {
-            $sql .= "
-                AND e.data_fim IS NOT NULL
-                AND datetime(e.data_fim) < datetime('now', 'localtime')
-            ";
+        if ($inscricao === 'pendente') {
+            $sql .= " AND ep.status = 'pendente'";
+        } elseif ($inscricao === 'inscrito') {
+            $sql .= " AND ep.status = 'aprovado'";
+        } elseif ($inscricao === 'nao_inscrito') {
+            $sql .= ' AND ep.id IS NULL';
         }
 
         $sql .= '
@@ -80,7 +76,7 @@ final class EventController extends Controller
             'eventos' => $stmt->fetchAll(),
             'busca' => $busca,
             'tipoFiltro' => $tipo,
-            'situacaoFiltro' => $situacao,
+            'inscricaoFiltro' => $inscricao,
         ]);
     }
 
@@ -120,6 +116,7 @@ final class EventController extends Controller
         $base = [
             'admin_id' => (int) $user['id'],
             'tipo' => $parsed['tipo'],
+            'modalidade' => $parsed['modalidade'],
             'titulo' => $parsed['titulo'],
             'descricao' => $parsed['descricao'],
             'data_inicio' => $parsed['inicio']->format('Y-m-d H:i:s'),
@@ -181,6 +178,7 @@ final class EventController extends Controller
         $old = [
             'titulo' => $evento['titulo'],
             'tipo' => $evento['tipo'],
+            'modalidade' => (string) ($evento['modalidade'] ?? 'livre'),
             'data' => $inicio?->format('Y-m-d') ?? '',
             'horario' => $inicio?->format('H:i') ?? '14:00',
             'tem_termino' => $fim !== null ? '1' : '0',
@@ -188,6 +186,7 @@ final class EventController extends Controller
             'horario_fim' => $fim?->format('H:i') ?? '16:00',
             'local' => $evento['local'] ?? '',
             'descricao' => $evento['descricao'] ?? '',
+            'tem_limite' => $details['limite'] !== null ? '1' : '0',
             'limite' => $details['limite'] !== null ? (string) $details['limite'] : '',
             'tem_pagamento' => $details['taxa'] > 0 ? '1' : '0',
             'taxa' => $details['taxa'] > 0
@@ -246,6 +245,7 @@ final class EventController extends Controller
                 'UPDATE eventos
                  SET titulo = :titulo,
                      tipo = :tipo,
+                     modalidade = :modalidade,
                      descricao = :descricao,
                      data_inicio = :data_inicio,
                      data_fim = :data_fim,
@@ -257,6 +257,7 @@ final class EventController extends Controller
             $stmt->execute([
                 ':titulo' => $parsed['titulo'],
                 ':tipo' => $parsed['tipo'],
+                ':modalidade' => $parsed['modalidade'],
                 ':descricao' => $parsed['descricao'],
                 ':data_inicio' => $parsed['inicio']->format('Y-m-d H:i:s'),
                 ':data_fim' => $parsed['fim']?->format('Y-m-d H:i:s'),
@@ -347,20 +348,31 @@ final class EventController extends Controller
         }
 
         $details = Event::typeDetails($evento);
-        $participantes = Event::listParticipants((int) $id);
+        $participantes = Event::listParticipants((int) $id, (int) $user['id']);
         $minhaParticipacao = Event::findParticipation((int) $id, (int) $user['id']);
+        $meuPagamento = Event::findPayment((int) $id, (int) $user['id']);
         $vagasOcupadas = Event::countActiveParticipants((int) $id);
         $temVaga = Event::hasCapacity($evento);
         $ehAdmin = ($user['role'] ?? '') === 'admin';
         $userId = (int) $user['id'];
 
+        $levelLabels = [
+            'iniciante' => 'Iniciante',
+            'intermediario' => 'Intermediário',
+            'avancado' => 'Avançado',
+        ];
+
         foreach ($participantes as &$participante) {
             $dono = (int) ($participante['usuario_id'] ?? 0) === $userId;
             $podeVerComprovante = $ehAdmin || $dono;
             $temComprovante = !empty($participante['comprovante']);
+            $level = (string) ($participante['level'] ?? '');
 
             $participante['pode_ver_comprovante'] = $podeVerComprovante && $temComprovante;
-            unset($participante['comprovante']);
+            $participante['photo_url'] = userPhotoUrl($participante);
+            $participante['member_since'] = formatMemberSince($participante['created_at'] ?? null);
+            $participante['level_label'] = $levelLabels[$level] ?? '';
+            unset($participante['comprovante'], $participante['photo'], $participante['created_at']);
         }
         unset($participante);
 
@@ -372,6 +384,7 @@ final class EventController extends Controller
             'participantes' => $participantes,
             'details' => $details,
             'minhaParticipacao' => $minhaParticipacao,
+            'meuPagamento' => $meuPagamento,
             'vagasOcupadas' => $vagasOcupadas,
             'temVaga' => $temVaga,
         ]);
@@ -447,38 +460,67 @@ final class EventController extends Controller
             return;
         }
 
-        $details = Event::typeDetails($evento);
-        $precisaComprovante = in_array($evento['tipo'], ['torneio', 'oficina'], true)
-            && $details['taxa'] > 0;
-
-        $comprovantePath = null;
-        if ($precisaComprovante) {
-            $upload = $this->storePaymentProof((int) $user['id'], (int) $id);
-            if ($upload['error'] !== null) {
-                flash('error', $upload['error']);
-                redirect('/eventos/' . (int) $id);
-                return;
-            }
-            $comprovantePath = $upload['path'];
+        $result = Event::register($evento, (int) $user['id']);
+        if (!$result['ok']) {
+            flash('error', (string) $result['error']);
+            redirect('/eventos/' . (int) $id);
+            return;
         }
 
-        $result = Event::register($evento, (int) $user['id'], $comprovantePath);
+        $details = Event::typeDetails($evento);
+        $precisaPagamento = in_array($evento['tipo'], ['torneio', 'oficina'], true)
+            && $details['taxa'] > 0;
+
+        if ($precisaPagamento) {
+            $mensagem = 'Inscrição pendente. Envie o comprovante abaixo.';
+        } elseif (in_array($evento['tipo'], ['torneio', 'oficina'], true)) {
+            $mensagem = 'Inscrição enviada. Aguarde a aprovação.';
+        } else {
+            $mensagem = 'Inscrição realizada com sucesso.';
+        }
+
+        flash('success', $mensagem);
+        redirect('/eventos/' . (int) $id);
+    }
+
+    public function uploadComprovante(string $id): void
+    {
+        $user = $this->requireAuth();
+        verifyCsrf();
+
+        $evento = Event::findById((int) $id);
+        if (!$evento) {
+            flash('error', 'Evento não encontrado.');
+            redirect('/eventos');
+            return;
+        }
+
+        $upload = $this->storePaymentProof((int) $user['id'], (int) $id);
+        if ($upload['error'] !== null || $upload['path'] === null) {
+            flash('error', $upload['error'] ?? 'Não foi possível enviar o comprovante.');
+            redirect('/eventos/' . (int) $id);
+            return;
+        }
+
+        $result = Event::upsertPaymentProof($evento, (int) $user['id'], $upload['path']);
         if (!$result['ok']) {
-            if ($comprovantePath !== null) {
-                $absolute = Event::resolveComprovantePath($comprovantePath);
-                if ($absolute !== null) {
-                    unlink($absolute);
-                }
+            $absolute = Event::resolveComprovantePath($upload['path']);
+            if ($absolute !== null) {
+                unlink($absolute);
             }
             flash('error', (string) $result['error']);
             redirect('/eventos/' . (int) $id);
             return;
         }
 
-        $mensagem = in_array($evento['tipo'], ['torneio', 'oficina'], true)
-            ? 'Inscrição enviada. Aguarde a aprovação do administrador.'
-            : 'Inscrição realizada com sucesso.';
-        flash('success', $mensagem);
+        if (!empty($result['previous_path']) && $result['previous_path'] !== $upload['path']) {
+            $previousAbsolute = Event::resolveComprovantePath((string) $result['previous_path']);
+            if ($previousAbsolute !== null) {
+                unlink($previousAbsolute);
+            }
+        }
+
+        flash('success', 'Comprovante enviado. Aguarde a análise.');
         redirect('/eventos/' . (int) $id);
     }
 
@@ -562,12 +604,14 @@ final class EventController extends Controller
         return [
             'titulo' => request('titulo'),
             'tipo' => request('tipo', 'encontro'),
+            'modalidade' => request('modalidade', 'livre'),
             'data' => request('data'),
             'horario' => request('horario'),
             'tem_termino' => isset($_POST['tem_termino']) ? '1' : '0',
             'data_fim' => request('data_fim'),
             'horario_fim' => request('horario_fim'),
             'local' => request('local'),
+            'tem_limite' => isset($_POST['tem_limite']) ? '1' : '0',
             'limite' => request('limite'),
             'tem_pagamento' => isset($_POST['tem_pagamento']) ? '1' : '0',
             'taxa' => request('taxa'),
@@ -600,6 +644,12 @@ final class EventController extends Controller
 
         if (!in_array($tipo, ['encontro', 'oficina', 'torneio'], true)) {
             $errors[] = 'Selecione um tipo de evento válido.';
+        }
+
+        $modalidade = $old['modalidade'] ?? 'livre';
+        if (!array_key_exists($modalidade, eventModalidadeOptions())) {
+            $errors[] = 'Selecione uma modalidade válida.';
+            $modalidade = 'livre';
         }
 
         $inicioTexto = $old['data'] . ' ' . $old['horario'];
@@ -657,10 +707,10 @@ final class EventController extends Controller
         }
 
         $limite = null;
-        if (in_array($tipo, ['torneio', 'oficina'], true) && $old['limite'] !== '') {
+        if (in_array($tipo, ['torneio', 'oficina'], true) && ($old['tem_limite'] ?? '0') === '1') {
             $limite = filter_var($old['limite'], FILTER_VALIDATE_INT);
             if ($limite === false || $limite < 1 || $limite > 10000) {
-                $errors[] = 'O limite deve ser um número entre 1 e 10.000.';
+                $errors[] = 'Informe um limite de participantes entre 1 e 10.000.';
                 $limite = null;
             }
         }
@@ -701,6 +751,7 @@ final class EventController extends Controller
         $parsed = [
             'titulo' => $titulo,
             'tipo' => $tipo,
+            'modalidade' => $modalidade,
             'inicio' => $inicio instanceof DateTimeImmutable ? $inicio : null,
             'fim' => $fim,
             'local' => $local !== '' ? $local : null,

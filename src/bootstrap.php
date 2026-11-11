@@ -167,3 +167,44 @@ function userPhotoUrl(?array $user): ?string
 
     return $photo;
 }
+
+/** @return array<string, string> */
+function eventModalidadeOptions(): array
+{
+    return [
+        'livre' => 'Livre',
+        '4_jogadores_leste' => '4 Jogadores Leste',
+        '4_jogadores_sul' => '4 Jogadores Sul',
+        '3_jogadores_leste' => '3 Jogadores Leste',
+        '3_jogadores_sul' => '3 Jogadores Sul',
+    ];
+}
+
+function eventModalidadeLabel(?string $value): string
+{
+    $options = eventModalidadeOptions();
+    $key = (string) ($value ?? '');
+
+    return $options[$key] ?? $options['livre'];
+}
+
+/** Formata a data de criação da conta sem hora (ex.: 11/11/2026). */
+function formatMemberSince(?string $value): string
+{
+    $value = trim((string) $value);
+    if ($value === '') {
+        return '';
+    }
+
+    try {
+        $date = new DateTimeImmutable($value);
+    } catch (Exception) {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', substr($value, 0, 10));
+        if ($parsed === false) {
+            return '';
+        }
+        $date = $parsed;
+    }
+
+    return $date->format('d/m/Y');
+}

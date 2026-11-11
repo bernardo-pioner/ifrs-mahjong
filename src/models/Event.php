@@ -64,7 +64,7 @@ final class Event
     {
         $stmt = db()->prepare(
             "SELECT COUNT(*) FROM evento_participantes
-             WHERE evento_id = :id AND status IN ('pendente', 'aprovado')"
+             WHERE evento_id = :id AND status = 'aprovado'"
         );
         $stmt->execute([':id' => $eventoId]);
 
@@ -97,13 +97,18 @@ final class Event
     }
 
     /** @return list<array<string, mixed>> */
-    public static function listParticipants(int $eventoId): array
+    public static function listParticipants(int $eventoId, ?int $currentUserId = null): array
     {
         $stmt = db()->prepare(
             'SELECT
                 u.id AS usuario_id,
+                u.apelido AS username,
                 u.nome,
+                u.criado_em AS created_at,
                 p.apelido,
+                p.bio,
+                p.foto AS photo,
+                p.nivel AS level,
                 ep.status,
                 ep.inscrito_em,
                 pg.id AS pagamento_id,
@@ -117,9 +122,18 @@ final class Event
                 ON pg.evento_id = ep.evento_id
                AND pg.participante_id = ep.participante_id
              WHERE ep.evento_id = :evento_id
-             ORDER BY ep.inscrito_em ASC'
+             ORDER BY
+                CASE WHEN u.id = :current_user_id THEN 0 ELSE 1 END ASC,
+                COALESCE(
+                    NULLIF(TRIM(p.apelido), \'\'),
+                    NULLIF(TRIM(u.nome), \'\'),
+                    u.apelido
+                ) COLLATE NOCASE ASC'
         );
-        $stmt->execute([':evento_id' => $eventoId]);
+        $stmt->execute([
+            ':evento_id' => $eventoId,
+            ':current_user_id' => $currentUserId ?? 0,
+        ]);
 
         return $stmt->fetchAll();
     }
@@ -181,6 +195,7 @@ final class Event
      * @param array{
      *   admin_id: int,
      *   tipo: string,
+     *   modalidade: string,
      *   titulo: string,
      *   descricao: ?string,
      *   data_inicio: string,
@@ -197,13 +212,14 @@ final class Event
 
         $stmt = $pdo->prepare(
             'INSERT INTO eventos
-                (admin_id, tipo, titulo, descricao, data_inicio, data_fim, local, inscricoes_abertas)
+                (admin_id, tipo, modalidade, titulo, descricao, data_inicio, data_fim, local, inscricoes_abertas)
              VALUES
-                (:admin_id, :tipo, :titulo, :descricao, :data_inicio, :data_fim, :local, :inscricoes_abertas)'
+                (:admin_id, :tipo, :modalidade, :titulo, :descricao, :data_inicio, :data_fim, :local, :inscricoes_abertas)'
         );
         $stmt->execute([
             ':admin_id' => $data['admin_id'],
             ':tipo' => $data['tipo'],
+            ':modalidade' => $data['modalidade'],
             ':titulo' => $data['titulo'],
             ':descricao' => $data['descricao'],
             ':data_inicio' => $data['data_inicio'],
@@ -269,6 +285,7 @@ final class Event
      * @param array{
      *   admin_id: int,
      *   tipo: string,
+     *   modalidade: string,
      *   titulo: string,
      *   descricao: ?string,
      *   data_inicio: string,
@@ -324,11 +341,8 @@ final class Event
     /**
      * @return array{ok: bool, error: ?string}
      */
-    public static function register(
-        array $evento,
-        int $participanteId,
-        ?string $comprovantePath = null
-    ): array {
+    public static function register(array $evento, int $participanteId): array
+    {
         if (!(int) ($evento['inscricoes_abertas'] ?? 0)) {
             return ['ok' => false, 'error' => 'As inscrições para este evento estão fechadas.'];
         }
@@ -346,11 +360,6 @@ final class Event
         $taxa = $details['taxa'];
         $tipo = (string) $evento['tipo'];
         $precisaPagamento = in_array($tipo, ['torneio', 'oficina'], true) && $taxa > 0;
-
-        if ($precisaPagamento && ($comprovantePath === null || $comprovantePath === '')) {
-            return ['ok' => false, 'error' => 'Anexe o comprovante de pagamento (PDF, PNG ou JPEG).'];
-        }
-
         $status = in_array($tipo, ['torneio', 'oficina'], true) ? 'pendente' : 'aprovado';
 
         $pdo = db();
@@ -394,6 +403,89 @@ final class Event
                     'INSERT INTO pagamentos
                         (evento_id, participante_id, valor, status, comprovante)
                      VALUES
+                        (:evento_id, :participante_id, :valor, :status, NULL)'
+                );
+                $stmt->execute([
+                    ':evento_id' => (int) $evento['id'],
+                    ':participante_id' => $participanteId,
+                    ':valor' => $taxa,
+                    ':status' => 'pendente',
+                ]);
+            }
+
+            $pdo->commit();
+
+            return ['ok' => true, 'error' => null];
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * @return array{ok: bool, error: ?string, previous_path: ?string}
+     */
+    public static function upsertPaymentProof(
+        array $evento,
+        int $participanteId,
+        string $comprovantePath
+    ): array {
+        $participation = self::findParticipation((int) $evento['id'], $participanteId);
+        if ($participation === null || ($participation['status'] ?? '') === 'cancelado') {
+            return [
+                'ok' => false,
+                'error' => 'Você precisa estar inscrito neste evento para enviar o comprovante.',
+                'previous_path' => null,
+            ];
+        }
+
+        if (($participation['status'] ?? '') === 'aprovado') {
+            return [
+                'ok' => false,
+                'error' => 'A inscrição já foi aprovada. O comprovante não pode mais ser alterado.',
+                'previous_path' => null,
+            ];
+        }
+
+        $details = self::typeDetails($evento);
+        $taxa = $details['taxa'];
+        $tipo = (string) $evento['tipo'];
+        $precisaPagamento = in_array($tipo, ['torneio', 'oficina'], true) && $taxa > 0;
+
+        if (!$precisaPagamento) {
+            return [
+                'ok' => false,
+                'error' => 'Este evento não exige comprovante de pagamento.',
+                'previous_path' => null,
+            ];
+        }
+
+        $existing = self::findPayment((int) $evento['id'], $participanteId);
+        $previousPath = $existing !== null ? ($existing['comprovante'] ?? null) : null;
+
+        $pdo = db();
+        $pdo->beginTransaction();
+
+        try {
+            if ($existing !== null) {
+                $stmt = $pdo->prepare(
+                    "UPDATE pagamentos
+                     SET comprovante = :comprovante,
+                         status = 'pendente',
+                         pago_em = NULL
+                     WHERE id = :id"
+                );
+                $stmt->execute([
+                    ':comprovante' => $comprovantePath,
+                    ':id' => (int) $existing['id'],
+                ]);
+            } else {
+                $stmt = $pdo->prepare(
+                    'INSERT INTO pagamentos
+                        (evento_id, participante_id, valor, status, comprovante)
+                     VALUES
                         (:evento_id, :participante_id, :valor, :status, :comprovante)'
                 );
                 $stmt->execute([
@@ -407,7 +499,11 @@ final class Event
 
             $pdo->commit();
 
-            return ['ok' => true, 'error' => null];
+            return [
+                'ok' => true,
+                'error' => null,
+                'previous_path' => is_string($previousPath) ? $previousPath : null,
+            ];
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
@@ -431,6 +527,31 @@ final class Event
         $participation = self::findParticipation($eventoId, $participanteId);
         if ($participation === null) {
             return ['ok' => false, 'error' => 'Participação não encontrada.'];
+        }
+
+        $evento = self::findById($eventoId);
+        if ($evento === null) {
+            return ['ok' => false, 'error' => 'Evento não encontrado.'];
+        }
+
+        if ($status === 'aprovado' && ($participation['status'] ?? '') !== 'aprovado') {
+            if (!self::hasCapacity($evento)) {
+                return ['ok' => false, 'error' => 'Não há mais vagas disponíveis para aprovar esta inscrição.'];
+            }
+
+            $details = self::typeDetails($evento);
+            $precisaPagamento = in_array((string) $evento['tipo'], ['torneio', 'oficina'], true)
+                && $details['taxa'] > 0;
+
+            if ($precisaPagamento) {
+                $pagamento = self::findPayment($eventoId, $participanteId);
+                if ($pagamento === null || empty($pagamento['comprovante'])) {
+                    return [
+                        'ok' => false,
+                        'error' => 'Não é possível aprovar: o participante ainda não enviou o comprovante.',
+                    ];
+                }
+            }
         }
 
         $pdo = db();
