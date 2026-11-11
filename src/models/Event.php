@@ -124,6 +124,59 @@ final class Event
         return $stmt->fetchAll();
     }
 
+    public static function findPayment(int $eventoId, int $participanteId): ?array
+    {
+        $stmt = db()->prepare(
+            'SELECT *
+             FROM pagamentos
+             WHERE evento_id = :evento_id
+               AND participante_id = :participante_id
+             ORDER BY id DESC
+             LIMIT 1'
+        );
+        $stmt->execute([
+            ':evento_id' => $eventoId,
+            ':participante_id' => $participanteId,
+        ]);
+        $row = $stmt->fetch();
+
+        return $row ?: null;
+    }
+
+    public static function resolveComprovantePath(?string $storedPath): ?string
+    {
+        if ($storedPath === null || trim($storedPath) === '') {
+            return null;
+        }
+
+        $storedPath = str_replace('\\', '/', trim($storedPath));
+        if (str_contains($storedPath, '..')) {
+            return null;
+        }
+
+        $candidates = [];
+
+        if (str_starts_with($storedPath, '/uploads/comprovantes/')) {
+            $filename = basename($storedPath);
+            $candidates[] = ROOT_PATH . '/storage/comprovantes/' . $filename;
+            $candidates[] = ROOT_PATH . '/public/uploads/comprovantes/' . $filename;
+        } elseif (str_starts_with($storedPath, 'storage/comprovantes/')) {
+            $candidates[] = ROOT_PATH . '/' . $storedPath;
+        } else {
+            $filename = basename($storedPath);
+            $candidates[] = ROOT_PATH . '/storage/comprovantes/' . $filename;
+            $candidates[] = ROOT_PATH . '/public/uploads/comprovantes/' . $filename;
+        }
+
+        foreach ($candidates as $path) {
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * @param array{
      *   admin_id: int,

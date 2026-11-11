@@ -37,6 +37,7 @@ $router->get('/eventos/{id}/editar', [$events, 'edit']);
 $router->post('/eventos/{id}/editar', [$events, 'update']);
 $router->get('/eventos/{id}', [$events, 'show']);
 $router->post('/eventos/{id}/inscrever', [$events, 'register']);
+$router->get('/eventos/{id}/comprovantes/{participanteId}', [$events, 'downloadComprovante']);
 $router->post('/eventos/{id}/participantes/{participanteId}/status', [$events, 'updateParticipantStatus']);
 $router->post('/eventos/{id}/excluir', [$events, 'destroy']);
 $router->get('/partidas', [$matches, 'index']);

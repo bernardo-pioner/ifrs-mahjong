@@ -193,9 +193,9 @@ $podeInscrever = !$ehAdmin && $inscricoesAbertas && !$jaInscrito && $temVaga;
                                         <?= e($statusLabels[$participante['status']] ?? $participante['status']) ?>
                                     </span>
 
-                                    <?php if (!empty($participante['comprovante'])): ?>
+                                    <?php if (!empty($participante['pode_ver_comprovante'])): ?>
                                         <a
-                                            href="<?= e($participante['comprovante']) ?>"
+                                            href="/eventos/<?= $eventoId ?>/comprovantes/<?= (int) $participante['usuario_id'] ?>"
                                             target="_blank"
                                             rel="noopener"
                                         >

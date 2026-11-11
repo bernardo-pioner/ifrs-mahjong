@@ -351,6 +351,18 @@ final class EventController extends Controller
         $minhaParticipacao = Event::findParticipation((int) $id, (int) $user['id']);
         $vagasOcupadas = Event::countActiveParticipants((int) $id);
         $temVaga = Event::hasCapacity($evento);
+        $ehAdmin = ($user['role'] ?? '') === 'admin';
+        $userId = (int) $user['id'];
+
+        foreach ($participantes as &$participante) {
+            $dono = (int) ($participante['usuario_id'] ?? 0) === $userId;
+            $podeVerComprovante = $ehAdmin || $dono;
+            $temComprovante = !empty($participante['comprovante']);
+
+            $participante['pode_ver_comprovante'] = $podeVerComprovante && $temComprovante;
+            unset($participante['comprovante']);
+        }
+        unset($participante);
 
         $this->view('events/show', [
             'title' => $evento['titulo'],
@@ -363,6 +375,64 @@ final class EventController extends Controller
             'vagasOcupadas' => $vagasOcupadas,
             'temVaga' => $temVaga,
         ]);
+    }
+
+    public function downloadComprovante(string $id, string $participanteId): void
+    {
+        $user = $this->requireAuth();
+        $eventoId = (int) $id;
+        $targetId = (int) $participanteId;
+        $ehAdmin = ($user['role'] ?? '') === 'admin';
+
+        if (!$ehAdmin && (int) $user['id'] !== $targetId) {
+            http_response_code(403);
+            echo 'Acesso negado.';
+            return;
+        }
+
+        $evento = Event::findById($eventoId);
+        if (!$evento) {
+            http_response_code(404);
+            echo 'Evento não encontrado.';
+            return;
+        }
+
+        $pagamento = Event::findPayment($eventoId, $targetId);
+        if ($pagamento === null || empty($pagamento['comprovante'])) {
+            http_response_code(404);
+            echo 'Comprovante não encontrado.';
+            return;
+        }
+
+        $absolute = Event::resolveComprovantePath((string) $pagamento['comprovante']);
+        if ($absolute === null) {
+            http_response_code(404);
+            echo 'Arquivo do comprovante não encontrado.';
+            return;
+        }
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = (string) $finfo->file($absolute);
+        $allowed = [
+            'application/pdf' => 'pdf',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+        ];
+        if (!isset($allowed[$mime])) {
+            http_response_code(403);
+            echo 'Arquivo inválido.';
+            return;
+        }
+
+        header('Content-Type: ' . $mime);
+        header('Content-Length: ' . (string) filesize($absolute));
+        header(
+            'Content-Disposition: inline; filename="comprovante-' . $eventoId . '-' . $targetId . '.' . $allowed[$mime] . '"'
+        );
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, no-store');
+        readfile($absolute);
+        exit;
     }
 
     public function register(string $id): void
@@ -395,8 +465,8 @@ final class EventController extends Controller
         $result = Event::register($evento, (int) $user['id'], $comprovantePath);
         if (!$result['ok']) {
             if ($comprovantePath !== null) {
-                $absolute = ROOT_PATH . '/public' . $comprovantePath;
-                if (is_file($absolute)) {
+                $absolute = Event::resolveComprovantePath($comprovantePath);
+                if ($absolute !== null) {
                     unlink($absolute);
                 }
             }
@@ -684,7 +754,7 @@ final class EventController extends Controller
             return ['path' => null, 'error' => 'Use um comprovante em PDF, PNG ou JPEG.'];
         }
 
-        $directory = ROOT_PATH . '/public/uploads/comprovantes';
+        $directory = ROOT_PATH . '/storage/comprovantes';
         if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
             return ['path' => null, 'error' => 'Não foi possível salvar o comprovante.'];
         }
@@ -695,6 +765,6 @@ final class EventController extends Controller
             return ['path' => null, 'error' => 'Não foi possível salvar o comprovante.'];
         }
 
-        return ['path' => '/uploads/comprovantes/' . $filename, 'error' => null];
+        return ['path' => 'storage/comprovantes/' . $filename, 'error' => null];
     }
 }
