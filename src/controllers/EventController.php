@@ -513,13 +513,26 @@ final class EventController extends Controller
         $this->requireAdmin();
         verifyCsrf();
 
-        $status = request('status');
-        $result = Event::updateParticipantStatus((int) $id, (int) $participanteId, $status);
+        $suplente = request('suplente');
+        if ($suplente === '0' || $suplente === '1') {
+            $result = Event::setParticipantSuplente(
+                (int) $id,
+                (int) $participanteId,
+                $suplente === '1'
+            );
+            $mensagem = $suplente === '1'
+                ? 'Participante marcado como suplente.'
+                : 'Suplente removido.';
+        } else {
+            $status = request('status');
+            $result = Event::updateParticipantStatus((int) $id, (int) $participanteId, $status);
+            $mensagem = 'Status da participação atualizado.';
+        }
 
         if (!$result['ok']) {
             flash('error', (string) $result['error']);
         } else {
-            flash('success', 'Status da participação atualizado.');
+            flash('success', $mensagem);
         }
 
         redirect('/eventos/' . (int) $id);

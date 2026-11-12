@@ -100,7 +100,9 @@ $levelLabels = [
                                         <span class="icon icon-user"></span>
                                     <?php endif; ?>
                                 </span>
-                                <span><?= e($username) ?></span>
+                                <button type="button" class="user-table-name">
+                                    <?= e($username) ?>
+                                </button>
                             </div>
                         </td>
                         <td><?= e($email) ?></td>
@@ -457,6 +459,7 @@ $levelLabels = [
                 }
 
                 closeActionsMenu();
+                document.body.appendChild(detailsModal);
                 detailsModal.hidden = false;
                 detailsModal.setAttribute('aria-hidden', 'false');
                 document.body.classList.add('user-details-open');
@@ -469,6 +472,16 @@ $levelLabels = [
             }
 
             tableBody.addEventListener('click', function (event) {
+                const nameButton = event.target.closest('.user-table-name');
+                if (nameButton) {
+                    event.stopPropagation();
+                    const detailsTrigger = nameButton.closest('tr')?.querySelector('.user-actions-trigger');
+                    if (detailsTrigger) {
+                        openDetailsModal(detailsTrigger);
+                    }
+                    return;
+                }
+
                 const trigger = event.target.closest('.user-actions-trigger');
                 if (!trigger) {
                     return;

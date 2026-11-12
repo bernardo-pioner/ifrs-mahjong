@@ -210,7 +210,9 @@ final class Event
     {
         $stmt = db()->prepare(
             "SELECT COUNT(*) FROM evento_participantes
-             WHERE evento_id = :id AND status = 'aprovado'"
+             WHERE evento_id = :id
+               AND status = 'aprovado'
+               AND suplente = 0"
         );
         $stmt->execute([':id' => $eventoId]);
 
@@ -259,6 +261,7 @@ final class Event
                 p.foto AS photo,
                 p.nivel AS level,
                 ep.status,
+                ep.suplente,
                 ep.inscrito_em,
                 pg.id AS pagamento_id,
                 pg.valor AS pagamento_valor,
@@ -543,7 +546,7 @@ final class Event
             if ($existing !== null) {
                 $stmt = $pdo->prepare(
                     "UPDATE evento_participantes
-                     SET status = :status, inscrito_em = datetime('now')
+                     SET status = :status, suplente = 0, inscrito_em = datetime('now')
                      WHERE evento_id = :evento_id AND participante_id = :participante_id"
                 );
                 $stmt->execute([
@@ -708,10 +711,14 @@ final class Event
             return ['ok' => false, 'error' => 'Evento não encontrado.'];
         }
 
-        if ($status === 'aprovado' && ($participation['status'] ?? '') !== 'aprovado') {
-            if (!self::hasCapacity($evento)) {
-                return ['ok' => false, 'error' => 'Não há mais vagas disponíveis para aprovar esta inscrição.'];
-            }
+        $ehSuplente = (int) ($participation['suplente'] ?? 0) === 1;
+        if (
+            $status === 'aprovado'
+            && ($participation['status'] ?? '') !== 'aprovado'
+            && !$ehSuplente
+            && !self::hasCapacity($evento)
+        ) {
+            return ['ok' => false, 'error' => 'Não há mais vagas disponíveis para aprovar esta inscrição.'];
         }
 
         $pdo = db();
@@ -752,5 +759,47 @@ final class Event
             }
             throw $e;
         }
+    }
+
+    /**
+     * @return array{ok: bool, error: ?string}
+     */
+    public static function setParticipantSuplente(
+        int $eventoId,
+        int $participanteId,
+        bool $suplente
+    ): array {
+        $participation = self::findParticipation($eventoId, $participanteId);
+        if ($participation === null) {
+            return ['ok' => false, 'error' => 'Participação não encontrada.'];
+        }
+
+        $evento = self::findById($eventoId);
+        if ($evento === null) {
+            return ['ok' => false, 'error' => 'Evento não encontrado.'];
+        }
+
+        $jaSuplente = (int) ($participation['suplente'] ?? 0) === 1;
+        if (
+            !$suplente
+            && $jaSuplente
+            && ($participation['status'] ?? '') === 'aprovado'
+            && !self::hasCapacity($evento)
+        ) {
+            return ['ok' => false, 'error' => 'Não há mais vagas para incluir este participante no total.'];
+        }
+
+        $stmt = db()->prepare(
+            'UPDATE evento_participantes
+             SET suplente = :suplente
+             WHERE evento_id = :evento_id AND participante_id = :participante_id'
+        );
+        $stmt->execute([
+            ':suplente' => $suplente ? 1 : 0,
+            ':evento_id' => $eventoId,
+            ':participante_id' => $participanteId,
+        ]);
+
+        return ['ok' => true, 'error' => null];
     }
 }

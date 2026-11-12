@@ -186,6 +186,16 @@ function applyCompatibleSchemaUpdates(PDO $pdo): bool
         $changed = true;
     }
 
+    $inscricoes = tableColumns($pdo, 'evento_participantes');
+    if ($inscricoes !== null && !isset($inscricoes['suplente'])) {
+        $pdo->exec(
+            'ALTER TABLE evento_participantes
+             ADD COLUMN suplente INTEGER NOT NULL DEFAULT 0
+             CHECK (suplente IN (0, 1))'
+        );
+        $changed = true;
+    }
+
     return $changed || true;
 }
 
@@ -211,6 +221,7 @@ function atualizarStatusInscricao(PDO $pdo): void
                 inscrito_em TEXT NOT NULL DEFAULT (datetime(\'now\')),
                 status TEXT NOT NULL DEFAULT \'pendente\'
                     CHECK (status IN (\'pendente\', \'aprovado\', \'cancelado\')),
+                suplente INTEGER NOT NULL DEFAULT 0 CHECK (suplente IN (0, 1)),
                 PRIMARY KEY (evento_id, participante_id),
                 FOREIGN KEY (evento_id) REFERENCES eventos(id) ON DELETE CASCADE,
                 FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id)

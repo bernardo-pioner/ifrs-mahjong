@@ -14,7 +14,7 @@ $logoUrl = clubLogoUrl();
 $navItems = [
     ['href' => '/', 'label' => 'Dashboard', 'icon' => 'icon-dashboard', 'adminOnly' => false],
     ['href' => '/eventos', 'label' => 'Eventos', 'icon' => 'icon-calendar', 'adminOnly' => false],
-    ['href' => '/partidas', 'label' => 'Partidas', 'icon' => 'icon-layers', 'adminOnly' => false],
+    ['href' => '/partidas', 'label' => 'Partidas', 'icon' => 'icon-mahjong', 'adminOnly' => false],
     ['href' => '/rankings', 'label' => 'Rankings', 'icon' => 'icon-chart', 'adminOnly' => false],
     ['href' => '/usuarios', 'label' => 'Usuários', 'icon' => 'icon-user-search', 'adminOnly' => true],
     ['href' => '/configuracoes', 'label' => 'Configurações', 'icon' => 'icon-sliders', 'adminOnly' => true],

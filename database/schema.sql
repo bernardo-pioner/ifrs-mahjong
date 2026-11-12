@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS evento_participantes (
     inscrito_em TEXT NOT NULL DEFAULT (datetime('now')),
     status TEXT NOT NULL DEFAULT 'pendente'
         CHECK (status IN ('pendente', 'aprovado', 'cancelado')),
+    suplente INTEGER NOT NULL DEFAULT 0 CHECK (suplente IN (0, 1)),
     PRIMARY KEY (evento_id, participante_id),
     FOREIGN KEY (evento_id) REFERENCES eventos(id) ON DELETE CASCADE,
     FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id)

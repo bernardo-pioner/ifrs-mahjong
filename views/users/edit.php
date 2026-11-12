@@ -76,9 +76,21 @@ $statusWillBeActive = $pendingStatus === 'keep'
             </p>
 
             <div class="profile-current-data">
+                <?php
+                $apelidoAtual = trim((string) ($targetUser['username'] ?? ''));
+                if ($apelidoAtual === '') {
+                    $apelidoAtual = trim((string) ($targetUser['nickname'] ?? ''));
+                }
+                $nomeAtual = trim((string) ($targetUser['name'] ?? ''));
+                ?>
                 <div>
-                    <span class="profile-label">Nome atual</span>
-                    <p><?= e((string) ($targetUser['name'] ?? '')) ?></p>
+                    <span class="profile-label">Apelido</span>
+                    <p><?= e($apelidoAtual !== '' ? $apelidoAtual : 'Não informado') ?></p>
+                </div>
+
+                <div>
+                    <span class="profile-label">Nome</span>
+                    <p><?= e($nomeAtual !== '' ? $nomeAtual : 'Não informado') ?></p>
                 </div>
 
                 <div>
@@ -129,17 +141,6 @@ $statusWillBeActive = $pendingStatus === 'keep'
                 Preencha os campos abaixo para atualizar o perfil.
                 As alterações só serão aplicadas ao salvar.
             </p>
-
-            <label>
-                Novo nome
-                <input
-                    type="text"
-                    name="name"
-                    value="<?= e((string) ($targetUser['name'] ?? '')) ?>"
-                    autocomplete="name"
-                    required
-                >
-            </label>
 
             <label>
                 Novo e-mail

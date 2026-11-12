@@ -71,7 +71,7 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             <div class="event-type-options">
                 <?php
                 $tipos = [
-                    'encontro' => ['Encontro casual', ''],
+                    'encontro' => ['Encontro', ''],
                     'oficina' => ['Oficina', ''],
                     'torneio' => ['Torneio', ''],
                 ];

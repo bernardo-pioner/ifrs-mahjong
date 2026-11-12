@@ -1,7 +1,7 @@
 <?php
 
 $tiposEvento = [
-    'encontro' => 'Encontro casual',
+    'encontro' => 'Encontro',
     'oficina' => 'Oficina',
     'torneio' => 'Torneio',
 ];
@@ -150,6 +150,9 @@ $podeEnviarComprovante = !$ehAdmin
                         <strong class="event-participant-status is-<?= e($statusInscricao) ?>">
                             <?= e($statusLabels[$statusInscricao] ?? $statusInscricao) ?>
                         </strong>
+                        <?php if ((int) ($minhaParticipacao['suplente'] ?? 0) === 1): ?>
+                            <strong class="event-participant-status is-suplente">Suplente</strong>
+                        <?php endif; ?>
                     </p>
 
                     <?php if ($precisaPagamento): ?>
@@ -244,8 +247,16 @@ $podeEnviarComprovante = !$ehAdmin
 
         <div class="event-form-divider"></div>
 
+        <?php
+        $totalInscritos = 0;
+        foreach ($participantes ?? [] as $inscrito) {
+            if ((int) ($inscrito['suplente'] ?? 0) !== 1) {
+                $totalInscritos++;
+            }
+        }
+        ?>
         <section class="event-participants">
-            <h2>Participantes inscritos (<?= count($participantes ?? []) ?>)</h2>
+            <h2>Participantes inscritos (<?= $totalInscritos ?>)</h2>
 
             <?php if (empty($participantes)): ?>
                 <p class="event-participants-empty">
@@ -299,6 +310,9 @@ $podeEnviarComprovante = !$ehAdmin
                                     <span class="event-participant-status is-<?= e($participante['status']) ?>">
                                         <?= e($statusLabels[$participante['status']] ?? $participante['status']) ?>
                                     </span>
+                                    <?php if ((int) ($participante['suplente'] ?? 0) === 1): ?>
+                                        <span class="event-participant-status is-suplente">Suplente</span>
+                                    <?php endif; ?>
 
                                     <?php if (!empty($participante['pode_ver_comprovante'])): ?>
                                         <a
@@ -312,24 +326,72 @@ $podeEnviarComprovante = !$ehAdmin
                                 </div>
                             </div>
 
-                            <?php if ($ehAdmin && $participante['status'] === 'pendente'): ?>
-                                <form
-                                    method="post"
-                                    action="/eventos/<?= $eventoId ?>/participantes/<?= (int) $participante['usuario_id'] ?>/status"
-                                    class="event-status-form"
+                            <?php if ($ehAdmin): ?>
+                                <button
+                                    type="button"
+                                    class="user-actions-trigger event-actions-trigger"
+                                    aria-haspopup="menu"
+                                    aria-expanded="false"
+                                    aria-label="Ações de <?= e($displayName) ?>"
+                                    data-event-id="<?= $eventoId ?>"
+                                    data-participant-id="<?= (int) $participante['usuario_id'] ?>"
+                                    data-status="<?= e((string) $participante['status']) ?>"
+                                    data-suplente="<?= (int) ($participante['suplente'] ?? 0) === 1 ? '1' : '0' ?>"
                                 >
-                                    <?= csrfField() ?>
-                                    <input type="hidden" name="status" value="aprovado">
-                                    <button class="button button-primary" type="submit">
-                                        Aprovar
-                                    </button>
-                                </form>
+                                    <span class="user-actions-dots" aria-hidden="true"></span>
+                                </button>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
         </section>
+
+        <?php if ($ehAdmin && !empty($participantes)): ?>
+            <div
+                id="participant-actions-menu"
+                class="user-actions-menu"
+                role="menu"
+                hidden
+            >
+                <form
+                    method="post"
+                    action="#"
+                    class="user-actions-form"
+                    id="participant-approve-form"
+                >
+                    <?= csrfField() ?>
+                    <input type="hidden" name="status" value="aprovado">
+                    <button type="submit" class="user-actions-item" role="menuitem">
+                        Aprovar
+                    </button>
+                </form>
+                <form
+                    method="post"
+                    action="#"
+                    class="user-actions-form"
+                    id="participant-pending-form"
+                >
+                    <?= csrfField() ?>
+                    <input type="hidden" name="status" value="pendente">
+                    <button type="submit" class="user-actions-item" role="menuitem">
+                        Tornar pendente
+                    </button>
+                </form>
+                <form
+                    method="post"
+                    action="#"
+                    class="user-actions-form"
+                    id="participant-suplente-form"
+                >
+                    <?= csrfField() ?>
+                    <input type="hidden" name="suplente" id="participant-suplente-value" value="1">
+                    <button type="submit" class="user-actions-item" role="menuitem" id="participant-suplente-button">
+                        Marcar como suplente
+                    </button>
+                </form>
+            </div>
+        <?php endif; ?>
 
         <?php if ($ehAdmin): ?>
             <div class="event-form-divider"></div>
@@ -604,6 +666,7 @@ $podeEnviarComprovante = !$ehAdmin
                 }
             }
 
+            document.body.appendChild(modal);
             modal.hidden = false;
             modal.setAttribute('aria-hidden', 'false');
             document.body.classList.add('user-details-open');
@@ -632,6 +695,103 @@ $podeEnviarComprovante = !$ehAdmin
                 closeBio();
             }
         });
+
+        const actionsMenu = document.getElementById('participant-actions-menu');
+        const approveForm = document.getElementById('participant-approve-form');
+        const pendingForm = document.getElementById('participant-pending-form');
+        const suplenteForm = document.getElementById('participant-suplente-form');
+        const suplenteInput = document.getElementById('participant-suplente-value');
+        const suplenteButton = document.getElementById('participant-suplente-button');
+        let activeActionsTrigger = null;
+
+        function closeParticipantActions() {
+            if (!actionsMenu) {
+                return;
+            }
+            actionsMenu.hidden = true;
+            if (activeActionsTrigger) {
+                activeActionsTrigger.setAttribute('aria-expanded', 'false');
+                activeActionsTrigger = null;
+            }
+        }
+
+        function openParticipantActions(trigger) {
+            if (!actionsMenu || !approveForm || !pendingForm || !suplenteForm || !suplenteInput || !suplenteButton) {
+                return;
+            }
+
+            const action = '/eventos/' + trigger.dataset.eventId
+                + '/participantes/' + trigger.dataset.participantId
+                + '/status';
+            const status = trigger.dataset.status || '';
+            const suplente = trigger.dataset.suplente === '1';
+
+            approveForm.action = action;
+            pendingForm.action = action;
+            suplenteForm.action = action;
+            approveForm.hidden = status === 'aprovado';
+            pendingForm.hidden = status === 'pendente';
+            suplenteInput.value = suplente ? '0' : '1';
+            suplenteButton.textContent = suplente ? 'Remover suplente' : 'Marcar como suplente';
+
+            if (activeActionsTrigger && activeActionsTrigger !== trigger) {
+                activeActionsTrigger.setAttribute('aria-expanded', 'false');
+            }
+
+            actionsMenu.hidden = false;
+            const rect = trigger.getBoundingClientRect();
+            const menuWidth = actionsMenu.offsetWidth;
+            const menuHeight = actionsMenu.offsetHeight;
+            let left = rect.right - menuWidth;
+            let top = rect.bottom + 6;
+
+            if (left < 8) {
+                left = 8;
+            }
+            if (left + menuWidth > window.innerWidth - 8) {
+                left = window.innerWidth - menuWidth - 8;
+            }
+            if (top + menuHeight > window.innerHeight - 8) {
+                top = rect.top - menuHeight - 6;
+            }
+
+            actionsMenu.style.left = left + 'px';
+            actionsMenu.style.top = top + 'px';
+            activeActionsTrigger = trigger;
+            trigger.setAttribute('aria-expanded', 'true');
+        }
+
+        document.querySelectorAll('.event-actions-trigger').forEach(function (trigger) {
+            trigger.addEventListener('click', function (event) {
+                event.stopPropagation();
+                if (activeActionsTrigger === trigger && actionsMenu && !actionsMenu.hidden) {
+                    closeParticipantActions();
+                    return;
+                }
+                openParticipantActions(trigger);
+            });
+        });
+
+        document.addEventListener('click', function (event) {
+            if (
+                !actionsMenu ||
+                actionsMenu.hidden ||
+                event.target.closest('#participant-actions-menu') ||
+                event.target.closest('.event-actions-trigger')
+            ) {
+                return;
+            }
+            closeParticipantActions();
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeParticipantActions();
+            }
+        });
+
+        window.addEventListener('resize', closeParticipantActions);
+        window.addEventListener('scroll', closeParticipantActions, true);
 
         document.querySelectorAll('[data-file-picker]').forEach(function (input) {
             const nameEl = input.closest('.file-picker')?.querySelector('[data-file-name]');

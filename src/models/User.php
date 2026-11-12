@@ -385,7 +385,6 @@ final class User
     /** @return list<string> */
     public static function updateProfile(
         int $id,
-        string $name,
         string $email,
         string $roleAction = 'keep',
         string $statusAction = 'keep',
@@ -393,14 +392,9 @@ final class User
     ): array {
         $errors = [];
 
-        $name = trim($name);
         $email = strtolower(trim($email));
         $level = trim($level);
         $niveisValidos = ['iniciante', 'intermediario', 'avancado'];
-
-        if ($name === '' || mb_strlen($name) < 2) {
-            $errors[] = 'Informe um nome com pelo menos 2 caracteres.';
-        }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Informe um e-mail válido.';
@@ -486,14 +480,12 @@ final class User
             // Atualiza os dados pessoais e o status na mesma transação.
             $stmt = $pdo->prepare(
                 'UPDATE usuarios
-                SET nome = :nome,
-                    email = :email,
+                SET email = :email,
                     ativo = :ativo
                 WHERE id = :id'
             );
 
             $stmt->execute([
-                'nome' => $name,
                 'email' => $email,
                 'ativo' => $activate ? 1 : 0,
                 'id' => $id,

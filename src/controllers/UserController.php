@@ -76,7 +76,6 @@ final class UserController extends Controller
         verifyCsrf();
 
         $idText = request('id');
-        $name = request('name');
         $email = request('email');
 
         $roleAction = request('role_action');
@@ -112,7 +111,6 @@ final class UserController extends Controller
 
         $errors = User::updateProfile(
             $id,
-            $name,
             $email,
             $roleAction,
             $statusAction,
@@ -120,7 +118,6 @@ final class UserController extends Controller
         );
 
         if ($errors !== []) {
-            $targetUser['name'] = $name;
             $targetUser['email'] = $email;
             $targetUser['level'] = $level;
             $targetUser['pending_role'] = $roleAction;

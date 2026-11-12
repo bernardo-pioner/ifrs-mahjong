@@ -52,7 +52,7 @@ $photoUrl = userPhotoUrl($user);
                         Nenhum arquivo selecionado
                     </span>
                 </label>
-                <span class="hint">JPG, PNG, WEBP ou GIF. Máximo de 2 MB.</span>
+                <span class="hint">JPG, PNG, WEBP ou GIF. Máximo de 2 MB. Depois de escolher, você ajusta o recorte.</span>
             </div>
         </div>
 
@@ -125,6 +125,86 @@ $photoUrl = userPhotoUrl($user);
 </section>
 
 <div
+    id="image-crop-modal"
+    class="image-crop-modal"
+    hidden
+    aria-hidden="true"
+>
+    <div class="image-crop-backdrop" data-close-crop></div>
+    <div
+        class="image-crop-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="image-crop-title"
+    >
+        <button type="button" class="user-details-close" data-close-crop aria-label="Fechar">×</button>
+        <h2 id="image-crop-title">Ajustar foto</h2>
+        <p class="image-crop-help">Arraste para posicionar. Use o zoom e a rotação se precisar.</p>
+
+        <div class="image-crop-layout">
+            <div class="image-crop-stage" data-crop-stage data-shape="circle">
+                <img data-crop-image alt="">
+                <div class="image-crop-mask" data-crop-mask data-shape="circle" aria-hidden="true"></div>
+            </div>
+
+            <div class="image-crop-side">
+                <span class="image-crop-side-label">Prévia</span>
+                <div class="image-crop-previews">
+                    <div class="image-crop-preview-card">
+                        <canvas data-crop-preview-square width="96" height="96" aria-label="Prévia em quadrado"></canvas>
+                        <span>Quadrado</span>
+                    </div>
+                    <div class="image-crop-preview-card">
+                        <canvas
+                            class="is-circle"
+                            data-crop-preview-circle
+                            width="96"
+                            height="96"
+                            aria-label="Prévia em círculo"
+                        ></canvas>
+                        <span>Círculo</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="image-crop-toolbar">
+            <button type="button" class="image-crop-tool" data-crop-rotate="-90" aria-label="Girar para a esquerda" title="Girar para a esquerda">↺</button>
+            <button type="button" class="image-crop-tool" data-crop-rotate="90" aria-label="Girar para a direita" title="Girar para a direita">↻</button>
+            <span class="image-crop-toolbar-sep" aria-hidden="true"></span>
+            <button type="button" class="image-crop-tool" data-crop-zoom="-0.15" aria-label="Diminuir zoom" title="Diminuir zoom">−</button>
+            <button type="button" class="image-crop-tool" data-crop-zoom="0.15" aria-label="Aumentar zoom" title="Aumentar zoom">+</button>
+            <span class="image-crop-toolbar-sep" aria-hidden="true"></span>
+            <button
+                type="button"
+                class="image-crop-tool"
+                data-crop-shape="square"
+                aria-label="Recorte quadrado"
+                aria-pressed="false"
+                title="Quadrado"
+            >
+                <span class="image-crop-shape-icon is-square" aria-hidden="true"></span>
+            </button>
+            <button
+                type="button"
+                class="image-crop-tool is-active"
+                data-crop-shape="circle"
+                aria-label="Recorte circular"
+                aria-pressed="true"
+                title="Círculo"
+            >
+                <span class="image-crop-shape-icon is-circle" aria-hidden="true"></span>
+            </button>
+        </div>
+
+        <div class="image-crop-actions">
+            <button type="button" class="button button-secondary" data-close-crop>Cancelar</button>
+            <button type="button" class="button button-primary" data-crop-apply>Aplicar</button>
+        </div>
+    </div>
+</div>
+
+<div
     id="bio-leave-modal"
     class="series-choice-modal"
     hidden
@@ -147,9 +227,13 @@ $photoUrl = userPhotoUrl($user);
     </div>
 </div>
 
+<script src="/assets/js/image-crop.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('[data-file-picker]').forEach(function (input) {
+            if (input.id === 'photo') {
+                return;
+            }
             const nameEl = input.closest('.file-picker')?.querySelector('[data-file-name]');
             if (!nameEl) {
                 return;
