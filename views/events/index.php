@@ -269,7 +269,15 @@ $temEventos = $temEventos || $encerrados !== [];
         </form>
     </div>
 
-    <?php if (!$temEventos): ?>
+    <?php if (!$temEventos && !empty($clubeSemEventos)): ?>
+        <div class="events-empty">
+            <h2 class="events-empty-title">Ainda não há nenhum evento do clube.</h2>
+            <?php if ($ehAdmin): ?>
+                <p>Deseja criar um novo evento?</p>
+                <a class="button button-primary" href="/eventos/novo">Criar evento</a>
+            <?php endif; ?>
+        </div>
+    <?php elseif (!$temEventos): ?>
         <h2 class="events-empty-title">
             <?php if (($busca ?? '') !== ''): ?>
                 Oops! Nenhum evento encontrado para esta busca. :(

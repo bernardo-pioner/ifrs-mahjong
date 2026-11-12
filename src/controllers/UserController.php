@@ -382,7 +382,31 @@ final class UserController extends Controller
         }
 
         flash('success', 'Perfil atualizado.');
-        redirect('/perfil');
+        redirect($this->safeReturnPath(request('return_to')) ?? '/perfil');
+    }
+
+    private function safeReturnPath(string $path): ?string
+    {
+        $path = trim($path);
+        if ($path === '' || !str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            return null;
+        }
+
+        $parts = parse_url($path);
+        if (!is_array($parts) || isset($parts['scheme']) || isset($parts['host']) || !isset($parts['path'])) {
+            return null;
+        }
+
+        if ($parts['path'] === '/perfil' || str_contains($parts['path'], '\\')) {
+            return null;
+        }
+
+        $destino = $parts['path'];
+        if (isset($parts['query']) && $parts['query'] !== '') {
+            $destino .= '?' . $parts['query'];
+        }
+
+        return $destino;
     }
 
     /** @return array{path: ?string, error: ?string} */

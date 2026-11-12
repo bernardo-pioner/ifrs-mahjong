@@ -82,6 +82,7 @@ final class EventController extends Controller
 
         $stmt = db()->prepare($sql);
         $stmt->execute($params);
+        $totalEventos = (int) db()->query('SELECT COUNT(*) FROM eventos')->fetchColumn();
 
         $this->view('events/index', [
             'title' => 'Eventos',
@@ -92,6 +93,7 @@ final class EventController extends Controller
             'tipoFiltro' => $tipo,
             'inscricaoFiltro' => $inscricao,
             'situacaoFiltro' => $situacao,
+            'clubeSemEventos' => $totalEventos === 0,
         ]);
     }
 
