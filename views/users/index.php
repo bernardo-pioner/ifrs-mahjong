@@ -74,6 +74,9 @@ $levelLabels = [
                         $nickname = $username;
                     }
                     $bio = trim((string) ($row['bio'] ?? ''));
+                    $mahjongSoul = trim((string) ($row['mahjong_soul'] ?? ''));
+                    $riichiCity = trim((string) ($row['riichi_city'] ?? ''));
+                    $discord = trim((string) ($row['discord'] ?? ''));
                     $level = (string) ($row['level'] ?? '');
                     $levelLabel = $levelLabels[$level] ?? '';
                     $memberSince = formatMemberSince($row['created_at'] ?? null);
@@ -120,6 +123,9 @@ $levelLabels = [
                                 data-real-name="<?= e($name) ?>"
                                 data-email="<?= e($email) ?>"
                                 data-bio="<?= e($bio) ?>"
+                                data-mahjong-soul="<?= e($mahjongSoul) ?>"
+                                data-riichi-city="<?= e($riichiCity) ?>"
+                                data-discord="<?= e($discord) ?>"
                                 data-level="<?= e($levelLabel) ?>"
                                 data-member-since="<?= e($memberSince) ?>"
                                 data-photo="<?= e($photoUrl ?? '') ?>"
@@ -151,6 +157,15 @@ $levelLabels = [
         <button type="button" class="user-actions-item" role="menuitem" data-action="details">
             Ver mais detalhes
         </button>
+        <a
+            href="#"
+            class="user-actions-item"
+            role="menuitem"
+            id="user-edit-link"
+            data-action="edit"
+        >
+            Editar perfil
+        </a>
         <form
             method="post"
             action="/usuarios/permissao"
@@ -236,6 +251,18 @@ $levelLabels = [
                     <span class="profile-label">Nível</span>
                     <p id="user-details-level"></p>
                 </div>
+                <div>
+                    <span class="profile-label">ID/Nome Mahjong Soul</span>
+                    <p id="user-details-mahjong-soul"></p>
+                </div>
+                <div>
+                    <span class="profile-label">ID/Nome Riichi City</span>
+                    <p id="user-details-riichi-city"></p>
+                </div>
+                <div>
+                    <span class="profile-label">Discord</span>
+                    <p id="user-details-discord"></p>
+                </div>
             </div>
 
             <div class="user-details-bio">
@@ -260,6 +287,7 @@ $levelLabels = [
             const statusIdInput = document.getElementById('user-status-id');
             const statusActionInput = document.getElementById('user-status-action');
             const statusButton = document.getElementById('user-status-button');
+            const editLink = document.getElementById('user-edit-link');
 
             if (!searchInput || !statusSelect || !roleSelect || !tableBody || !noResults || !actionsMenu || !detailsModal) {
                 return;
@@ -310,6 +338,9 @@ $levelLabels = [
 
                 roleIdInput.value = userId;
                 statusIdInput.value = userId;
+                if (editLink) {
+                    editLink.href = '/usuarios/editar?id=' + encodeURIComponent(userId);
+                }
 
                 if (isAdmin) {
                     roleActionInput.value = 'demote';
@@ -372,7 +403,8 @@ $levelLabels = [
             }
 
             function openDetailsModal(trigger) {
-                const nickname = trigger.dataset.nickname || trigger.dataset.username || 'Usuário';
+                const nickname = (trigger.dataset.nickname || trigger.dataset.username || '').trim();
+                const realName = (trigger.dataset.realName || '').trim();
                 const photo = trigger.dataset.photo || '';
                 const isActive = trigger.dataset.status === 'ativo';
                 const photoImg = document.getElementById('user-details-photo');
@@ -380,10 +412,10 @@ $levelLabels = [
                 const statusEl = document.getElementById('user-details-status');
                 const memberSinceEl = document.getElementById('user-details-member-since');
 
-                fillText('user-details-title', nickname, 'Usuário');
+                fillText('user-details-title', realName !== '' ? realName : nickname, 'Usuário');
                 fillText(
                     'user-details-username',
-                    trigger.dataset.username ? '@' + trigger.dataset.username : '',
+                    nickname !== '' ? '@' + nickname : '',
                     ''
                 );
 
@@ -407,6 +439,9 @@ $levelLabels = [
                 }
 
                 fillText('user-details-level', trigger.dataset.level, 'Não informado');
+                fillText('user-details-mahjong-soul', trigger.dataset.mahjongSoul, 'Não informado');
+                fillText('user-details-riichi-city', trigger.dataset.riichiCity, 'Não informado');
+                fillText('user-details-discord', trigger.dataset.discord, 'Não informado');
                 fillText('user-details-bio', trigger.dataset.bio, 'Este usuário ainda não escreveu uma bio.');
 
                 if (photoImg && photoFallback) {

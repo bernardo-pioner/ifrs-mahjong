@@ -751,15 +751,15 @@ body.is-guest .auth-card {
     width: 0.5rem;
     height: 0.5rem;
     border-radius: 999px;
-    background: var(--moss);
+    background: rgb(12, 159, 1);
 }
 
 .event-mark.is-oficina {
-    background: var(--gold);
+    background: rgb(159, 3, 3);
 }
 
 .event-mark.is-torneio {
-    background: var(--lacquer);
+    background: #000000;
 }
 
 .event-mark.is-encerrado {
@@ -894,7 +894,7 @@ body.is-guest .page-head {
 }
 
 body.is-guest .auth-card h1 {
-    font-family: var(--font-display);
+    font-family: var(--font-body);
     font-size: clamp(2rem, 4vw, 3rem);
 }
 
@@ -1067,7 +1067,8 @@ body.is-guest .lede {
 }
 
 .form input,
-.form textarea {
+.form textarea,
+.form select {
     width: 100%;
     border: 1px solid var(--line);
     background: #fbf8f1;
@@ -1083,7 +1084,8 @@ body.is-guest .lede {
 }
 
 .form input:focus,
-.form textarea:focus {
+.form textarea:focus,
+.form select:focus {
     outline: 2px solid var(--brand-m);
     outline-offset: 1px;
 }
@@ -1122,9 +1124,19 @@ body.is-guest .lede {
     object-fit: cover;
 }
 
-.profile-photo-field label {
+.profile-photo-field label,
+.profile-photo-upload {
     flex: 1;
     min-width: 0;
+}
+
+.profile-photo-upload {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.profile-photo-upload .file-picker {
+    width: 100%;
 }
 
 .member-since {
@@ -1136,6 +1148,17 @@ body.is-guest .lede {
 .hint {
     color: var(--ink-soft);
     font-size: 0.82rem;
+}
+
+.field-label {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.2rem;
+}
+
+.required-mark {
+    color: var(--lacquer);
+    font-weight: 700;
 }
 
 .form-errors {
@@ -1362,6 +1385,8 @@ body.is-guest .lede {
     font: inherit;
     font-size: 0.92rem;
     text-align: left;
+    text-decoration: none;
+    box-sizing: border-box;
     cursor: pointer;
 }
 
@@ -1433,14 +1458,15 @@ body.is-guest .lede {
 
 .user-details-heading h2 {
     margin: 0;
-    font-family: var(--font-display);
+    font-family: var(--font-body);
     font-size: 1.35rem;
     font-weight: 650;
     color: var(--ink);
 }
 
 .user-details-heading .lede {
-    margin: 0.2rem 0 0;
+    margin: 0;
+    line-height: 1.2;
 }
 
 .user-details-dialog .profile-current-data {
@@ -1464,8 +1490,79 @@ body.is-guest .lede {
     font-style: italic;
 }
 
-body.user-details-open {
+body.user-details-open,
+body.series-choice-open {
     overflow: hidden;
+}
+
+.series-choice-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 1.25rem;
+}
+
+.series-choice-modal[hidden] {
+    display: none;
+}
+
+.series-choice-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(13, 42, 38, 0.35);
+}
+
+.series-choice-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 28rem);
+    margin: 0;
+    padding: 1.5rem 1.4rem 1.4rem;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+    box-shadow: var(--shadow);
+}
+
+.series-choice-dialog h2 {
+    margin: 0;
+    padding-right: 1.75rem;
+    font-family: var(--font-body);
+    font-size: 1.35rem;
+    font-weight: 650;
+    color: var(--ink);
+}
+
+.series-choice-dialog p {
+    margin: 0.7rem 0 0;
+    color: var(--ink-soft);
+    line-height: 1.5;
+}
+
+.series-choice-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 1.25rem;
+}
+
+.series-choice-actions.is-stacked {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.series-choice-actions .button-primary {
+    color: #fff;
+    background: var(--sidebar);
+    border-color: var(--sidebar);
+}
+
+.series-choice-actions .button-primary:hover {
+    background: var(--primary-hover, #16473f);
+    border-color: var(--primary-hover, #16473f);
 }
 
 /* Botões de permissão e status da tela editar perfil */
@@ -2134,7 +2231,7 @@ button.btn-delete-user svg {
 .event-form-header h1 {
     margin: 0.55rem 0 0.35rem;
     color: var(--ink);
-    font-family: var(--font-display);
+    font-family: var(--font-body);
     font-size: clamp(1.6rem, 3vw, 2rem);
     font-weight: 650;
     line-height: 1.2;
@@ -2263,6 +2360,17 @@ button.btn-delete-user svg {
     outline: none;
     border-color: var(--brand-m);
     box-shadow: 0 0 0 3px rgba(47, 143, 115, 0.14);
+}
+
+#campo-recorrencia input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+#campo-recorrencia input[type="number"]::-webkit-outer-spin-button,
+#campo-recorrencia input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .event-type-options {
@@ -2415,10 +2523,37 @@ button.btn-delete-user svg {
 #campo-limite-valor[hidden],
 #campo-pagamento[hidden],
 #campo-taxa[hidden],
+#campo-premiacao[hidden],
+#campo-premiacao-detalhes[hidden],
 #campo-termino[hidden],
 #campo-recorrencia[hidden],
 #campo-modalidade[hidden] {
     display: none !important;
+}
+
+.event-premiacao-fields {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.event-premiacao-itens {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.event-premiacao-show {
+    margin-top: 0.35rem;
+}
+
+.event-premiacao-list {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: var(--ink);
+    line-height: 1.55;
+}
+
+.event-premiacao-list li + li {
+    margin-top: 0.35rem;
 }
 
 @media (max-width: 600px) {
@@ -2685,6 +2820,18 @@ button.btn-delete-user svg {
 
 .event-show-page .event-form-divider {
     margin: 0.05rem 0;
+}
+
+.event-show-page .form-field {
+    gap: 0.25rem;
+}
+
+.event-show-page .form-field h2 {
+    margin: 0;
+}
+
+.event-show-page .form-field p {
+    margin: 0;
 }
 
 .event-show-page .event-registration-box p,

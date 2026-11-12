@@ -5,8 +5,15 @@ $modalidadeAtual = $old['modalidade'] ?? 'livre';
 $temTermino = ($old['tem_termino'] ?? '0') === '1';
 $temLimite = ($old['tem_limite'] ?? '0') === '1';
 $temPagamento = ($old['tem_pagamento'] ?? '0') === '1';
+$temPremiacao = ($old['tem_premiacao'] ?? '0') === '1';
+$premiacaoItens = is_array($old['premiacao'] ?? null) ? array_values($old['premiacao']) : [];
+$premiacaoQtd = (int) ($old['premiacao_qtd'] ?? (count($premiacaoItens) > 0 ? count($premiacaoItens) : 3));
+if ($premiacaoQtd < 1 || $premiacaoQtd > 10) {
+    $premiacaoQtd = 3;
+}
 $recorrente = ($old['recorrente'] ?? '0') === '1';
 $isEdit = isset($evento);
+$dataMinima = $isEdit ? '' : (new DateTimeImmutable('today'))->format('Y-m-d');
 $tituloPagina = $tituloPagina ?? 'Criar evento';
 $descricaoPagina = $descricaoPagina ?? 'Preencha os dados para publicar um novo evento do clube.';
 $modalidades = eventModalidadeOptions();
@@ -41,6 +48,9 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         action="<?= e($acaoFormulario ?? '/eventos/novo') ?>"
     >
         <?= csrfField() ?>
+        <?php if (!empty($perguntarRecorrenciasFuturas)): ?>
+            <input type="hidden" name="aplicar_serie" id="aplicar_serie" value="atual">
+        <?php endif; ?>
 
         <div class="form-field">
             <label for="titulo">Nome do evento</label>
@@ -110,6 +120,7 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                     name="data"
                     type="date"
                     required
+                    <?= $dataMinima !== '' ? 'min="' . e($dataMinima) . '"' : '' ?>
                     value="<?= eventFormValue($old, 'data') ?>"
                 >
             </div>
@@ -150,6 +161,7 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                     id="data_fim"
                     name="data_fim"
                     type="date"
+                    <?= $dataMinima !== '' ? 'min="' . e($dataMinima) . '"' : '' ?>
                     value="<?= eventFormValue($old, 'data_fim') ?>"
                     <?= $temTermino ? '' : 'disabled' ?>
                 >
@@ -187,12 +199,13 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                 id="campo-recorrencia"
                 <?= $recorrente ? '' : 'hidden' ?>
             >
-                <div class="event-datetime-field">
+                <div class="form-field">
                     <label for="recorrencia_dias">Repetir a cada (dias)</label>
                     <input
                         id="recorrencia_dias"
                         name="recorrencia_dias"
                         type="number"
+                        inputmode="numeric"
                         min="1"
                         max="365"
                         value="<?= eventFormValue($old, 'recorrencia_dias', '7') ?>"
@@ -200,12 +213,13 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                     >
                 </div>
 
-                <div class="event-datetime-field">
+                <div class="form-field">
                     <label for="recorrencia_ocorrencias">Número de ocorrências</label>
                     <input
                         id="recorrencia_ocorrencias"
                         name="recorrencia_ocorrencias"
                         type="number"
+                        inputmode="numeric"
                         min="2"
                         max="52"
                         value="<?= eventFormValue($old, 'recorrencia_ocorrencias', '4') ?>"
@@ -234,7 +248,7 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                 id="descricao"
                 name="descricao"
                 rows="4"
-                maxlength="5000"
+                maxlength="2500"
                 placeholder="Conte aos participantes como será o evento."
             ><?= eventFormValue($old, 'descricao') ?></textarea>
         </div>
@@ -328,7 +342,64 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                 >
             </div>
         </div>
-        
+
+        <div
+            class="event-option-block"
+            id="campo-premiacao"
+            <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
+        >
+            <label class="event-registration-option" for="tem_premiacao">
+                <input
+                    type="checkbox"
+                    id="tem_premiacao"
+                    name="tem_premiacao"
+                    value="1"
+                    <?= $temPremiacao ? 'checked' : '' ?>
+                    <?= $tipoAtual === 'encontro' ? 'disabled' : '' ?>
+                >
+                <span>
+                    <strong>Definir premiação</strong>
+                </span>
+            </label>
+
+            <div
+                id="campo-premiacao-detalhes"
+                class="event-nested-field event-premiacao-fields"
+                <?= $temPremiacao ? '' : 'hidden' ?>
+            >
+                <div class="form-field">
+                    <label for="premiacao_qtd">Colocações premiadas</label>
+                    <select
+                        id="premiacao_qtd"
+                        name="premiacao_qtd"
+                        <?= $temPremiacao ? '' : 'disabled' ?>
+                    >
+                        <?php for ($i = 1; $i <= 10; $i++): ?>
+                            <option value="<?= $i ?>" <?= $premiacaoQtd === $i ? 'selected' : '' ?>>
+                                <?= $i ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+
+                <div id="campo-premiacao-itens" class="event-premiacao-itens">
+                    <?php for ($i = 0; $i < $premiacaoQtd; $i++): ?>
+                        <div class="form-field">
+                            <label for="premiacao_<?= $i + 1 ?>"><?= $i + 1 ?>º lugar</label>
+                            <input
+                                id="premiacao_<?= $i + 1 ?>"
+                                name="premiacao[]"
+                                type="text"
+                                maxlength="200"
+                                value="<?= e((string) ($premiacaoItens[$i] ?? '')) ?>"
+                                placeholder="Ex.: Troféu ou inscrição no próximo torneio"
+                                <?= $temPremiacao ? '' : 'disabled' ?>
+                            >
+                        </div>
+                    <?php endfor; ?>
+                </div>
+            </div>
+        </div>
 
         <div class="event-form-actions">
             <a class="button button-secondary" href="/eventos">Cancelar</a>
@@ -339,6 +410,43 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             </button>
         </div>
     </form>
+
+    <?php if (!empty($perguntarRecorrenciasFuturas)): ?>
+        <div
+            id="series-choice-modal"
+            class="series-choice-modal"
+            hidden
+            aria-hidden="true"
+        >
+            <div class="series-choice-backdrop" data-close-series-choice></div>
+            <div
+                class="series-choice-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="series-choice-title"
+            >
+                <button
+                    type="button"
+                    class="user-details-close"
+                    data-close-series-choice
+                    aria-label="Fechar"
+                >×</button>
+                <h2 id="series-choice-title">Editar recorrência</h2>
+                <p>As ocorrências encerradas permanecem como estão. O que você deseja atualizar?</p>
+                <div class="series-choice-actions is-stacked">
+                    <button type="button" class="button button-secondary" id="series-choice-current">
+                        Apenas esta ocorrência
+                    </button>
+                    <button type="button" class="button button-secondary" id="series-choice-future">
+                        Esta e as seguintes
+                    </button>
+                    <button type="button" class="button button-primary" id="series-choice-active">
+                        Todas as ocorrências ativas
+                    </button>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 </section>
 
 <script>
@@ -352,8 +460,14 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         const temPagamento = document.getElementById('tem_pagamento');
         const campoTaxa = document.getElementById('campo-taxa');
         const inputTaxa = document.getElementById('taxa');
+        const campoPremiacao = document.getElementById('campo-premiacao');
+        const temPremiacao = document.getElementById('tem_premiacao');
+        const campoPremiacaoDetalhes = document.getElementById('campo-premiacao-detalhes');
+        const selectPremiacaoQtd = document.getElementById('premiacao_qtd');
+        const campoPremiacaoItens = document.getElementById('campo-premiacao-itens');
         const temTermino = document.getElementById('tem_termino');
         const campoTermino = document.getElementById('campo-termino');
+        const dataInicio = document.getElementById('data');
         const dataFim = document.getElementById('data_fim');
         const horarioFim = document.getElementById('horario_fim');
         const recorrente = document.getElementById('recorrente');
@@ -381,14 +495,24 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             const mostrar = tipoComExtras();
             campoLimite.hidden = !mostrar;
             campoPagamento.hidden = !mostrar;
+            if (campoPremiacao) {
+                campoPremiacao.hidden = !mostrar;
+            }
             temLimite.disabled = !mostrar;
             temPagamento.disabled = !mostrar;
+            if (temPremiacao) {
+                temPremiacao.disabled = !mostrar;
+            }
             if (!mostrar) {
                 temLimite.checked = false;
                 temPagamento.checked = false;
+                if (temPremiacao) {
+                    temPremiacao.checked = false;
+                }
             }
             atualizarCampoLimiteValor();
             atualizarCampoTaxa();
+            atualizarCampoPremiacao();
         }
 
         function atualizarCampoLimiteValor() {
@@ -403,11 +527,72 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             inputTaxa.disabled = !mostrar;
         }
 
+        function atualizarCampoPremiacao() {
+            if (!temPremiacao || !campoPremiacaoDetalhes || !selectPremiacaoQtd || !campoPremiacaoItens) {
+                return;
+            }
+
+            const mostrar = tipoComExtras() && temPremiacao.checked;
+            campoPremiacaoDetalhes.hidden = !mostrar;
+            selectPremiacaoQtd.disabled = !mostrar;
+            atualizarItensPremiacao(mostrar);
+        }
+
+        function atualizarItensPremiacao(habilitar) {
+            if (!selectPremiacaoQtd || !campoPremiacaoItens) {
+                return;
+            }
+
+            const qtd = Math.min(10, Math.max(1, parseInt(selectPremiacaoQtd.value, 10) || 1));
+            selectPremiacaoQtd.value = String(qtd);
+
+            const valores = Array.from(
+                campoPremiacaoItens.querySelectorAll('input[name="premiacao[]"]')
+            ).map(function (input) {
+                return input.value;
+            });
+
+            function escapeAttr(value) {
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;');
+            }
+
+            let html = '';
+            for (let i = 0; i < qtd; i++) {
+                const valor = valores[i] || '';
+                html +=
+                    '<div class="form-field">' +
+                    '<label for="premiacao_' + (i + 1) + '">' + (i + 1) + 'º lugar</label>' +
+                    '<input id="premiacao_' + (i + 1) + '" name="premiacao[]" type="text" maxlength="200" ' +
+                    'value="' + escapeAttr(valor) + '" ' +
+                    'placeholder="Ex.: Troféu ou inscrição no próximo torneio"' +
+                    (habilitar ? '' : ' disabled') +
+                    '>' +
+                    '</div>';
+            }
+
+            campoPremiacaoItens.innerHTML = html;
+        }
+
         function atualizarCampoTermino() {
             const mostrar = temTermino.checked;
             campoTermino.hidden = !mostrar;
             dataFim.disabled = !mostrar;
             horarioFim.disabled = !mostrar;
+            atualizarDataMinimaTermino();
+        }
+
+        function atualizarDataMinimaTermino() {
+            if (!dataInicio || !dataFim || !dataInicio.min) {
+                return;
+            }
+
+            const minima = dataInicio.value !== '' && dataInicio.value > dataInicio.min
+                ? dataInicio.value
+                : dataInicio.min;
+            dataFim.min = minima;
         }
 
         function atualizarCampoRecorrencia() {
@@ -428,7 +613,18 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         });
         temLimite.addEventListener('change', atualizarCampoLimiteValor);
         temPagamento.addEventListener('change', atualizarCampoTaxa);
+        if (temPremiacao) {
+            temPremiacao.addEventListener('change', atualizarCampoPremiacao);
+        }
+        if (selectPremiacaoQtd) {
+            selectPremiacaoQtd.addEventListener('change', function () {
+                atualizarItensPremiacao(tipoComExtras() && temPremiacao && temPremiacao.checked);
+            });
+        }
         temTermino.addEventListener('change', atualizarCampoTermino);
+        if (dataInicio) {
+            dataInicio.addEventListener('change', atualizarDataMinimaTermino);
+        }
         if (recorrente) {
             recorrente.addEventListener('change', atualizarCampoRecorrencia);
         }
@@ -437,5 +633,66 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         atualizarCampoModalidade();
         atualizarCampoTermino();
         atualizarCampoRecorrencia();
+
+        const formEvento = document.querySelector('.event-form-card');
+        const aplicarSerie = document.getElementById('aplicar_serie');
+        const seriesModal = document.getElementById('series-choice-modal');
+        if (formEvento && aplicarSerie && seriesModal) {
+            const seriesDialog = seriesModal.querySelector('.series-choice-dialog');
+
+            function abrirEscolhaSerie() {
+                seriesModal.hidden = false;
+                seriesModal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('series-choice-open');
+                const ativas = document.getElementById('series-choice-active');
+                if (ativas) {
+                    ativas.focus();
+                }
+            }
+
+            function fecharEscolhaSerie() {
+                seriesModal.hidden = true;
+                seriesModal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('series-choice-open');
+            }
+
+            function escolherSerie(escopo) {
+                aplicarSerie.value = escopo;
+                aplicarSerie.dataset.asked = '1';
+                fecharEscolhaSerie();
+                formEvento.requestSubmit();
+            }
+
+            formEvento.addEventListener('submit', function (event) {
+                if (aplicarSerie.dataset.asked === '1') {
+                    return;
+                }
+                event.preventDefault();
+                abrirEscolhaSerie();
+            });
+
+            document.getElementById('series-choice-current').addEventListener('click', function () {
+                escolherSerie('atual');
+            });
+            document.getElementById('series-choice-future').addEventListener('click', function () {
+                escolherSerie('seguintes');
+            });
+            document.getElementById('series-choice-active').addEventListener('click', function () {
+                escolherSerie('ativas');
+            });
+            seriesModal.querySelectorAll('[data-close-series-choice]').forEach(function (el) {
+                el.addEventListener('click', fecharEscolhaSerie);
+            });
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && !seriesModal.hidden) {
+                    fecharEscolhaSerie();
+                }
+            });
+            if (seriesDialog) {
+                seriesDialog.addEventListener('click', function (event) {
+                    event.stopPropagation();
+                });
+            }
+        }
     });
 </script>

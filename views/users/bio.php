@@ -3,6 +3,9 @@
 /** @var string $nickname */
 /** @var string $realName */
 /** @var string $bio */
+/** @var string $mahjongSoul */
+/** @var string $riichiCity */
+/** @var string $discord */
 /** @var string $memberSince */
 /** @var list<string> $errors */
 $photoUrl = userPhotoUrl($user);
@@ -32,11 +35,23 @@ $photoUrl = userPhotoUrl($user);
                     <span class="icon icon-user"></span>
                 <?php endif; ?>
             </span>
-            <label>
-                Foto de perfil
-                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif">
+            <div class="profile-photo-upload">
+                <span class="file-field-label">Foto de perfil</span>
+                <label class="file-picker" for="photo">
+                    <input
+                        id="photo"
+                        type="file"
+                        name="photo"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        data-file-picker
+                    >
+                    <span class="file-picker-button">Escolher arquivo</span>
+                    <span class="file-picker-name" data-file-name>
+                        Nenhum arquivo selecionado
+                    </span>
+                </label>
                 <span class="hint">JPG, PNG, WEBP ou GIF. Máximo de 2 MB.</span>
-            </label>
+            </div>
         </div>
 
         <?php if ($memberSince !== ''): ?>
@@ -44,7 +59,7 @@ $photoUrl = userPhotoUrl($user);
         <?php endif; ?>
 
         <label>
-            Apelido
+            <span class="field-label">Apelido <span class="required-mark" aria-hidden="true">*</span></span>
             <input
                 type="text"
                 name="nickname"
@@ -66,13 +81,58 @@ $photoUrl = userPhotoUrl($user);
                 maxlength="80"
                 autocomplete="name"
             >
-            <span class="hint">Opcional.</span>
         </label>
         <label>
             Bio
             <textarea name="bio" rows="5" maxlength="500" placeholder="Conte um pouco sobre você no clube."><?= e($bio) ?></textarea>
             <span class="hint">Até 500 caracteres.</span>
         </label>
+        <label>
+            ID/Nome Mahjong Soul
+            <input
+                type="text"
+                name="mahjong_soul"
+                value="<?= e($mahjongSoul) ?>"
+                maxlength="40"
+                autocomplete="off"
+            >
+        </label>
+        <label>
+            ID/Nome Riichi City
+            <input
+                type="text"
+                name="riichi_city"
+                value="<?= e($riichiCity) ?>"
+                maxlength="40"
+                autocomplete="off"
+            >
+        </label>
+        <label>
+            Discord
+            <input
+                type="text"
+                name="discord"
+                value="<?= e($discord) ?>"
+                maxlength="40"
+                autocomplete="off"
+            >
+        </label>
         <button type="submit" class="button">Salvar perfil</button>
     </form>
 </section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-file-picker]').forEach(function (input) {
+            const nameEl = input.closest('.file-picker')?.querySelector('[data-file-name]');
+            if (!nameEl) {
+                return;
+            }
+
+            input.addEventListener('change', function () {
+                const file = input.files && input.files[0];
+                nameEl.textContent = file ? file.name : 'Nenhum arquivo selecionado';
+            });
+        });
+    });
+</script>

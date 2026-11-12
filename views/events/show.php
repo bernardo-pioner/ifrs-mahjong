@@ -26,9 +26,17 @@ $formatarData = static function (?string $data): string {
 
 $ehAdmin = ($user['role'] ?? '') === 'admin';
 $eventoId = (int) $evento['id'];
+$perguntarSerie = $ehAdmin
+    && !empty($evento['serie_id'])
+    && Event::hasSeriesChoice(
+        (int) $evento['serie_id'],
+        isset($evento['data_inicio']) ? (string) $evento['data_inicio'] : null,
+        $eventoId
+    );
 $userId = (int) ($user['id'] ?? 0);
 $taxa = (float) ($details['taxa'] ?? 0);
 $limite = $details['limite'] ?? null;
+$premiacao = is_array($details['premiacao'] ?? null) ? $details['premiacao'] : [];
 $inscricoesAbertas = (int) ($evento['inscricoes_abertas'] ?? 0) === 1;
 $precisaPagamento = in_array($evento['tipo'], ['torneio', 'oficina'], true) && $taxa > 0;
 $jaInscrito = $minhaParticipacao !== null && ($minhaParticipacao['status'] ?? '') !== 'cancelado';
@@ -113,6 +121,20 @@ $podeEnviarComprovante = !$ehAdmin
             <div class="form-field">
                 <h2>Descrição</h2>
                 <p><?= nl2br(e($evento['descricao'])) ?></p>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($premiacao !== []): ?>
+            <div class="form-field event-premiacao-show">
+                <h2>Premiação</h2>
+                <ul class="event-premiacao-list">
+                    <?php foreach ($premiacao as $indice => $premio): ?>
+                        <li>
+                            <strong><?= (int) $indice + 1 ?>º lugar:</strong>
+                            <?= e($premio) ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
             </div>
         <?php endif; ?>
 
@@ -243,6 +265,9 @@ $podeEnviarComprovante = !$ehAdmin
                             $displayName = $nickname;
                         }
                         $bio = trim((string) ($participante['bio'] ?? ''));
+                        $mahjongSoul = trim((string) ($participante['mahjong_soul'] ?? ''));
+                        $riichiCity = trim((string) ($participante['riichi_city'] ?? ''));
+                        $discord = trim((string) ($participante['discord'] ?? ''));
                         $photoUrl = (string) ($participante['photo_url'] ?? '');
                         $memberSince = (string) ($participante['member_since'] ?? '');
                         $levelLabel = (string) ($participante['level_label'] ?? '');
@@ -257,6 +282,9 @@ $podeEnviarComprovante = !$ehAdmin
                                     data-username="<?= e($username) ?>"
                                     data-real-name="<?= e((string) ($participante['nome'] ?? '')) ?>"
                                     data-bio="<?= e($bio) ?>"
+                                    data-mahjong-soul="<?= e($mahjongSoul) ?>"
+                                    data-riichi-city="<?= e($riichiCity) ?>"
+                                    data-discord="<?= e($discord) ?>"
                                     data-photo="<?= e($photoUrl) ?>"
                                     data-member-since="<?= e($memberSince) ?>"
                                     data-level="<?= e($levelLabel) ?>"
@@ -315,11 +343,14 @@ $podeEnviarComprovante = !$ehAdmin
                 </a>
 
                 <form
+                    id="form-excluir-evento"
                     method="post"
                     action="/eventos/<?= $eventoId ?>/excluir"
-                    onsubmit="return confirm('Tem certeza que deseja excluir este evento? Esta ação não poderá ser desfeita.');"
                 >
                     <?= csrfField() ?>
+                    <?php if ($perguntarSerie): ?>
+                        <input type="hidden" name="excluir_serie" id="excluir_serie" value="atual">
+                    <?php endif; ?>
 
                     <button
                         class="button button-secondary"
@@ -328,6 +359,54 @@ $podeEnviarComprovante = !$ehAdmin
                         Excluir evento
                     </button>
                 </form>
+            </div>
+
+            <div
+                id="delete-choice-modal"
+                class="series-choice-modal"
+                hidden
+                aria-hidden="true"
+            >
+                <div class="series-choice-backdrop" data-close-delete-choice></div>
+                <div
+                    class="series-choice-dialog"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="delete-choice-title"
+                >
+                    <button
+                        type="button"
+                        class="user-details-close"
+                        data-close-delete-choice
+                        aria-label="Fechar"
+                    >×</button>
+                    <?php if ($perguntarSerie): ?>
+                        <h2 id="delete-choice-title">Excluir recorrência</h2>
+                        <p>As ocorrências encerradas permanecem. O que você deseja excluir?</p>
+                        <div class="series-choice-actions is-stacked">
+                            <button type="button" class="button button-secondary" id="delete-choice-current">
+                                Apenas esta ocorrência
+                            </button>
+                            <button type="button" class="button button-secondary" id="delete-choice-future">
+                                Esta e as seguintes
+                            </button>
+                            <button type="button" class="button button-primary" id="delete-choice-active">
+                                Todas as ocorrências ativas
+                            </button>
+                        </div>
+                    <?php else: ?>
+                        <h2 id="delete-choice-title">Excluir evento</h2>
+                        <p>Esta ação não poderá ser desfeita.</p>
+                        <div class="series-choice-actions">
+                            <button type="button" class="button button-secondary" data-close-delete-choice>
+                                Cancelar
+                            </button>
+                            <button type="button" class="button button-primary" id="delete-choice-confirm">
+                                Excluir
+                            </button>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         <?php endif; ?>
     </article>
@@ -375,6 +454,18 @@ $podeEnviarComprovante = !$ehAdmin
                     <span class="profile-label">Nível</span>
                     <p id="participant-bio-level"></p>
                 </div>
+                <div>
+                    <span class="profile-label">ID/Nome Mahjong Soul</span>
+                    <p id="participant-bio-mahjong-soul"></p>
+                </div>
+                <div>
+                    <span class="profile-label">ID/Nome Riichi City</span>
+                    <p id="participant-bio-riichi-city"></p>
+                </div>
+                <div>
+                    <span class="profile-label">Discord</span>
+                    <p id="participant-bio-discord"></p>
+                </div>
             </div>
 
             <div class="user-details-bio">
@@ -386,6 +477,78 @@ $podeEnviarComprovante = !$ehAdmin
 </section>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const formExcluir = document.getElementById('form-excluir-evento');
+        const deleteModal = document.getElementById('delete-choice-modal');
+        if (!formExcluir || !deleteModal) {
+            return;
+        }
+
+        function abrirExclusao() {
+            deleteModal.hidden = false;
+            deleteModal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('series-choice-open');
+            const foco = document.getElementById('delete-choice-active')
+                || document.getElementById('delete-choice-confirm');
+            if (foco) {
+                foco.focus();
+            }
+        }
+
+        function fecharExclusao() {
+            deleteModal.hidden = true;
+            deleteModal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('series-choice-open');
+        }
+
+        function enviarExclusao(escopo) {
+            const input = document.getElementById('excluir_serie');
+            if (input) {
+                input.value = escopo;
+            }
+            fecharExclusao();
+            formExcluir.submit();
+        }
+
+        formExcluir.addEventListener('submit', function (event) {
+            event.preventDefault();
+            abrirExclusao();
+        });
+
+        const apenasAtual = document.getElementById('delete-choice-current');
+        const seguintes = document.getElementById('delete-choice-future');
+        const ativas = document.getElementById('delete-choice-active');
+        const confirmar = document.getElementById('delete-choice-confirm');
+        if (apenasAtual) {
+            apenasAtual.addEventListener('click', function () {
+                enviarExclusao('atual');
+            });
+        }
+        if (seguintes) {
+            seguintes.addEventListener('click', function () {
+                enviarExclusao('seguintes');
+            });
+        }
+        if (ativas) {
+            ativas.addEventListener('click', function () {
+                enviarExclusao('ativas');
+            });
+        }
+        if (confirmar) {
+            confirmar.addEventListener('click', function () {
+                enviarExclusao('atual');
+            });
+        }
+        deleteModal.querySelectorAll('[data-close-delete-choice]').forEach(function (el) {
+            el.addEventListener('click', fecharExclusao);
+        });
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && !deleteModal.hidden) {
+                fecharExclusao();
+            }
+        });
+    });
+
     document.addEventListener('DOMContentLoaded', function () {
         const modal = document.getElementById('participant-bio-modal');
         if (!modal) {
@@ -403,18 +566,21 @@ $podeEnviarComprovante = !$ehAdmin
         }
 
         function openBio(trigger) {
-            const nickname = trigger.dataset.nickname || trigger.dataset.username || 'Participante';
-            const username = (trigger.dataset.username || '').trim();
+            const nickname = (trigger.dataset.nickname || trigger.dataset.username || '').trim();
+            const realName = (trigger.dataset.realName || '').trim();
             const photo = (trigger.dataset.photo || '').trim();
             const since = (trigger.dataset.memberSince || '').trim();
             const photoImg = document.getElementById('participant-bio-photo');
             const photoFallback = document.getElementById('participant-bio-photo-fallback');
             const memberSinceEl = document.getElementById('participant-bio-member-since');
 
-            fillText('participant-bio-title', nickname, 'Participante');
-            fillText('participant-bio-username', username !== '' ? '@' + username : '', '');
-            fillText('participant-bio-name', trigger.dataset.realName, 'Não informado');
+            fillText('participant-bio-title', realName !== '' ? realName : nickname, 'Participante');
+            fillText('participant-bio-username', nickname !== '' ? '@' + nickname : '', '');
+            fillText('participant-bio-name', realName, 'Não informado');
             fillText('participant-bio-level', trigger.dataset.level, 'Não informado');
+            fillText('participant-bio-mahjong-soul', trigger.dataset.mahjongSoul, 'Não informado');
+            fillText('participant-bio-riichi-city', trigger.dataset.riichiCity, 'Não informado');
+            fillText('participant-bio-discord', trigger.dataset.discord, 'Não informado');
             fillText(
                 'participant-bio-text',
                 trigger.dataset.bio,

@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS participantes (
     usuario_id INTEGER PRIMARY KEY,
     foto TEXT,
     bio TEXT,
+    mahjong_soul TEXT,
+    riichi_city TEXT,
+    discord TEXT,
     data_cadastro TEXT NOT NULL DEFAULT (datetime('now')),
     apelido TEXT,
     nivel TEXT NOT NULL DEFAULT 'iniciante'
@@ -55,6 +58,7 @@ CREATE TABLE IF NOT EXISTS eventos (
     data_inicio TEXT,
     data_fim TEXT,
     local TEXT,
+    serie_id INTEGER,
     inscricoes_abertas INTEGER NOT NULL DEFAULT 1 CHECK (inscricoes_abertas IN (0, 1)),
     criado_em TEXT NOT NULL DEFAULT (datetime('now')),
     atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
@@ -94,6 +98,7 @@ CREATE TABLE IF NOT EXISTS oficinas (
     carga_horaria_minutos INTEGER,
     material TEXT,
     taxa_inscricao REAL NOT NULL DEFAULT 0 CHECK (taxa_inscricao >= 0),
+    premiacao TEXT,
     FOREIGN KEY (evento_id) REFERENCES eventos(id) ON DELETE CASCADE
 );
 

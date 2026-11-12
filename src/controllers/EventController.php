@@ -114,7 +114,7 @@ final class EventController extends Controller
         verifyCsrf();
 
         $old = $this->collectFormInput();
-        [$errors, $parsed] = $this->validateEventForm($old, true);
+        [$errors, $parsed] = $this->validateEventForm($old, true, true);
 
         if ($errors !== []) {
             http_response_code(422);
@@ -140,6 +140,7 @@ final class EventController extends Controller
             'inscricoes_abertas' => $parsed['inscricoes_abertas'],
             'limite' => $parsed['limite'],
             'taxa' => $parsed['taxa'],
+            'premiacao' => $parsed['premiacao'],
         ];
 
         if ($parsed['recorrente']) {
@@ -207,6 +208,11 @@ final class EventController extends Controller
             'taxa' => $details['taxa'] > 0
                 ? number_format($details['taxa'], 2, '.', '')
                 : '',
+            'tem_premiacao' => ($details['premiacao'] ?? []) !== [] ? '1' : '0',
+            'premiacao_qtd' => ($details['premiacao'] ?? []) !== []
+                ? (string) count($details['premiacao'])
+                : '3',
+            'premiacao' => $details['premiacao'] ?? [],
             'inscricoes' => (int) ($evento['inscricoes_abertas'] ?? 1) === 1 ? '1' : '0',
             'recorrente' => '0',
             'recorrencia_dias' => '7',
@@ -253,90 +259,43 @@ final class EventController extends Controller
             return;
         }
 
+        $escopo = request('aplicar_serie', 'atual');
+        if (!in_array($escopo, ['atual', 'seguintes', 'ativas'], true)) {
+            $escopo = 'atual';
+        }
+
+        $serieId = isset($evento['serie_id']) ? (int) $evento['serie_id'] : null;
+        $dataInicio = isset($evento['data_inicio']) ? (string) $evento['data_inicio'] : null;
+        if ($escopo === 'seguintes') {
+            $alvos = Event::futureInSeries($serieId, $dataInicio);
+        } elseif ($escopo === 'ativas') {
+            $alvos = Event::activeInSeries($serieId);
+        } else {
+            $alvos = [];
+        }
+
+        $salvarAtual = $escopo !== 'ativas' || Event::isEmAndamento($evento);
         $pdo->beginTransaction();
 
         try {
-            $stmt = $pdo->prepare(
-                'UPDATE eventos
-                 SET titulo = :titulo,
-                     tipo = :tipo,
-                     modalidade = :modalidade,
-                     descricao = :descricao,
-                     data_inicio = :data_inicio,
-                     data_fim = :data_fim,
-                     local = :local,
-                     inscricoes_abertas = :inscricoes_abertas,
-                     atualizado_em = datetime(\'now\')
-                 WHERE id = :id'
-            );
-            $stmt->execute([
-                ':titulo' => $parsed['titulo'],
-                ':tipo' => $parsed['tipo'],
-                ':modalidade' => $parsed['modalidade'],
-                ':descricao' => $parsed['descricao'],
-                ':data_inicio' => $parsed['inicio']->format('Y-m-d H:i:s'),
-                ':data_fim' => $parsed['fim']?->format('Y-m-d H:i:s'),
-                ':local' => $parsed['local'],
-                ':inscricoes_abertas' => $parsed['inscricoes_abertas'],
-                ':id' => (int) $id,
-            ]);
+            if ($salvarAtual) {
+                $this->saveEventEdits($evento, $parsed, $parsed['inicio'], $parsed['fim']);
+            }
 
-            $tabelas = [
-                'torneio' => 'torneios',
-                'oficina' => 'oficinas',
-                'encontro' => 'encontros',
-            ];
-
-            $tipoAnterior = (string) $evento['tipo'];
-
-            if ($tipoAnterior !== $parsed['tipo']) {
-                $stmt = $pdo->prepare(
-                    'DELETE FROM ' . $tabelas[$tipoAnterior] . ' WHERE evento_id = :evento_id'
+            foreach ($alvos as $alvo) {
+                if ((int) $alvo['id'] === (int) $evento['id']) {
+                    continue;
+                }
+                $deslocado = $this->shiftOccurrence(
+                    (string) $evento['data_inicio'],
+                    (string) ($alvo['data_inicio'] ?? ''),
+                    $parsed['inicio'],
+                    $parsed['fim']
                 );
-                $stmt->execute([':evento_id' => (int) $id]);
-                Event::insertTypeRow(
-                    (int) $id,
-                    $parsed['tipo'],
-                    $parsed['limite'],
-                    $parsed['taxa'],
-                    $parsed['inscricoes_abertas']
-                );
-            } elseif ($parsed['tipo'] === 'torneio') {
-                $stmt = $pdo->prepare(
-                    'UPDATE torneios
-                     SET maximo_participantes = :limite,
-                         taxa_participacao = :taxa
-                     WHERE evento_id = :id'
-                );
-                $stmt->execute([
-                    ':limite' => $parsed['limite'],
-                    ':taxa' => $parsed['taxa'],
-                    ':id' => (int) $id,
-                ]);
-            } elseif ($parsed['tipo'] === 'oficina') {
-                $stmt = $pdo->prepare(
-                    'UPDATE oficinas
-                     SET vagas = :limite,
-                         taxa_inscricao = :taxa
-                     WHERE evento_id = :id'
-                );
-                $stmt->execute([
-                    ':limite' => $parsed['limite'],
-                    ':taxa' => $parsed['taxa'],
-                    ':id' => (int) $id,
-                ]);
-            } else {
-                $stmt = $pdo->prepare(
-                    'UPDATE encontros
-                     SET observacoes = :observacoes
-                     WHERE evento_id = :id'
-                );
-                $stmt->execute([
-                    ':observacoes' => $parsed['inscricoes_abertas'] === 1
-                        ? 'Inscrições habilitadas'
-                        : 'Inscrições não habilitadas',
-                    ':id' => (int) $id,
-                ]);
+                if ($deslocado === null) {
+                    continue;
+                }
+                $this->saveEventEdits($alvo, $parsed, $deslocado[0], $deslocado[1]);
             }
 
             $pdo->commit();
@@ -347,7 +306,15 @@ final class EventController extends Controller
             throw $exception;
         }
 
-        flash('success', 'Evento atualizado com sucesso.');
+        if ($escopo === 'ativas') {
+            $mensagem = 'As ocorrências em andamento foram atualizadas.';
+        } elseif ($escopo === 'seguintes' && $alvos !== []) {
+            $mensagem = 'Evento atualizado. As ocorrências futuras também foram atualizadas.';
+        } else {
+            $mensagem = 'Evento atualizado com sucesso.';
+        }
+
+        flash('success', $mensagem);
         redirect('/eventos');
     }
 
@@ -571,24 +538,25 @@ final class EventController extends Controller
             return;
         }
 
-        $stmt = $pdo->prepare(
-            'SELECT
-                (SELECT COUNT(*) FROM partidas_competitivas WHERE torneio_id = :torneio_partidas)
-                +
-                (SELECT COUNT(*) FROM partidas_casuais WHERE encontro_id = :encontro_partidas)
-                +
-                (SELECT COUNT(*) FROM rankings_competitivos WHERE torneio_id = :torneio_rankings)
-                +
-                (SELECT COUNT(*) FROM rankings_casuais WHERE encontro_id = :encontro_rankings)'
-        );
-        $stmt->execute([
-            ':torneio_partidas' => $eventoId,
-            ':encontro_partidas' => $eventoId,
-            ':torneio_rankings' => $eventoId,
-            ':encontro_rankings' => $eventoId,
-        ]);
+        $escopo = request('excluir_serie', 'atual');
+        if (!in_array($escopo, ['atual', 'seguintes', 'ativas'], true)) {
+            $escopo = 'atual';
+        }
 
-        if ((int) $stmt->fetchColumn() > 0) {
+        $serieId = isset($evento['serie_id']) ? (int) $evento['serie_id'] : null;
+        $dataInicio = isset($evento['data_inicio']) ? (string) $evento['data_inicio'] : null;
+        $incluirAtual = true;
+
+        if ($escopo === 'ativas') {
+            $alvos = Event::activeInSeries($serieId);
+            $incluirAtual = false;
+        } elseif ($escopo === 'seguintes') {
+            $alvos = Event::futureInSeries($serieId, $dataInicio);
+        } else {
+            $alvos = [];
+        }
+
+        if ($incluirAtual && Event::hasLinkedRecords($eventoId)) {
             flash(
                 'error',
                 'Este evento possui partidas ou rankings vinculados e não pode ser excluído.'
@@ -597,10 +565,29 @@ final class EventController extends Controller
             return;
         }
 
+        $excluidas = 0;
+        $mantidas = 0;
+        $excluiuAtual = false;
+
         $pdo->beginTransaction();
         try {
             $stmt = $pdo->prepare('DELETE FROM eventos WHERE id = :id');
-            $stmt->execute([':id' => $eventoId]);
+            foreach ($alvos as $alvo) {
+                $alvoId = (int) $alvo['id'];
+                if (Event::hasLinkedRecords($alvoId)) {
+                    $mantidas++;
+                    continue;
+                }
+                $stmt->execute([':id' => $alvoId]);
+                if ($alvoId === $eventoId) {
+                    $excluiuAtual = true;
+                }
+                $excluidas++;
+            }
+            if ($incluirAtual) {
+                $stmt->execute([':id' => $eventoId]);
+                $excluiuAtual = true;
+            }
             $pdo->commit();
         } catch (Throwable $exception) {
             if ($pdo->inTransaction()) {
@@ -609,8 +596,180 @@ final class EventController extends Controller
             throw $exception;
         }
 
-        flash('success', 'Evento excluído com sucesso.');
+        flash('success', $this->mensagemExclusao($escopo, $excluidas, $mantidas, $excluiuAtual));
         redirect('/eventos');
+    }
+
+    /**
+     * @param array<string, mixed> $evento
+     * @param array<string, mixed> $parsed
+     */
+    private function saveEventEdits(
+        array $evento,
+        array $parsed,
+        DateTimeImmutable $inicio,
+        ?DateTimeImmutable $fim
+    ): void {
+        $pdo = db();
+        $eventoId = (int) $evento['id'];
+        $stmt = $pdo->prepare(
+            'UPDATE eventos
+             SET titulo = :titulo,
+                 tipo = :tipo,
+                 modalidade = :modalidade,
+                 descricao = :descricao,
+                 data_inicio = :data_inicio,
+                 data_fim = :data_fim,
+                 local = :local,
+                 inscricoes_abertas = :inscricoes_abertas,
+                 atualizado_em = datetime(\'now\')
+             WHERE id = :id'
+        );
+        $stmt->execute([
+            ':titulo' => $parsed['titulo'],
+            ':tipo' => $parsed['tipo'],
+            ':modalidade' => $parsed['modalidade'],
+            ':descricao' => $parsed['descricao'],
+            ':data_inicio' => $inicio->format('Y-m-d H:i:s'),
+            ':data_fim' => $fim?->format('Y-m-d H:i:s'),
+            ':local' => $parsed['local'],
+            ':inscricoes_abertas' => $parsed['inscricoes_abertas'],
+            ':id' => $eventoId,
+        ]);
+
+        $tabelas = [
+            'torneio' => 'torneios',
+            'oficina' => 'oficinas',
+            'encontro' => 'encontros',
+        ];
+
+        $tipoAnterior = (string) $evento['tipo'];
+
+        if ($tipoAnterior !== $parsed['tipo']) {
+            $stmt = $pdo->prepare(
+                'DELETE FROM ' . $tabelas[$tipoAnterior] . ' WHERE evento_id = :evento_id'
+            );
+            $stmt->execute([':evento_id' => $eventoId]);
+            Event::insertTypeRow(
+                $eventoId,
+                $parsed['tipo'],
+                $parsed['limite'],
+                $parsed['taxa'],
+                $parsed['inscricoes_abertas'],
+                $parsed['premiacao']
+            );
+            return;
+        }
+
+        if ($parsed['tipo'] === 'torneio') {
+            $stmt = $pdo->prepare(
+                'UPDATE torneios
+                 SET maximo_participantes = :limite,
+                     taxa_participacao = :taxa,
+                     premiacao = :premiacao
+                 WHERE evento_id = :id'
+            );
+            $stmt->execute([
+                ':limite' => $parsed['limite'],
+                ':taxa' => $parsed['taxa'],
+                ':premiacao' => Event::encodePremiacao($parsed['premiacao']),
+                ':id' => $eventoId,
+            ]);
+            return;
+        }
+
+        if ($parsed['tipo'] === 'oficina') {
+            $stmt = $pdo->prepare(
+                'UPDATE oficinas
+                 SET vagas = :limite,
+                     taxa_inscricao = :taxa,
+                     premiacao = :premiacao
+                 WHERE evento_id = :id'
+            );
+            $stmt->execute([
+                ':limite' => $parsed['limite'],
+                ':taxa' => $parsed['taxa'],
+                ':premiacao' => Event::encodePremiacao($parsed['premiacao']),
+                ':id' => $eventoId,
+            ]);
+            return;
+        }
+
+        $stmt = $pdo->prepare(
+            'UPDATE encontros
+             SET observacoes = :observacoes
+             WHERE evento_id = :id'
+        );
+        $stmt->execute([
+            ':observacoes' => $parsed['inscricoes_abertas'] === 1
+                ? 'Inscrições habilitadas'
+                : 'Inscrições não habilitadas',
+            ':id' => $eventoId,
+        ]);
+    }
+
+    /** @return array{0: DateTimeImmutable, 1: ?DateTimeImmutable}|null */
+    private function shiftOccurrence(
+        string $inicioOriginal,
+        string $inicioOcorrencia,
+        DateTimeImmutable $novoInicio,
+        ?DateTimeImmutable $novoFim
+    ): ?array {
+        if ($inicioOriginal === '' || $inicioOcorrencia === '') {
+            return null;
+        }
+
+        try {
+            $diaOriginal = (new DateTimeImmutable($inicioOriginal))->setTime(0, 0);
+            $diaOcorrencia = (new DateTimeImmutable($inicioOcorrencia))->setTime(0, 0);
+        } catch (Exception) {
+            return null;
+        }
+
+        $dias = (int) $diaOriginal->diff($diaOcorrencia)->format('%r%a');
+        $inicio = $novoInicio->modify(sprintf('%+d days', $dias));
+        $fim = $novoFim === null ? null : $inicio->add($novoInicio->diff($novoFim));
+
+        return [$inicio, $fim];
+    }
+
+    private function mensagemExclusao(string $escopo, int $excluidas, int $mantidas, bool $excluiuAtual): string
+    {
+        if ($escopo === 'ativas') {
+            if ($excluidas === 1) {
+                $mensagem = '1 ocorrência em andamento foi excluída.';
+            } elseif ($excluidas > 1) {
+                $mensagem = $excluidas . ' ocorrências em andamento foram excluídas.';
+            } else {
+                $mensagem = 'Nenhuma ocorrência em andamento foi excluída.';
+            }
+
+            if ($mantidas === 1) {
+                $mensagem .= ' 1 ocorrência em andamento não pôde ser excluída porque tem partidas ou rankings.';
+            } elseif ($mantidas > 1) {
+                $mensagem .= ' ' . $mantidas . ' ocorrências em andamento não puderam ser excluídas porque têm partidas ou rankings.';
+            }
+
+            return $mensagem;
+        }
+
+        if (!$excluiuAtual) {
+            $mensagem = 'Evento excluído com sucesso.';
+        } elseif ($escopo === 'seguintes' && $excluidas === 1) {
+            $mensagem = 'Evento excluído. 1 ocorrência futura também foi excluída.';
+        } elseif ($escopo === 'seguintes' && $excluidas > 1) {
+            $mensagem = 'Evento excluído. ' . $excluidas . ' ocorrências futuras também foram excluídas.';
+        } else {
+            $mensagem = 'Evento excluído com sucesso.';
+        }
+
+        if ($mantidas === 1) {
+            $mensagem .= ' 1 ocorrência futura não pôde ser excluída porque tem partidas ou rankings.';
+        } elseif ($mantidas > 1) {
+            $mensagem .= ' ' . $mantidas . ' ocorrências futuras não puderam ser excluídas porque têm partidas ou rankings.';
+        }
+
+        return $mensagem;
     }
 
     /** @return array<string, string> */
@@ -630,6 +789,9 @@ final class EventController extends Controller
             'limite' => request('limite'),
             'tem_pagamento' => isset($_POST['tem_pagamento']) ? '1' : '0',
             'taxa' => request('taxa'),
+            'tem_premiacao' => isset($_POST['tem_premiacao']) ? '1' : '0',
+            'premiacao_qtd' => request('premiacao_qtd', '3'),
+            'premiacao' => self::collectPremiacaoInput(),
             'descricao' => request('descricao'),
             'inscricoes' => isset($_POST['inscricoes']) ? '1' : '0',
             'recorrente' => isset($_POST['recorrente']) ? '1' : '0',
@@ -638,11 +800,30 @@ final class EventController extends Controller
         ];
     }
 
+    /** @return list<string> */
+    private function collectPremiacaoInput(): array
+    {
+        $raw = $_POST['premiacao'] ?? [];
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $itens = [];
+        foreach ($raw as $item) {
+            if (!is_string($item)) {
+                continue;
+            }
+            $itens[] = trim($item);
+        }
+
+        return array_slice($itens, 0, 10);
+    }
+
     /**
      * @param array<string, string> $old
      * @return array{0: list<string>, 1: array<string, mixed>}
      */
-    private function validateEventForm(array $old, bool $allowRecurrence): array
+    private function validateEventForm(array $old, bool $allowRecurrence, bool $bloquearDataPassada = false): array
     {
         $errors = [];
 
@@ -686,6 +867,8 @@ final class EventController extends Controller
 
         if ($inicio === false) {
             $errors[] = 'Informe uma data e um horário de início válidos.';
+        } elseif ($bloquearDataPassada && $inicio->format('Y-m-d') < (new DateTimeImmutable('today'))->format('Y-m-d')) {
+            $errors[] = 'A data de início não pode ser anterior a hoje.';
         }
 
         $fim = null;
@@ -709,6 +892,9 @@ final class EventController extends Controller
                 $errors[] = 'Informe uma data e um horário de término válidos.';
             } else {
                 $fim = $fimParsed;
+                if ($bloquearDataPassada && $fim->format('Y-m-d') < (new DateTimeImmutable('today'))->format('Y-m-d')) {
+                    $errors[] = 'A data de término não pode ser anterior a hoje.';
+                }
                 if ($inicio !== false && $fim <= $inicio) {
                     $errors[] = 'O término deve ser posterior ao início do evento.';
                 }
@@ -719,8 +905,8 @@ final class EventController extends Controller
             $errors[] = 'O local deve ter no máximo 200 caracteres.';
         }
 
-        if (mb_strlen($descricao) > 5000) {
-            $errors[] = 'A descrição deve ter no máximo 5.000 caracteres.';
+        if (mb_strlen($descricao) > 2500) {
+            $errors[] = 'A descrição deve ter no máximo 2.500 caracteres.';
         }
 
         $limite = null;
@@ -739,6 +925,31 @@ final class EventController extends Controller
                 $errors[] = 'Informe um valor de pagamento válido maior que zero.';
             } else {
                 $taxa = round((float) $taxaRaw, 2);
+            }
+        }
+
+        $premiacao = [];
+        if (in_array($tipo, ['torneio', 'oficina'], true) && ($old['tem_premiacao'] ?? '0') === '1') {
+            $qtd = filter_var($old['premiacao_qtd'] ?? '', FILTER_VALIDATE_INT);
+            if ($qtd === false || $qtd < 1 || $qtd > 10) {
+                $errors[] = 'Informe entre 1 e 10 colocações para a premiação.';
+                $qtd = 0;
+            }
+
+            $itensRaw = $old['premiacao'] ?? [];
+            if (!is_array($itensRaw)) {
+                $itensRaw = [];
+            }
+
+            for ($i = 0; $i < $qtd; $i++) {
+                $texto = trim((string) ($itensRaw[$i] ?? ''));
+                if ($texto === '') {
+                    $errors[] = 'Informe a premiação do ' . ($i + 1) . 'º lugar.';
+                } elseif (mb_strlen($texto) > 200) {
+                    $errors[] = 'A premiação do ' . ($i + 1) . 'º lugar deve ter no máximo 200 caracteres.';
+                } else {
+                    $premiacao[] = $texto;
+                }
             }
         }
 
@@ -775,6 +986,7 @@ final class EventController extends Controller
             'descricao' => $descricao !== '' ? $descricao : null,
             'limite' => $limite,
             'taxa' => $taxa,
+            'premiacao' => $premiacao,
             'inscricoes_abertas' => $old['inscricoes'] === '1' ? 1 : 0,
             'recorrente' => $recorrente,
             'recorrencia_dias' => (int) $recorrenciaDias,

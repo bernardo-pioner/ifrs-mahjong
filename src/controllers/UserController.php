@@ -59,6 +59,9 @@ final class UserController extends Controller
             'nickname' => $nickname,
             'realName' => (string) ($user['name'] ?? ''),
             'bio' => (string) ($user['bio'] ?? ''),
+            'mahjongSoul' => (string) ($user['mahjong_soul'] ?? ''),
+            'riichiCity' => (string) ($user['riichi_city'] ?? ''),
+            'discord' => (string) ($user['discord'] ?? ''),
             'memberSince' => formatMemberSince($user['created_at'] ?? null),
             'errors' => [],
         ]);
@@ -78,6 +81,7 @@ final class UserController extends Controller
 
         $roleAction = request('role_action');
         $statusAction = request('status_action');
+        $level = request('level', 'iniciante');
 
         if ($idText === '' || !ctype_digit($idText) || (int) $idText <= 0) {
             flash('error', 'ID de usuário inválido.');
@@ -111,12 +115,14 @@ final class UserController extends Controller
             $name,
             $email,
             $roleAction,
-            $statusAction
+            $statusAction,
+            $level
         );
 
         if ($errors !== []) {
             $targetUser['name'] = $name;
             $targetUser['email'] = $email;
+            $targetUser['level'] = $level;
             $targetUser['pending_role'] = $roleAction;
             $targetUser['pending_status'] = $statusAction;
 
@@ -322,7 +328,18 @@ final class UserController extends Controller
         $nickname = request('nickname');
         $realName = request('real_name');
         $bio = request('bio');
-        $errors = User::bioErrors($nickname, $realName, $bio, (int) $user['id']);
+        $mahjongSoul = request('mahjong_soul');
+        $riichiCity = request('riichi_city');
+        $discord = request('discord');
+        $errors = User::bioErrors(
+            $nickname,
+            $realName,
+            $bio,
+            (int) $user['id'],
+            $mahjongSoul,
+            $riichiCity,
+            $discord
+        );
         $photo = null;
 
         if ($errors === []) {
@@ -335,7 +352,16 @@ final class UserController extends Controller
         }
 
         if ($errors === []) {
-            $errors = User::updateBio((int) $user['id'], $nickname, $realName, $bio, $photo);
+            $errors = User::updateBio(
+                (int) $user['id'],
+                $nickname,
+                $realName,
+                $bio,
+                $photo,
+                $mahjongSoul,
+                $riichiCity,
+                $discord
+            );
         }
 
         if ($errors !== []) {
@@ -346,6 +372,9 @@ final class UserController extends Controller
                 'nickname' => $nickname,
                 'realName' => $realName,
                 'bio' => $bio,
+                'mahjongSoul' => $mahjongSoul,
+                'riichiCity' => $riichiCity,
+                'discord' => $discord,
                 'memberSince' => formatMemberSince($user['created_at'] ?? null),
                 'errors' => $errors,
             ]);

@@ -9,6 +9,106 @@ final class Event
         return (int) db()->query('SELECT COUNT(*) FROM eventos')->fetchColumn();
     }
 
+    public static function countFutureInSeries(?int $serieId, ?string $dataInicio): int
+    {
+        return count(self::futureInSeries($serieId, $dataInicio));
+    }
+
+    /** @return list<array<string, mixed>> */
+    public static function futureInSeries(?int $serieId, ?string $dataInicio): array
+    {
+        if ($serieId === null || $serieId <= 0 || $dataInicio === null || trim($dataInicio) === '') {
+            return [];
+        }
+
+        $stmt = db()->prepare(
+            'SELECT *
+             FROM eventos
+             WHERE serie_id = :serie
+               AND data_inicio > :inicio
+             ORDER BY data_inicio ASC, id ASC'
+        );
+        $stmt->execute([
+            ':serie' => $serieId,
+            ':inicio' => $dataInicio,
+        ]);
+
+        return $stmt->fetchAll();
+    }
+
+    public static function isEmAndamento(array $evento): bool
+    {
+        $data = trim((string) ($evento['data_fim'] ?? ''));
+        if ($data === '') {
+            $data = trim((string) ($evento['data_inicio'] ?? ''));
+        }
+
+        if ($data === '' || !preg_match('/^(\d{4}-\d{2}-\d{2})/', $data, $dia)) {
+            return true;
+        }
+
+        $ontem = (new DateTimeImmutable('today'))->modify('-1 day')->format('Y-m-d');
+
+        return $dia[1] > $ontem;
+    }
+
+    /** @return list<array<string, mixed>> */
+    public static function activeInSeries(?int $serieId): array
+    {
+        if ($serieId === null || $serieId <= 0) {
+            return [];
+        }
+
+        $referencia = "COALESCE(NULLIF(data_fim, ''), NULLIF(data_inicio, ''))";
+        $stmt = db()->prepare(
+            "SELECT *
+             FROM eventos
+             WHERE serie_id = :serie
+               AND ({$referencia} IS NULL OR date({$referencia}) > date('now', 'localtime', '-1 day'))
+             ORDER BY data_inicio ASC, id ASC"
+        );
+        $stmt->execute([':serie' => $serieId]);
+
+        return $stmt->fetchAll();
+    }
+
+    public static function hasSeriesChoice(?int $serieId, ?string $dataInicio, int $eventoId): bool
+    {
+        if (self::countFutureInSeries($serieId, $dataInicio) > 0) {
+            return true;
+        }
+
+        foreach (self::activeInSeries($serieId) as $ocorrencia) {
+            if ((int) $ocorrencia['id'] !== $eventoId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static function hasLinkedRecords(int $eventoId): bool
+    {
+        $stmt = db()->prepare(
+            'SELECT
+                (SELECT COUNT(*) FROM partidas_competitivas WHERE torneio_id = :torneio_partidas)
+                +
+                (SELECT COUNT(*) FROM partidas_casuais WHERE encontro_id = :encontro_partidas)
+                +
+                (SELECT COUNT(*) FROM rankings_competitivos WHERE torneio_id = :torneio_rankings)
+                +
+                (SELECT COUNT(*) FROM rankings_casuais WHERE encontro_id = :encontro_rankings)'
+        );
+        $stmt->execute([
+            ':torneio_partidas' => $eventoId,
+            ':encontro_partidas' => $eventoId,
+            ':torneio_rankings' => $eventoId,
+            ':encontro_rankings' => $eventoId,
+        ]);
+
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
     public static function findById(int $id): ?array
     {
         $stmt = db()->prepare(
@@ -23,7 +123,7 @@ final class Event
         return $evento ?: null;
     }
 
-    /** @return array{limite: ?int, taxa: float} */
+    /** @return array{limite: ?int, taxa: float, premiacao: list<string>} */
     public static function typeDetails(array $evento): array
     {
         $id = (int) $evento['id'];
@@ -31,7 +131,7 @@ final class Event
 
         if ($tipo === 'torneio') {
             $stmt = db()->prepare(
-                'SELECT maximo_participantes AS limite, taxa_participacao AS taxa
+                'SELECT maximo_participantes AS limite, taxa_participacao AS taxa, premiacao
                  FROM torneios WHERE evento_id = :id'
             );
             $stmt->execute([':id' => $id]);
@@ -40,12 +140,13 @@ final class Event
             return [
                 'limite' => isset($row['limite']) ? (int) $row['limite'] : null,
                 'taxa' => (float) ($row['taxa'] ?? 0),
+                'premiacao' => self::decodePremiacao($row['premiacao'] ?? null),
             ];
         }
 
         if ($tipo === 'oficina') {
             $stmt = db()->prepare(
-                'SELECT vagas AS limite, taxa_inscricao AS taxa
+                'SELECT vagas AS limite, taxa_inscricao AS taxa, premiacao
                  FROM oficinas WHERE evento_id = :id'
             );
             $stmt->execute([':id' => $id]);
@@ -54,10 +155,55 @@ final class Event
             return [
                 'limite' => isset($row['limite']) ? (int) $row['limite'] : null,
                 'taxa' => (float) ($row['taxa'] ?? 0),
+                'premiacao' => self::decodePremiacao($row['premiacao'] ?? null),
             ];
         }
 
-        return ['limite' => null, 'taxa' => 0.0];
+        return ['limite' => null, 'taxa' => 0.0, 'premiacao' => []];
+    }
+
+    /** @return list<string> */
+    public static function decodePremiacao(mixed $value): array
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $itens = [];
+        foreach ($decoded as $item) {
+            if (!is_string($item)) {
+                continue;
+            }
+            $texto = trim($item);
+            if ($texto !== '') {
+                $itens[] = $texto;
+            }
+        }
+
+        return array_slice($itens, 0, 10);
+    }
+
+    /** @param list<string> $premiacao */
+    public static function encodePremiacao(array $premiacao): ?string
+    {
+        $itens = [];
+        foreach ($premiacao as $item) {
+            $texto = trim((string) $item);
+            if ($texto !== '') {
+                $itens[] = $texto;
+            }
+        }
+
+        if ($itens === []) {
+            return null;
+        }
+
+        return json_encode(array_values(array_slice($itens, 0, 10)), JSON_UNESCAPED_UNICODE);
     }
 
     public static function countActiveParticipants(int $eventoId): int
@@ -107,6 +253,9 @@ final class Event
                 u.criado_em AS created_at,
                 p.apelido,
                 p.bio,
+                p.mahjong_soul,
+                p.riichi_city,
+                p.discord,
                 p.foto AS photo,
                 p.nivel AS level,
                 ep.status,
@@ -203,7 +352,8 @@ final class Event
      *   local: ?string,
      *   inscricoes_abertas: int,
      *   limite: ?int,
-     *   taxa: float
+     *   taxa: float,
+     *   premiacao: list<string>
      * } $data
      */
     public static function createOne(array $data): int
@@ -212,9 +362,9 @@ final class Event
 
         $stmt = $pdo->prepare(
             'INSERT INTO eventos
-                (admin_id, tipo, modalidade, titulo, descricao, data_inicio, data_fim, local, inscricoes_abertas)
+                (admin_id, tipo, modalidade, titulo, descricao, data_inicio, data_fim, local, serie_id, inscricoes_abertas)
              VALUES
-                (:admin_id, :tipo, :modalidade, :titulo, :descricao, :data_inicio, :data_fim, :local, :inscricoes_abertas)'
+                (:admin_id, :tipo, :modalidade, :titulo, :descricao, :data_inicio, :data_fim, :local, :serie_id, :inscricoes_abertas)'
         );
         $stmt->execute([
             ':admin_id' => $data['admin_id'],
@@ -225,46 +375,59 @@ final class Event
             ':data_inicio' => $data['data_inicio'],
             ':data_fim' => $data['data_fim'],
             ':local' => $data['local'],
+            ':serie_id' => $data['serie_id'] ?? null,
             ':inscricoes_abertas' => $data['inscricoes_abertas'],
         ]);
 
         $eventoId = (int) $pdo->lastInsertId();
-        self::insertTypeRow($eventoId, $data['tipo'], $data['limite'], $data['taxa'], $data['inscricoes_abertas']);
+        self::insertTypeRow(
+            $eventoId,
+            $data['tipo'],
+            $data['limite'],
+            $data['taxa'],
+            $data['inscricoes_abertas'],
+            $data['premiacao'] ?? []
+        );
 
         return $eventoId;
     }
 
+    /** @param list<string> $premiacao */
     public static function insertTypeRow(
         int $eventoId,
         string $tipo,
         ?int $limite,
         float $taxa,
-        int $inscricoesAbertas
+        int $inscricoesAbertas,
+        array $premiacao = []
     ): void {
         $pdo = db();
+        $premiacaoJson = self::encodePremiacao($premiacao);
 
         if ($tipo === 'torneio') {
             $stmt = $pdo->prepare(
-                'INSERT INTO torneios (evento_id, maximo_participantes, taxa_participacao)
-                 VALUES (:evento_id, :limite, :taxa)'
+                'INSERT INTO torneios (evento_id, maximo_participantes, taxa_participacao, premiacao)
+                 VALUES (:evento_id, :limite, :taxa, :premiacao)'
             );
             $stmt->execute([
                 ':evento_id' => $eventoId,
                 ':limite' => $limite,
                 ':taxa' => $taxa,
+                ':premiacao' => $premiacaoJson,
             ]);
             return;
         }
 
         if ($tipo === 'oficina') {
             $stmt = $pdo->prepare(
-                'INSERT INTO oficinas (evento_id, vagas, taxa_inscricao)
-                 VALUES (:evento_id, :limite, :taxa)'
+                'INSERT INTO oficinas (evento_id, vagas, taxa_inscricao, premiacao)
+                 VALUES (:evento_id, :limite, :taxa, :premiacao)'
             );
             $stmt->execute([
                 ':evento_id' => $eventoId,
                 ':limite' => $limite,
                 ':taxa' => $taxa,
+                ':premiacao' => $premiacaoJson,
             ]);
             return;
         }
@@ -293,7 +456,8 @@ final class Event
      *   local: ?string,
      *   inscricoes_abertas: int,
      *   limite: ?int,
-     *   taxa: float
+     *   taxa: float,
+     *   premiacao: list<string>
      * } $base
      * @return list<int>
      */
@@ -307,6 +471,7 @@ final class Event
 
         try {
             $ids = [];
+            $serieId = null;
             $inicio = new DateTimeImmutable($base['data_inicio']);
             $fim = $base['data_fim'] !== null
                 ? new DateTimeImmutable($base['data_fim'])
@@ -322,9 +487,18 @@ final class Event
                 }
 
                 $payload = $base;
+                $payload['serie_id'] = $serieId;
                 $payload['data_inicio'] = $inicioAtual->format('Y-m-d H:i:s');
                 $payload['data_fim'] = $fimAtual?->format('Y-m-d H:i:s');
-                $ids[] = self::createOne($payload);
+                $eventoId = self::createOne($payload);
+                if ($serieId === null) {
+                    $serieId = $eventoId;
+                    $pdo->prepare('UPDATE eventos SET serie_id = :serie WHERE id = :id')->execute([
+                        ':serie' => $serieId,
+                        ':id' => $eventoId,
+                    ]);
+                }
+                $ids[] = $eventoId;
             }
 
             $pdo->commit();

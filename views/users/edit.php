@@ -4,6 +4,15 @@
 
 $isActive = (int) ($targetUser['active'] ?? 0) === 1;
 $isAdmin = ($targetUser['role'] ?? '') === 'admin';
+$levelLabels = [
+    'iniciante' => 'Iniciante',
+    'intermediario' => 'Intermediário',
+    'avancado' => 'Avançado',
+];
+$levelAtual = (string) ($targetUser['level'] ?? 'iniciante');
+if (!isset($levelLabels[$levelAtual])) {
+    $levelAtual = 'iniciante';
+}
 
 $pendingRole = $targetUser['pending_role'] ?? 'keep';
 $pendingStatus = $targetUser['pending_status'] ?? 'keep';
@@ -103,6 +112,11 @@ $statusWillBeActive = $pendingStatus === 'keep'
                         <?php endif; ?>
                     </span>
                 </div>
+
+                <div>
+                    <span class="profile-label">Nível atual</span>
+                    <p><?= e($levelLabels[$levelAtual]) ?></p>
+                </div>
             </div>
         </div>
 
@@ -136,6 +150,20 @@ $statusWillBeActive = $pendingStatus === 'keep'
                     autocomplete="email"
                     required
                 >
+            </label>
+
+            <label>
+                Nível
+                <select name="level" required>
+                    <?php foreach ($levelLabels as $valor => $rotulo): ?>
+                        <option
+                            value="<?= e($valor) ?>"
+                            <?= $levelAtual === $valor ? 'selected' : '' ?>
+                        >
+                            <?= e($rotulo) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </label>
         </div>
 

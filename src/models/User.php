@@ -15,6 +15,9 @@ final class User
                     u.criado_em AS created_at,
                     p.apelido AS nickname,
                     p.bio,
+                    p.mahjong_soul,
+                    p.riichi_city,
+                    p.discord,
                     p.foto AS photo,
                     CASE WHEN a.usuario_id IS NOT NULL THEN \'admin\' ELSE \'member\' END AS role
              FROM usuarios u
@@ -41,6 +44,9 @@ final class User
                     u.criado_em AS created_at,
                     p.apelido AS nickname,
                     p.bio,
+                    p.mahjong_soul,
+                    p.riichi_city,
+                    p.discord,
                     p.foto AS photo,
                     p.nivel AS level,
                     CASE WHEN a.usuario_id IS NOT NULL THEN \'admin\' ELSE \'member\' END AS role
@@ -64,7 +70,11 @@ final class User
                     u.criado_em AS created_at,
                     p.apelido AS nickname,
                     p.bio,
+                    p.mahjong_soul,
+                    p.riichi_city,
+                    p.discord,
                     p.foto AS photo,
+                    p.nivel AS level,
                     CASE WHEN a.usuario_id IS NOT NULL THEN \'admin\' ELSE \'member\' END AS role
              FROM usuarios u
              LEFT JOIN admins a ON a.usuario_id = u.id
@@ -229,12 +239,22 @@ final class User
     /**
      * @return list<string>
      */
-    public static function bioErrors(string $nickname, string $realName, string $bio, ?int $userId = null): array
-    {
+    public static function bioErrors(
+        string $nickname,
+        string $realName,
+        string $bio,
+        ?int $userId = null,
+        string $mahjongSoul = '',
+        string $riichiCity = '',
+        string $discord = ''
+    ): array {
         $errors = [];
         $nickname = trim($nickname);
         $realName = trim($realName);
         $bio = trim($bio);
+        $mahjongSoul = trim($mahjongSoul);
+        $riichiCity = trim($riichiCity);
+        $discord = trim($discord);
 
         if (!preg_match('/^[a-zA-Z0-9]{3,20}$/', $nickname)) {
             $errors[] = 'O apelido deve ter de 3 a 20 caracteres, apenas letras e números.';
@@ -253,18 +273,41 @@ final class User
             $errors[] = 'A bio deve ter no máximo 500 caracteres.';
         }
 
+        foreach (
+            [
+                'ID/Nome Mahjong Soul' => $mahjongSoul,
+                'ID/Nome Riichi City' => $riichiCity,
+                'Discord' => $discord,
+            ] as $label => $value
+        ) {
+            if (mb_strlen($value) > 40) {
+                $errors[] = $label . ' deve ter no máximo 40 caracteres.';
+            }
+        }
+
         return $errors;
     }
 
     /**
      * @return list<string>
      */
-    public static function updateBio(int $id, string $nickname, string $realName, string $bio, ?string $photo): array
-    {
+    public static function updateBio(
+        int $id,
+        string $nickname,
+        string $realName,
+        string $bio,
+        ?string $photo,
+        string $mahjongSoul,
+        string $riichiCity,
+        string $discord
+    ): array {
         $nickname = trim($nickname);
         $realName = trim($realName);
         $bio = trim($bio);
-        $errors = self::bioErrors($nickname, $realName, $bio, $id);
+        $mahjongSoul = trim($mahjongSoul);
+        $riichiCity = trim($riichiCity);
+        $discord = trim($discord);
+        $errors = self::bioErrors($nickname, $realName, $bio, $id, $mahjongSoul, $riichiCity, $discord);
 
         if ($errors !== []) {
             return $errors;
@@ -288,11 +331,14 @@ final class User
             ]);
 
             $memberStmt = $pdo->prepare(
-                'INSERT INTO participantes (usuario_id, apelido, bio, foto)
-                 VALUES (:id, :apelido, :bio, :foto)
+                'INSERT INTO participantes (usuario_id, apelido, bio, foto, mahjong_soul, riichi_city, discord)
+                 VALUES (:id, :apelido, :bio, :foto, :mahjong_soul, :riichi_city, :discord)
                  ON CONFLICT(usuario_id) DO UPDATE SET
                     apelido = excluded.apelido,
                     bio = excluded.bio,
+                    mahjong_soul = excluded.mahjong_soul,
+                    riichi_city = excluded.riichi_city,
+                    discord = excluded.discord,
                     foto = CASE
                         WHEN excluded.foto IS NOT NULL THEN excluded.foto
                         ELSE participantes.foto
@@ -303,6 +349,9 @@ final class User
                 'apelido' => $nickname,
                 'bio' => $bio === '' ? null : $bio,
                 'foto' => $photo,
+                'mahjong_soul' => $mahjongSoul === '' ? null : $mahjongSoul,
+                'riichi_city' => $riichiCity === '' ? null : $riichiCity,
+                'discord' => $discord === '' ? null : $discord,
             ]);
 
             $pdo->commit();
@@ -339,12 +388,15 @@ final class User
         string $name,
         string $email,
         string $roleAction = 'keep',
-        string $statusAction = 'keep'
+        string $statusAction = 'keep',
+        string $level = 'iniciante'
     ): array {
         $errors = [];
 
         $name = trim($name);
         $email = strtolower(trim($email));
+        $level = trim($level);
+        $niveisValidos = ['iniciante', 'intermediario', 'avancado'];
 
         if ($name === '' || mb_strlen($name) < 2) {
             $errors[] = 'Informe um nome com pelo menos 2 caracteres.';
@@ -360,6 +412,10 @@ final class User
 
         if (!in_array($statusAction, ['keep', 'activate', 'deactivate'], true)) {
             $errors[] = 'Ação de status inválida.';
+        }
+
+        if (!in_array($level, $niveisValidos, true)) {
+            $errors[] = 'Selecione um nível válido.';
         }
 
         if ($errors !== []) {
@@ -459,6 +515,17 @@ final class User
 
                 $stmt->execute(['id' => $id]);
             }
+
+            $stmt = $pdo->prepare(
+                'INSERT INTO participantes (usuario_id, nivel)
+                 VALUES (:id, :nivel)
+                 ON CONFLICT(usuario_id) DO UPDATE SET
+                    nivel = excluded.nivel'
+            );
+            $stmt->execute([
+                'id' => $id,
+                'nivel' => $level,
+            ]);
 
             $pdo->commit();
 

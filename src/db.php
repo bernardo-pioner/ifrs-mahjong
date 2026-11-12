@@ -22,12 +22,21 @@ function db(): PDO
     $fingerprint = hash('sha256', str_replace(["\r\n", "\r"], "\n", $schemaSql));
 
     if (is_file($path) && schemaIsOutdated($path, $fingerprint)) {
-        rebuildSqliteFile($path);
+        $existing = openSqlite($path);
+        if (applyCompatibleSchemaUpdates($existing)) {
+            $existing->exec($schemaSql);
+            saveSchemaFingerprint($existing, $fingerprint);
+            $pdo = $existing;
+        } else {
+            rebuildSqliteFile($path);
+        }
     }
 
-    $pdo = openSqlite($path);
-    $pdo->exec($schemaSql);
-    saveSchemaFingerprint($pdo, $fingerprint);
+    if (!$pdo instanceof PDO) {
+        $pdo = openSqlite($path);
+        $pdo->exec($schemaSql);
+        saveSchemaFingerprint($pdo, $fingerprint);
+    }
 
     $count = (int) $pdo->query('SELECT COUNT(*) FROM usuarios')->fetchColumn();
     if ($count === 0) {
@@ -81,6 +90,68 @@ function saveSchemaFingerprint(PDO $pdo, string $fingerprint): void
          ON CONFLICT(id) DO UPDATE SET fingerprint = excluded.fingerprint'
     );
     $stmt->execute(['fingerprint' => $fingerprint]);
+}
+
+function tableColumns(PDO $pdo, string $table): ?array
+{
+    $exists = $pdo->query(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = " . $pdo->quote($table)
+    )->fetchColumn();
+    if ($exists !== $table) {
+        return null;
+    }
+
+    $present = [];
+    foreach ($pdo->query('PRAGMA table_info(' . $table . ')') as $column) {
+        $present[(string) $column['name']] = true;
+    }
+
+    return $present;
+}
+
+function applyCompatibleSchemaUpdates(PDO $pdo): bool
+{
+    $participantes = tableColumns($pdo, 'participantes');
+    $oficinas = tableColumns($pdo, 'oficinas');
+    $torneios = tableColumns($pdo, 'torneios');
+    $eventos = tableColumns($pdo, 'eventos');
+    if ($participantes === null || $oficinas === null || $torneios === null || $eventos === null) {
+        return false;
+    }
+
+    $changed = false;
+
+    if (isset($participantes['tenhou']) && !isset($participantes['discord'])) {
+        $pdo->exec('ALTER TABLE participantes RENAME COLUMN tenhou TO discord');
+        unset($participantes['tenhou']);
+        $participantes['discord'] = true;
+        $changed = true;
+    }
+
+    foreach (['mahjong_soul', 'riichi_city', 'discord'] as $name) {
+        if (!isset($participantes[$name])) {
+            $pdo->exec('ALTER TABLE participantes ADD COLUMN ' . $name . ' TEXT');
+            $participantes[$name] = true;
+            $changed = true;
+        }
+    }
+
+    if (!isset($oficinas['premiacao'])) {
+        $pdo->exec('ALTER TABLE oficinas ADD COLUMN premiacao TEXT');
+        $changed = true;
+    }
+
+    if (!isset($torneios['premiacao'])) {
+        $pdo->exec('ALTER TABLE torneios ADD COLUMN premiacao TEXT');
+        $changed = true;
+    }
+
+    if (!isset($eventos['serie_id'])) {
+        $pdo->exec('ALTER TABLE eventos ADD COLUMN serie_id INTEGER');
+        $changed = true;
+    }
+
+    return $changed || true;
 }
 
 function rebuildSqliteFile(string $path): void
