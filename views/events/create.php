@@ -51,7 +51,7 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                 maxlength="160"
                 required
                 value="<?= eventFormValue($old, 'titulo') ?>"
-                placeholder="Ex.: Encontro de Riichi"
+                placeholder="Ex.: Encontro do Clube"
             >
         </div>
 
@@ -84,9 +84,9 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             </div>
         </fieldset>
 
-        <div class="form-field">
+        <div class="form-field" id="campo-modalidade" <?= $tipoAtual === 'torneio' ? '' : 'hidden' ?>>
             <label for="modalidade">Modalidade</label>
-            <select id="modalidade" name="modalidade" required>
+            <select id="modalidade" name="modalidade" <?= $tipoAtual === 'torneio' ? 'required' : 'disabled' ?>>
                 <?php foreach ($modalidades as $valor => $rotulo): ?>
                     <option
                         value="<?= e($valor) ?>"
@@ -98,77 +98,9 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             </select>
         </div>
 
-        <div
-            class="event-option-block"
-            id="campo-limite"
-            <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
-        >
-            <label class="event-registration-option" for="tem_limite">
-                <input
-                    type="checkbox"
-                    id="tem_limite"
-                    name="tem_limite"
-                    value="1"
-                    <?= $temLimite ? 'checked' : '' ?>
-                    <?= $tipoAtual === 'encontro' ? 'disabled' : '' ?>
-                >
-                <span>
-                    <strong>Definir limite de participantes</strong>
-                </span>
-            </label>
+       
 
-            <div
-                id="campo-limite-valor"
-                class="form-field event-nested-field"
-                <?= $temLimite ? '' : 'hidden' ?>
-            >
-                <label for="limite">Limite de participantes</label>
-                <input
-                    id="limite"
-                    name="limite"
-                    type="number"
-                    min="1"
-                    max="10000"
-                    value="<?= eventFormValue($old, 'limite') ?>"
-                    placeholder="Ex.: 16"
-                    <?= $temLimite ? '' : 'disabled' ?>
-                >
-            </div>
-        </div>
-
-        <div
-            class="event-option-block"
-            id="campo-pagamento"
-            <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
-        >
-            <label class="event-registration-option" for="tem_pagamento">
-                <input
-                    type="checkbox"
-                    id="tem_pagamento"
-                    name="tem_pagamento"
-                    value="1"
-                    <?= $temPagamento ? 'checked' : '' ?>
-                    <?= $tipoAtual === 'encontro' ? 'disabled' : '' ?>
-                >
-                <span>
-                    <strong>Cobrar taxa de participação</strong>
-                </span>
-            </label>
-
-            <div id="campo-taxa" class="form-field event-nested-field" <?= $temPagamento ? '' : 'hidden' ?>>
-                <label for="taxa">Valor (R$)</label>
-                <input
-                    id="taxa"
-                    name="taxa"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value="<?= eventFormValue($old, 'taxa') ?>"
-                    placeholder="Ex.: 25.00"
-                    <?= $temPagamento ? '' : 'disabled' ?>
-                >
-            </div>
-        </div>
+        
 
         <div class="event-datetime-grid">
             <div class="event-datetime-field">
@@ -235,31 +167,7 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             </div>
         </div>
 
-        <div class="form-field">
-            <label for="local">Local</label>
-            <input
-                id="local"
-                name="local"
-                type="text"
-                maxlength="200"
-                value="<?= eventFormValue($old, 'local') ?>"
-                placeholder="Ex.: Sede do clube"
-            >
-        </div>
-
-        <div class="form-field">
-            <label for="descricao">Descrição</label>
-            <textarea
-                id="descricao"
-                name="descricao"
-                rows="4"
-                maxlength="5000"
-                placeholder="Conte aos participantes como será o evento."
-            ><?= eventFormValue($old, 'descricao') ?></textarea>
-        </div>
-
         <?php if (!$isEdit): ?>
-            <div class="event-form-divider"></div>
 
             <label class="event-registration-option">
                 <input
@@ -307,11 +215,40 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             </div>
         <?php endif; ?>
 
-        <div class="event-form-divider"></div>
 
+        <div class="form-field">
+            <label for="local">Local</label>
+            <input
+                id="local"
+                name="local"
+                type="text"
+                maxlength="200"
+                value="<?= eventFormValue($old, 'local') ?>"
+                placeholder="Ex.: Sede do clube"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="descricao">Descrição</label>
+            <textarea
+                id="descricao"
+                name="descricao"
+                rows="4"
+                maxlength="5000"
+                placeholder="Conte aos participantes como será o evento."
+            ><?= eventFormValue($old, 'descricao') ?></textarea>
+        </div>
+
+        
+
+        <div class="event-form-divider"></div>
+        <div class="form-field">
+            <label for="inscricoes">Inscrições</label>
+        </div>
         <label class="event-registration-option">
             <input
                 type="checkbox"
+                id="inscricoes"
                 name="inscricoes"
                 value="1"
                 <?= !isset($old['inscricoes']) || $old['inscricoes'] === '1' ? 'checked' : '' ?>
@@ -320,6 +257,78 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                 <strong>Permitir inscrições de participantes</strong>
             </span>
         </label>
+        
+        <div
+            class="event-option-block"
+            id="campo-limite"
+            <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
+        >
+            <label class="event-registration-option" for="tem_limite">
+                <input
+                    type="checkbox"
+                    id="tem_limite"
+                    name="tem_limite"
+                    value="1"
+                    <?= $temLimite ? 'checked' : '' ?>
+                    <?= $tipoAtual === 'encontro' ? 'disabled' : '' ?>
+                >
+                <span>
+                    <strong>Definir limite de participantes</strong>
+                </span>
+            </label>
+
+            <div
+                id="campo-limite-valor"
+                class="form-field event-nested-field"
+                <?= $temLimite ? '' : 'hidden' ?>
+            >
+                <input
+                    id="limite"
+                    name="limite"
+                    type="number"
+                    min="1"
+                    max="10000"
+                    value="<?= eventFormValue($old, 'limite') ?>"
+                    placeholder="Ex.: 16"
+                    <?= $temLimite ? '' : 'disabled' ?>
+                >
+            </div>
+        </div>
+
+        <div
+            class="event-option-block"
+            id="campo-pagamento"
+            <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
+        >
+            <label class="event-registration-option" for="tem_pagamento">
+                <input
+                    type="checkbox"
+                    id="tem_pagamento"
+                    name="tem_pagamento"
+                    value="1"
+                    <?= $temPagamento ? 'checked' : '' ?>
+                    <?= $tipoAtual === 'encontro' ? 'disabled' : '' ?>
+                >
+                <span>
+                    <strong>Cobrar taxa de participação</strong>
+                </span>
+            </label>
+
+            <div id="campo-taxa" class="form-field event-nested-field" <?= $temPagamento ? '' : 'hidden' ?>>
+                <label for="taxa">Valor (R$)</label>
+                <input
+                    id="taxa"
+                    name="taxa"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value="<?= eventFormValue($old, 'taxa') ?>"
+                    placeholder="Ex.: 25.00"
+                    <?= $temPagamento ? '' : 'disabled' ?>
+                >
+            </div>
+        </div>
+        
 
         <div class="event-form-actions">
             <a class="button button-secondary" href="/eventos">Cancelar</a>
@@ -351,11 +360,21 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         const campoRecorrencia = document.getElementById('campo-recorrencia');
         const recorrenciaDias = document.getElementById('recorrencia_dias');
         const recorrenciaOcorrencias = document.getElementById('recorrencia_ocorrencias');
+        const campoModalidade = document.getElementById('campo-modalidade');
+        const inputModalidade = document.getElementById('modalidade');
 
         function tipoComExtras() {
             const tipoSelecionado = document.querySelector('input[name="tipo"]:checked');
             return tipoSelecionado &&
                 (tipoSelecionado.value === 'torneio' || tipoSelecionado.value === 'oficina');
+        }
+
+        function atualizarCampoModalidade() {
+            const tipoSelecionado = document.querySelector('input[name="tipo"]:checked');
+            const mostrar = tipoSelecionado && tipoSelecionado.value === 'torneio';
+            campoModalidade.hidden = !mostrar;
+            inputModalidade.disabled = !mostrar;
+            inputModalidade.required = mostrar;
         }
 
         function atualizarCamposTipo() {
@@ -402,7 +421,10 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         }
 
         tipos.forEach(function (tipo) {
-            tipo.addEventListener('change', atualizarCamposTipo);
+            tipo.addEventListener('change', function () {
+                atualizarCamposTipo();
+                atualizarCampoModalidade();
+            });
         });
         temLimite.addEventListener('change', atualizarCampoLimiteValor);
         temPagamento.addEventListener('change', atualizarCampoTaxa);
@@ -412,6 +434,7 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         }
 
         atualizarCamposTipo();
+        atualizarCampoModalidade();
         atualizarCampoTermino();
         atualizarCampoRecorrencia();
     });

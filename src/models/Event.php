@@ -538,20 +538,6 @@ final class Event
             if (!self::hasCapacity($evento)) {
                 return ['ok' => false, 'error' => 'Não há mais vagas disponíveis para aprovar esta inscrição.'];
             }
-
-            $details = self::typeDetails($evento);
-            $precisaPagamento = in_array((string) $evento['tipo'], ['torneio', 'oficina'], true)
-                && $details['taxa'] > 0;
-
-            if ($precisaPagamento) {
-                $pagamento = self::findPayment($eventoId, $participanteId);
-                if ($pagamento === null || empty($pagamento['comprovante'])) {
-                    return [
-                        'ok' => false,
-                        'error' => 'Não é possível aprovar: o participante ainda não enviou o comprovante.',
-                    ];
-                }
-            }
         }
 
         $pdo = db();

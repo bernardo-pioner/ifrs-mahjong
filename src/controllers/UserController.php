@@ -222,7 +222,7 @@ final class UserController extends Controller
                     'success',
                     $activate
                         ? 'Perfil reativado com sucesso.'
-                        : 'Perfil inativado com sucesso.'
+                        : 'Perfil desativado com sucesso.'
                 );
                 break;
 

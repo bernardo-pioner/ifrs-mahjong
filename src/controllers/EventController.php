@@ -11,16 +11,23 @@ final class EventController extends Controller
         $busca = trim((string) ($_GET['busca'] ?? ''));
         $tipo = (string) ($_GET['tipo'] ?? '');
         $inscricao = (string) ($_GET['inscricao'] ?? '');
+        $situacao = (string) ($_GET['situacao'] ?? '');
+        $ehAdmin = ($user['role'] ?? '') === 'admin';
 
         $tiposValidos = ['encontro', 'oficina', 'torneio'];
         $inscricoesValidas = ['pendente', 'inscrito', 'nao_inscrito'];
+        $situacoesValidas = ['em_andamento', 'encerrado'];
 
         if (!in_array($tipo, $tiposValidos, true)) {
             $tipo = '';
         }
 
-        if (!in_array($inscricao, $inscricoesValidas, true)) {
+        if ($ehAdmin || !in_array($inscricao, $inscricoesValidas, true)) {
             $inscricao = '';
+        }
+
+        if (!$ehAdmin || !in_array($situacao, $situacoesValidas, true)) {
+            $situacao = '';
         }
 
         $userId = (int) $user['id'];
@@ -56,7 +63,14 @@ final class EventController extends Controller
         } elseif ($inscricao === 'inscrito') {
             $sql .= " AND ep.status = 'aprovado'";
         } elseif ($inscricao === 'nao_inscrito') {
-            $sql .= ' AND ep.id IS NULL';
+            $sql .= ' AND ep.evento_id IS NULL';
+        }
+
+        $dataReferencia = "COALESCE(NULLIF(e.data_fim, ''), NULLIF(e.data_inicio, ''))";
+        if ($situacao === 'encerrado') {
+            $sql .= " AND {$dataReferencia} IS NOT NULL AND date({$dataReferencia}) <= date('now', 'localtime', '-1 day')";
+        } elseif ($situacao === 'em_andamento') {
+            $sql .= " AND ({$dataReferencia} IS NULL OR date({$dataReferencia}) > date('now', 'localtime', '-1 day'))";
         }
 
         $sql .= '
@@ -77,6 +91,7 @@ final class EventController extends Controller
             'busca' => $busca,
             'tipoFiltro' => $tipo,
             'inscricaoFiltro' => $inscricao,
+            'situacaoFiltro' => $situacao,
         ]);
     }
 
@@ -647,7 +662,9 @@ final class EventController extends Controller
         }
 
         $modalidade = $old['modalidade'] ?? 'livre';
-        if (!array_key_exists($modalidade, eventModalidadeOptions())) {
+        if ($tipo !== 'torneio') {
+            $modalidade = 'livre';
+        } elseif (!array_key_exists($modalidade, eventModalidadeOptions())) {
             $errors[] = 'Selecione uma modalidade válida.';
             $modalidade = 'livre';
         }

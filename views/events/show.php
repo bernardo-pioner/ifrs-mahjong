@@ -285,26 +285,17 @@ $podeEnviarComprovante = !$ehAdmin
                             </div>
 
                             <?php if ($ehAdmin && $participante['status'] === 'pendente'): ?>
-                                <?php
-                                $podeAprovar = !$precisaPagamento || !empty($participante['pode_ver_comprovante']);
-                                ?>
-                                <?php if ($podeAprovar): ?>
-                                    <form
-                                        method="post"
-                                        action="/eventos/<?= $eventoId ?>/participantes/<?= (int) $participante['usuario_id'] ?>/status"
-                                        class="event-status-form"
-                                    >
-                                        <?= csrfField() ?>
-                                        <input type="hidden" name="status" value="aprovado">
-                                        <button class="button button-primary" type="submit">
-                                            Aprovar
-                                        </button>
-                                    </form>
-                                <?php else: ?>
-                                    <p class="event-participants-empty">
-                                        Aguardando comprovante
-                                    </p>
-                                <?php endif; ?>
+                                <form
+                                    method="post"
+                                    action="/eventos/<?= $eventoId ?>/participantes/<?= (int) $participante['usuario_id'] ?>/status"
+                                    class="event-status-form"
+                                >
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="status" value="aprovado">
+                                    <button class="button button-primary" type="submit">
+                                        Aprovar
+                                    </button>
+                                </form>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>

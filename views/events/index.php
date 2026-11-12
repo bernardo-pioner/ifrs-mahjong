@@ -46,15 +46,22 @@ $partesData = static function (?string $data) use ($meses): array {
 };
 
 $eventoEncerrado = static function (array $evento): bool {
-    if (empty($evento['data_fim'])) {
+    $data = trim((string) ($evento['data_fim'] ?? ''));
+    if ($data === '') {
+        $data = trim((string) ($evento['data_inicio'] ?? ''));
+    }
+
+    if ($data === '') {
         return false;
     }
 
-    try {
-        return new DateTimeImmutable((string) $evento['data_fim']) < new DateTimeImmutable('now');
-    } catch (Exception) {
+    if (!preg_match('/^(\d{4}-\d{2}-\d{2})/', $data, $dia)) {
         return false;
     }
+
+    $ontem = (new DateTimeImmutable('today'))->modify('-1 day')->format('Y-m-d');
+
+    return $dia[1] <= $ontem;
 };
 
 $inscricaoUsuario = static function (array $evento): array {
@@ -71,11 +78,12 @@ $inscricaoUsuario = static function (array $evento): array {
     return ['label' => 'Não Inscrito', 'class' => 'is-off'];
 };
 
-$montarUrl = static function (array $mudancas) use ($busca, $tipoFiltro, $inscricaoFiltro): string {
+$montarUrl = static function (array $mudancas) use ($busca, $tipoFiltro, $inscricaoFiltro, $situacaoFiltro): string {
     $params = [
         'busca' => $busca ?? '',
         'tipo' => $tipoFiltro ?? '',
         'inscricao' => $inscricaoFiltro ?? '',
+        'situacao' => $situacaoFiltro ?? '',
     ];
 
     foreach ($mudancas as $chave => $valor) {
@@ -120,10 +128,18 @@ $ehAdmin = ($user['role'] ?? '') === 'admin';
 $renderLinha = static function (array $evento, bool $comTipo) use (
     $tiposEvento,
     $partesData,
-    $inscricaoUsuario
+    $inscricaoUsuario,
+    $eventoEncerrado,
+    $ehAdmin
 ): void {
     $quando = $partesData($evento['data_inicio'] ?? null);
-    $inscricao = $inscricaoUsuario($evento);
+    $status = $ehAdmin
+        ? (
+            $eventoEncerrado($evento)
+                ? ['label' => 'Encerrado', 'class' => 'is-off']
+                : ['label' => 'Em andamento', 'class' => 'is-on']
+        )
+        : $inscricaoUsuario($evento);
     $tipo = (string) ($evento['tipo'] ?? '');
     $local = trim((string) ($evento['local'] ?? ''));
     $detalhes = array_filter([
@@ -150,7 +166,7 @@ $renderLinha = static function (array $evento, bool $comTipo) use (
                 <?php endforeach; ?>
             </span>
         </span>
-        <span class="status <?= e($inscricao['class']) ?>"><?= e($inscricao['label']) ?></span>
+        <span class="status <?= e($status['class']) ?>"><?= e($status['label']) ?></span>
     </a>
     <?php
 };
@@ -223,38 +239,50 @@ $temEventos = $temEventos || $encerrados !== [];
             </div>
 
             <div class="user-role-filter">
-                <label for="inscricao">Inscrição</label>
-                <select id="inscricao" name="inscricao">
-                    <option value="">Todas</option>
-                    <option value="inscrito" <?= ($inscricaoFiltro ?? '') === 'inscrito' ? 'selected' : '' ?>>
-                        Inscrito
-                    </option>
-                    <option value="pendente" <?= ($inscricaoFiltro ?? '') === 'pendente' ? 'selected' : '' ?>>
-                        Pendente
-                    </option>
-                    <option value="nao_inscrito" <?= ($inscricaoFiltro ?? '') === 'nao_inscrito' ? 'selected' : '' ?>>
-                        Não Inscrito
-                    </option>
-                </select>
+                <?php if ($ehAdmin): ?>
+                    <label for="situacao">Status</label>
+                    <select id="situacao" name="situacao">
+                        <option value="">Todos</option>
+                        <option value="em_andamento" <?= ($situacaoFiltro ?? '') === 'em_andamento' ? 'selected' : '' ?>>
+                            Em andamento
+                        </option>
+                        <option value="encerrado" <?= ($situacaoFiltro ?? '') === 'encerrado' ? 'selected' : '' ?>>
+                            Encerrado
+                        </option>
+                    </select>
+                <?php else: ?>
+                    <label for="inscricao">Inscrição</label>
+                    <select id="inscricao" name="inscricao">
+                        <option value="">Todas</option>
+                        <option value="inscrito" <?= ($inscricaoFiltro ?? '') === 'inscrito' ? 'selected' : '' ?>>
+                            Inscrito
+                        </option>
+                        <option value="pendente" <?= ($inscricaoFiltro ?? '') === 'pendente' ? 'selected' : '' ?>>
+                            Pendente
+                        </option>
+                        <option value="nao_inscrito" <?= ($inscricaoFiltro ?? '') === 'nao_inscrito' ? 'selected' : '' ?>>
+                            Não Inscrito
+                        </option>
+                    </select>
+                <?php endif; ?>
             </div>
         </form>
     </div>
 
     <?php if (!$temEventos): ?>
-        <div class="empty">
-            <p>
-                Nenhum evento encontrado.
-                <?php if ($ehAdmin && ($busca ?? '') === '' && ($tipoFiltro ?? '') === '' && ($inscricaoFiltro ?? '') === ''): ?>
-                    <a href="/eventos/novo">Criar evento</a>
-                <?php endif; ?>
-            </p>
-        </div>
+        <h2 class="events-empty-title">
+            <?php if (($busca ?? '') !== ''): ?>
+                Oops! Nenhum evento encontrado para esta busca. :(
+            <?php else: ?>
+                Oops! Nenhum evento encontrado. :(
+            <?php endif; ?>
+        </h2>
     <?php else: ?>
         <div class="event-groups">
             <?php foreach ($gruposEvento as $tipo => $rotulo): ?>
                 <?php $renderGrupo($rotulo, $tipo, $proximos[$tipo], false); ?>
             <?php endforeach; ?>
-            <?php $renderGrupo('Encerrados', '', $encerrados, $mostrarTipo); ?>
+            <?php $renderGrupo('Encerrados', 'encerrado', $encerrados, $mostrarTipo); ?>
         </div>
     <?php endif; ?>
 </div>
@@ -267,8 +295,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const busca = document.getElementById('busca');
-    const inscricao = document.getElementById('inscricao');
+    const filtro = document.getElementById('inscricao') || document.getElementById('situacao');
     let temporizador;
+
+    if (sessionStorage.getItem('eventos-busca-foco') === '1') {
+        sessionStorage.removeItem('eventos-busca-foco');
+        busca.focus();
+        const fim = busca.value.length;
+        busca.setSelectionRange(fim, fim);
+    }
 
     function aplicarFiltros() {
         const parametros = new URLSearchParams(new FormData(formulario));
@@ -284,10 +319,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     busca.addEventListener('input', function () {
+        sessionStorage.setItem('eventos-busca-foco', '1');
         clearTimeout(temporizador);
         temporizador = setTimeout(aplicarFiltros, 500);
     });
 
-    inscricao.addEventListener('change', aplicarFiltros);
+    if (filtro) {
+        filtro.addEventListener('change', aplicarFiltros);
+    }
 });
 </script>

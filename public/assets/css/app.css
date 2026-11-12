@@ -117,6 +117,23 @@ body.is-guest {
     padding: 1.25rem 1.25rem 3rem;
 }
 
+body.is-guest .shell {
+    position: relative;
+    box-sizing: border-box;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 0 1.25rem;
+}
+
+body.is-guest .guest-brand {
+    position: absolute;
+    top: 1.25rem;
+    left: 1.25rem;
+    padding-bottom: 0;
+}
+
 .guest-brand {
     padding-bottom: 1rem;
 }
@@ -606,9 +623,17 @@ body.is-guest .brand-role {
 }
 
 body.is-guest .main {
-    flex: none;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: visible;
-    padding-top: 2rem;
+    padding-top: 0;
+}
+
+body.is-guest .auth-card {
+    width: min(26rem, 100%);
+    margin: 0;
 }
 
 .page-head {
@@ -630,6 +655,19 @@ body.is-guest .main {
 
 .events-list-head .button {
     flex-shrink: 0;
+    color: #ffffff;
+}
+
+.events-list-head .button:hover {
+    color: #ffffff;
+}
+
+.events-empty-title {
+    margin: 2.5rem 0 0;
+    color: var(--ink);
+    font-size: 1.15rem;
+    font-weight: 700;
+    text-align: center;
 }
 
 .events-browse {
@@ -722,6 +760,10 @@ body.is-guest .main {
 
 .event-mark.is-torneio {
     background: var(--lacquer);
+}
+
+.event-mark.is-encerrado {
+    background: #8d948c;
 }
 
 .event-panel {
@@ -2135,6 +2177,10 @@ button.btn-delete-user svg {
     min-inline-size: 0;
 }
 
+.event-form-card > .form-field:has(> label[for="inscricoes"]:only-child) {
+    margin-bottom: calc(0.4rem - 0.95rem);
+}
+
 .form-field label,
 .form-field legend {
     padding: 0;
@@ -2370,7 +2416,8 @@ button.btn-delete-user svg {
 #campo-pagamento[hidden],
 #campo-taxa[hidden],
 #campo-termino[hidden],
-#campo-recorrencia[hidden] {
+#campo-recorrencia[hidden],
+#campo-modalidade[hidden] {
     display: none !important;
 }
 
@@ -2611,6 +2658,7 @@ button.btn-delete-user svg {
 
 .event-show-page .event-form-header h1 {
     margin: 0.35rem 0 0;
+    font-family: var(--font-body);
     font-size: clamp(1.35rem, 2.6vw, 1.7rem);
 }
 

@@ -18,7 +18,6 @@ final class AuthService
     {
         $user = self::user();
         if ($user === null) {
-            flash('error', 'Entre para continuar.');
             redirect('/login');
         }
 
