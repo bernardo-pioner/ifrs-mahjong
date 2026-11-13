@@ -230,21 +230,6 @@ $photoUrl = userPhotoUrl($user);
 <script src="/assets/js/image-crop.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('[data-file-picker]').forEach(function (input) {
-            if (input.id === 'photo') {
-                return;
-            }
-            const nameEl = input.closest('.file-picker')?.querySelector('[data-file-name]');
-            if (!nameEl) {
-                return;
-            }
-
-            input.addEventListener('change', function () {
-                const file = input.files && input.files[0];
-                nameEl.textContent = file ? file.name : 'Nenhum arquivo selecionado';
-            });
-        });
-
         const form = document.querySelector('.profile-card form');
         const voltar = document.getElementById('bio-voltar');
         const modal = document.getElementById('bio-leave-modal');

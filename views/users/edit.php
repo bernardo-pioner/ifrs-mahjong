@@ -4,11 +4,7 @@
 
 $isActive = (int) ($targetUser['active'] ?? 0) === 1;
 $isAdmin = ($targetUser['role'] ?? '') === 'admin';
-$levelLabels = [
-    'iniciante' => 'Iniciante',
-    'intermediario' => 'Intermediário',
-    'avancado' => 'Avançado',
-];
+$levelLabels = levelLabels();
 $levelAtual = (string) ($targetUser['level'] ?? 'iniciante');
 if (!isset($levelLabels[$levelAtual])) {
     $levelAtual = 'iniciante';

@@ -27,7 +27,7 @@ $navItems = [
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($title) ?> · <?= e($appName) ?></title>
     <link rel="icon" href="<?= e($logoUrl) ?>" type="image/png">
-    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/app.css?v=<?= (int) @filemtime(ROOT_PATH . '/public/assets/css/app.css') ?>">
     <?php if ($isGuest): ?>
         <link rel="stylesheet" href="/assets/css/login.css">
     <?php endif; ?>
@@ -39,8 +39,8 @@ $navItems = [
                 <a class="brand" href="/login" aria-label="<?= e($appName) ?>">
                     <img class="brand-logo" src="<?= e($logoUrl) ?>" alt="">
                     <span class="brand-copy">
-                        <span class="brand-text">Mahjong</span>
-                        <span class="brand-role">Clube</span>
+                        <span class="brand-text">Mahjong PoA</span>
+                        <span class="brand-role" style="margin-top: 2px;">Clube</span>
                     </span>
                 </a>
             </header>
@@ -56,8 +56,8 @@ $navItems = [
             <a class="brand" href="/" aria-label="<?= e($appName) ?>">
                 <img class="brand-logo" src="<?= e($logoUrl) ?>" alt="">
                 <span class="brand-copy">
-                    <span class="brand-text">Mahjong</span>
-                    <span class="brand-role">Clube</span>
+                    <span class="brand-text">Mahjong PoA</span>
+                    <span class="brand-role" style="margin-top: 2px;">Clube</span>
                 </span>
             </a>
 
@@ -107,7 +107,17 @@ $navItems = [
                     Menu
                 </button>
                 <span class="session-chip">
-                    <img class="brand-logo is-compact" src="<?= e($logoUrl) ?>" alt="">
+                    <span
+                        class="session-avatar<?= $userPhoto ? ' has-photo' : '' ?>"
+                        <?php if ($userPhoto): ?>
+                            style="background-image: url('<?= e($userPhoto) ?>')"
+                        <?php endif; ?>
+                        aria-hidden="true"
+                    >
+                        <?php if (!$userPhoto): ?>
+                            <span class="icon icon-user"></span>
+                        <?php endif; ?>
+                    </span>
                     <span class="session-name"><?= e($userName) ?></span>
                 </span>
             </header>

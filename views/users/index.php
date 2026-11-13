@@ -3,11 +3,7 @@
 /** @var array<string, mixed> $user */
 
 $currentUserId = (int) ($user['id'] ?? 0);
-$levelLabels = [
-    'iniciante' => 'Iniciante',
-    'intermediario' => 'Intermediário',
-    'avancado' => 'Avançado',
-];
+$levelLabels = levelLabels();
 ?>
 <section class="page-head">
     <h1>Usuários</h1>

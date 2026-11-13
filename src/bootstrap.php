@@ -190,6 +190,16 @@ function eventModalidadeLabel(?string $value): string
     return $options[$key] ?? $options['livre'];
 }
 
+/** @return array<string, string> */
+function levelLabels(): array
+{
+    return [
+        'iniciante' => 'Iniciante',
+        'intermediario' => 'Intermediário',
+        'avancado' => 'Avançado',
+    ];
+}
+
 /** Formata a data de criação da conta sem hora (ex.: 11/11/2026). */
 function formatMemberSince(?string $value): string
 {

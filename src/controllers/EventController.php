@@ -340,11 +340,7 @@ final class EventController extends Controller
         $ehAdmin = ($user['role'] ?? '') === 'admin';
         $userId = (int) $user['id'];
 
-        $levelLabels = [
-            'iniciante' => 'Iniciante',
-            'intermediario' => 'Intermediário',
-            'avancado' => 'Avançado',
-        ];
+        $levelLabels = levelLabels();
 
         foreach ($participantes as &$participante) {
             $dono = (int) ($participante['usuario_id'] ?? 0) === $userId;
