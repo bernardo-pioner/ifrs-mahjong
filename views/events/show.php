@@ -94,7 +94,27 @@ $podeEnviarComprovante = !$ehAdmin
             <div class="event-detail">
                 <span>
                     <strong>Organizador:</strong>
-                    <?= e($evento['organizador'] ?? 'Clube de Mahjong') ?>
+                    <?php if (is_array($organizador ?? null)): ?>
+                        <button
+                            type="button"
+                            class="event-participant-name"
+                            data-open-bio
+                            data-nickname="<?= e($organizador['nickname']) ?>"
+                            data-username="<?= e($organizador['username']) ?>"
+                            data-real-name="<?= e($organizador['name']) ?>"
+                            data-bio="<?= e($organizador['bio']) ?>"
+                            data-mahjong-soul="<?= e($organizador['mahjong_soul']) ?>"
+                            data-riichi-city="<?= e($organizador['riichi_city']) ?>"
+                            data-discord="<?= e($organizador['discord']) ?>"
+                            data-photo="<?= e((string) ($organizador['photo_url'] ?? '')) ?>"
+                            data-member-since="<?= e($organizador['member_since']) ?>"
+                            data-level="<?= e($organizador['level_label']) ?>"
+                        >
+                            <?= e($organizador['label']) ?>
+                        </button>
+                    <?php else: ?>
+                        <?= e($evento['organizador'] ?? 'Clube de Mahjong') ?>
+                    <?php endif; ?>
                 </span>
             </div>
 
@@ -284,22 +304,30 @@ $podeEnviarComprovante = !$ehAdmin
                         $levelLabel = (string) ($participante['level_label'] ?? '');
                         ?>
                         <div class="event-participant">
-                            <div>
-                                <button
-                                    type="button"
-                                    class="event-participant-name"
-                                    data-open-bio
-                                    data-nickname="<?= e($nickname) ?>"
-                                    data-username="<?= e($username) ?>"
-                                    data-real-name="<?= e((string) ($participante['nome'] ?? '')) ?>"
-                                    data-bio="<?= e($bio) ?>"
-                                    data-mahjong-soul="<?= e($mahjongSoul) ?>"
-                                    data-riichi-city="<?= e($riichiCity) ?>"
-                                    data-discord="<?= e($discord) ?>"
-                                    data-photo="<?= e($photoUrl) ?>"
-                                    data-member-since="<?= e($memberSince) ?>"
-                                    data-level="<?= e($levelLabel) ?>"
-                                >
+                            <div class="event-participant-main">
+                                <span class="user-table-avatar" aria-hidden="true">
+                                    <?php if ($photoUrl !== ''): ?>
+                                        <img src="<?= e($photoUrl) ?>" alt="">
+                                    <?php else: ?>
+                                        <span class="icon icon-user"></span>
+                                    <?php endif; ?>
+                                </span>
+                                <div>
+                                    <button
+                                        type="button"
+                                        class="event-participant-name"
+                                        data-open-bio
+                                        data-nickname="<?= e($nickname) ?>"
+                                        data-username="<?= e($username) ?>"
+                                        data-real-name="<?= e((string) ($participante['nome'] ?? '')) ?>"
+                                        data-bio="<?= e($bio) ?>"
+                                        data-mahjong-soul="<?= e($mahjongSoul) ?>"
+                                        data-riichi-city="<?= e($riichiCity) ?>"
+                                        data-discord="<?= e($discord) ?>"
+                                        data-photo="<?= e($photoUrl) ?>"
+                                        data-member-since="<?= e($memberSince) ?>"
+                                        data-level="<?= e($levelLabel) ?>"
+                                    >
                                     <?= e($displayName) ?>
                                     <?php if ($nickname !== '' && $nickname !== $displayName): ?>
                                         <small>(<?= e($nickname) ?>)</small>
@@ -323,6 +351,7 @@ $podeEnviarComprovante = !$ehAdmin
                                             Ver comprovante
                                         </a>
                                     <?php endif; ?>
+                                </div>
                                 </div>
                             </div>
 

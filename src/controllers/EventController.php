@@ -341,6 +341,35 @@ final class EventController extends Controller
         $userId = (int) $user['id'];
 
         $levelLabels = levelLabels();
+        $organizador = null;
+        $adminId = (int) ($evento['admin_id'] ?? 0);
+        if ($adminId > 0) {
+            $organizerUser = User::findById($adminId);
+            if ($organizerUser) {
+                $organizerUsername = trim((string) ($organizerUser['username'] ?? ''));
+                $organizerNickname = trim((string) ($organizerUser['nickname'] ?? ''));
+                if ($organizerNickname === '') {
+                    $organizerNickname = $organizerUsername;
+                }
+                $organizerName = trim((string) ($organizerUser['name'] ?? ''));
+                $organizerLevel = (string) ($organizerUser['level'] ?? '');
+                $organizador = [
+                    'nickname' => $organizerNickname,
+                    'username' => $organizerUsername,
+                    'name' => $organizerName,
+                    'label' => $organizerName !== ''
+                        ? $organizerName
+                        : ($organizerNickname !== '' ? $organizerNickname : 'Organizador'),
+                    'bio' => trim((string) ($organizerUser['bio'] ?? '')),
+                    'mahjong_soul' => trim((string) ($organizerUser['mahjong_soul'] ?? '')),
+                    'riichi_city' => trim((string) ($organizerUser['riichi_city'] ?? '')),
+                    'discord' => trim((string) ($organizerUser['discord'] ?? '')),
+                    'photo_url' => userPhotoUrl($organizerUser),
+                    'member_since' => formatMemberSince($organizerUser['created_at'] ?? null),
+                    'level_label' => $levelLabels[$organizerLevel] ?? '',
+                ];
+            }
+        }
 
         foreach ($participantes as &$participante) {
             $dono = (int) ($participante['usuario_id'] ?? 0) === $userId;
@@ -367,6 +396,7 @@ final class EventController extends Controller
             'meuPagamento' => $meuPagamento,
             'vagasOcupadas' => $vagasOcupadas,
             'temVaga' => $temVaga,
+            'organizador' => $organizador,
         ]);
     }
 
