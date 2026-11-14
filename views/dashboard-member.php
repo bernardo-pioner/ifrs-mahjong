@@ -32,3 +32,5 @@
         <p>Classificação dos jogadores e a sua evolução no clube.</p>
     </a>
 </div>
+
+<?php require ROOT_PATH . '/views/partials/notifications.php'; ?>

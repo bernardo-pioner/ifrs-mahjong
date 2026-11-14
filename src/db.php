@@ -169,6 +169,28 @@ function applyCompatibleSchemaUpdates(PDO $pdo): bool
         $changed = true;
     }
 
+    if (tableColumns($pdo, 'notificacoes') === null) {
+        $pdo->exec(
+            'CREATE TABLE notificacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL,
+                chave TEXT NOT NULL,
+                tipo TEXT NOT NULL,
+                texto TEXT NOT NULL,
+                href TEXT NOT NULL,
+                ocorrido_em TEXT NOT NULL,
+                dispensada_em TEXT,
+                UNIQUE (usuario_id, chave),
+                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+            )'
+        );
+        $pdo->exec(
+            'CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario
+             ON notificacoes(usuario_id, ocorrido_em)'
+        );
+        $changed = true;
+    }
+
     $usuarios = tableColumns($pdo, 'usuarios');
     if ($usuarios !== null && !isset($usuarios['apelido'])) {
         $pdo->exec('ALTER TABLE usuarios ADD COLUMN apelido TEXT');

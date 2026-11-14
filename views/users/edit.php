@@ -32,11 +32,13 @@ $statusWillBeActive = $pendingStatus === 'keep'
 <div class="table-wrap profile-edit-card">
 
     <?php if ($errors !== []): ?>
-        <ul class="form-errors">
-            <?php foreach ($errors as $error): ?>
-                <li><?= e($error) ?></li>
-            <?php endforeach; ?>
-        </ul>
+        <div class="flash flash-error" role="alert">
+            <ul>
+                <?php foreach ($errors as $error): ?>
+                    <li><?= e($error) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
     <?php endif; ?>
 
     <form

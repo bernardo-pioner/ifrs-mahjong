@@ -11,18 +11,20 @@
 $photoUrl = userPhotoUrl($user);
 ?>
 <section class="page-head">
-    <button type="button" class="bio-back" id="bio-voltar">← Voltar</button>
+    <button type="button" class="page-back" id="bio-voltar">← Voltar</button>
     <p class="eyebrow">Perfil</p>
     <h1>Configurações de Bio</h1>
 </section>
 
 <section class="profile-card">
     <?php if ($errors !== []): ?>
-        <ul class="form-errors">
-            <?php foreach ($errors as $error): ?>
-                <li><?= e($error) ?></li>
-            <?php endforeach; ?>
-        </ul>
+        <div class="flash flash-error" role="alert">
+            <ul>
+                <?php foreach ($errors as $error): ?>
+                    <li><?= e($error) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
     <?php endif; ?>
 
     <form method="post" action="/perfil" class="form" enctype="multipart/form-data" novalidate>

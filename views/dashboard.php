@@ -27,3 +27,5 @@
         <p>Evolução e classificação dos jogadores.</p>
     </a>
 </div>
+
+<?php require ROOT_PATH . '/views/partials/notifications.php'; ?>

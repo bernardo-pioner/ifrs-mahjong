@@ -52,11 +52,10 @@ $podeEnviarComprovante = !$ehAdmin
 
 ?>
 
+<a class="page-back" href="/eventos">← Voltar para eventos</a>
+
 <section class="event-form-page event-show-page">
     <header class="event-form-header">
-        <a class="event-back-link" href="/eventos">
-            ← Voltar para eventos
-        </a>
         <h1><?= e($evento['titulo']) ?></h1>
     </header>
 

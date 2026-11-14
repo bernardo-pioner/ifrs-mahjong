@@ -45,6 +45,7 @@ spl_autoload_register(static function (string $class): void {
 });
 
 db();
+Event::cancelarInscricoesPendentesEncerradas();
 
 function e(?string $value): string
 {

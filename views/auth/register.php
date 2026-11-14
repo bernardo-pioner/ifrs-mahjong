@@ -11,9 +11,8 @@
     </p>
 
     <?php if ($registerResponse === false): ?>
-        <div id="registerError" class="form-errors">
-            <span id="registerErrorTxt" class="register-error">Não foi possível concluir o cadastro. Tente
-                novamente</span>
+        <div id="registerError" class="flash flash-error" role="alert">
+            Não foi possível concluir o cadastro. Tente novamente.
         </div>
     <?php endif; ?>
 

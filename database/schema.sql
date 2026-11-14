@@ -244,6 +244,21 @@ CREATE INDEX IF NOT EXISTS idx_rankings_competitivos_torneio ON rankings_competi
 CREATE INDEX IF NOT EXISTS idx_rankings_casuais_encontro ON rankings_casuais(encontro_id);
 CREATE INDEX IF NOT EXISTS idx_pagamentos_evento ON pagamentos(evento_id);
 
+CREATE TABLE IF NOT EXISTS notificacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    chave TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    texto TEXT NOT NULL,
+    href TEXT NOT NULL,
+    ocorrido_em TEXT NOT NULL,
+    dispensada_em TEXT,
+    UNIQUE (usuario_id, chave),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario ON notificacoes(usuario_id, ocorrido_em);
+
 /*
 -- ============================================
 -- DADOS DE TESTE: PARTIDA CASUAL

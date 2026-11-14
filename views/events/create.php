@@ -24,9 +24,10 @@ function eventFormValue(array $old, string $key, string $default = ''): string
 }
 ?>
 
+<a class="page-back" href="/eventos">← Voltar para eventos</a>
+
 <section class="event-form-page">
     <header class="event-form-header">
-        <a class="event-back-link" href="/eventos">← Voltar para eventos</a>
         <h1><?= e($tituloPagina) ?></h1>
         <p><?= e($descricaoPagina) ?></p>
     </header>
@@ -256,7 +257,9 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         
 
         <div class="event-form-divider"></div>
-
+        <div class="form-field">
+            <label for="inscricoes">Inscrições</label>
+        </div>
         <div
             class="event-option-block"
             id="campo-limite"

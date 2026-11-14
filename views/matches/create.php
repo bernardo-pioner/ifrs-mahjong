@@ -22,15 +22,16 @@ foreach ($choices as $choice) {
 }
 ?>
 
+<a class="page-back" href="/eventos/<?= $eventoId ?>">← Voltar para o evento</a>
+
 <section class="event-form-page">
     <header class="event-form-header">
-        <a class="event-back-link" href="/eventos/<?= $eventoId ?>">← Voltar para o evento</a>
         <h1>Registrar partida</h1>
         <p><?= e((string) $evento['titulo']) ?></p>
     </header>
 
     <?php if (!$selfListed): ?>
-        <div class="flash flash-error" role="alert">
+        <div class="flash flash-error" role="alert" data-static>
             Sua conta não está habilitada como participante.
         </div>
     <?php else: ?>

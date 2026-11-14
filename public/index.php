@@ -30,6 +30,8 @@ $router->get('/username-disponivel', [$auth, 'checkUsernameAvailability']);
 $router->get('/email-disponivel', [$auth, 'checkEmailAvailability']);
 
 $router->get('/', [$dashboard, 'index']);
+$router->get('/notificacoes', [$dashboard, 'history']);
+$router->post('/notificacoes/ok', [$dashboard, 'dismiss']);
 $router->get('/eventos', [$events, 'index']);
 $router->get('/eventos/novo', [$events, 'create']);
 $router->post('/eventos/novo', [$events, 'store']);

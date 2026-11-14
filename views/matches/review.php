@@ -11,9 +11,10 @@ $errors = $preview['errors'] ?? [];
 $jogadores = $preview['jogadores'] ?? [];
 ?>
 
+<a class="page-back" href="/eventos/<?= $eventoId ?>">← Voltar para o evento</a>
+
 <section class="event-form-page">
     <header class="event-form-header">
-        <a class="event-back-link" href="/eventos/<?= $eventoId ?>">← Voltar para o evento</a>
         <h1>Partida</h1>
         <p><?= e((string) ($evento['titulo'] ?? '')) ?></p>
     </header>

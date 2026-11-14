@@ -16,13 +16,14 @@ if (!empty($match['criada_em'])) {
 $eventoId = (int) ($match['evento_id'] ?? 0);
 ?>
 
+<?php if ($eventoId > 0): ?>
+    <a class="page-back" href="/eventos/<?= $eventoId ?>">← Voltar para o evento</a>
+<?php else: ?>
+    <a class="page-back" href="/partidas">← Voltar para partidas</a>
+<?php endif; ?>
+
 <section class="event-form-page">
     <header class="event-form-header">
-        <?php if ($eventoId > 0): ?>
-            <a class="event-back-link" href="/eventos/<?= $eventoId ?>">← Voltar para o evento</a>
-        <?php else: ?>
-            <a class="event-back-link" href="/partidas">← Voltar para partidas</a>
-        <?php endif; ?>
         <h1>Partida</h1>
         <p><?= e((string) ($match['evento'] ?? 'Mesa avulsa')) ?></p>
     </header>

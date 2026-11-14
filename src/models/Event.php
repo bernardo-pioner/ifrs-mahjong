@@ -57,6 +57,24 @@ final class Event
         return !self::isEmAndamento($evento);
     }
 
+    public static function cancelarInscricoesPendentesEncerradas(): void
+    {
+        $limite = (new DateTimeImmutable('today'))->modify('-1 day')->format('Y-m-d');
+        $referencia = "COALESCE(NULLIF(e.data_fim, ''), NULLIF(e.data_inicio, ''))";
+        $stmt = db()->prepare(
+            "UPDATE evento_participantes
+             SET status = 'cancelado'
+             WHERE status = 'pendente'
+               AND evento_id IN (
+                   SELECT e.id
+                   FROM eventos e
+                   WHERE {$referencia} IS NOT NULL
+                     AND date({$referencia}) <= :limite
+               )"
+        );
+        $stmt->execute([':limite' => $limite]);
+    }
+
     /** @return list<array<string, mixed>> */
     public static function activeInSeries(?int $serieId): array
     {
@@ -796,6 +814,10 @@ public static function upsertPaymentProof(
                 ':evento_id' => $eventoId,
                 ':participante_id' => $participanteId,
             ]);
+
+            if ($status === 'aprovado' && ($participation['status'] ?? '') !== 'aprovado') {
+                Notification::forgetApprovedPending();
+            }
 
             if ($status === 'aprovado') {
                 $stmt = $pdo->prepare(
