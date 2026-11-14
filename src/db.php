@@ -175,6 +175,11 @@ function applyCompatibleSchemaUpdates(PDO $pdo): bool
         $changed = true;
     }
 
+    if ($usuarios !== null && usuarioNomeSemLimite($pdo)) {
+        limitarNomeUsuario($pdo);
+        $changed = true;
+    }
+
     $pagamentos = tableColumns($pdo, 'pagamentos');
     if ($pagamentos !== null && !isset($pagamentos['comprovante'])) {
         $pdo->exec('ALTER TABLE pagamentos ADD COLUMN comprovante TEXT');
@@ -196,7 +201,134 @@ function applyCompatibleSchemaUpdates(PDO $pdo): bool
         $changed = true;
     }
 
+    if (atualizarPartidasEvento($pdo)) {
+        $changed = true;
+    }
+
     return $changed || true;
+}
+
+function atualizarPartidasEvento(PDO $pdo): bool
+{
+    $partidas = tableColumns($pdo, 'partidas');
+    $jogadores = tableColumns($pdo, 'partida_jogadores');
+    if ($partidas === null || $jogadores === null) {
+        return false;
+    }
+
+    $changed = false;
+
+    if (!isset($partidas['evento_id'])) {
+        $pdo->exec('ALTER TABLE partidas ADD COLUMN evento_id INTEGER REFERENCES eventos(id)');
+        $changed = true;
+    }
+
+    if (!isset($partidas['registrado_por'])) {
+        $pdo->exec('ALTER TABLE partidas ADD COLUMN registrado_por INTEGER REFERENCES usuarios(id)');
+        $pdo->exec(
+            'UPDATE partidas
+             SET registrado_por = (
+                SELECT pj.participante_id
+                FROM partida_jogadores pj
+                WHERE pj.partida_id = partidas.id
+                  AND pj.participante_id IS NOT NULL
+                ORDER BY pj.id ASC
+                LIMIT 1
+             )
+             WHERE registrado_por IS NULL'
+        );
+        $changed = true;
+    }
+
+    if (!isset($partidas['formato'])) {
+        $pdo->exec(
+            "ALTER TABLE partidas ADD COLUMN formato TEXT
+             CHECK (formato IS NULL OR formato IN (
+                '4_jogadores_leste',
+                '4_jogadores_sul',
+                '3_jogadores_leste',
+                '3_jogadores_sul'
+             ))"
+        );
+        $changed = true;
+    }
+
+    $pdo->exec(
+        'UPDATE partidas
+         SET evento_id = (
+            SELECT pc.encontro_id
+            FROM partidas_casuais pc
+            WHERE pc.partida_id = partidas.id
+         )
+         WHERE evento_id IS NULL
+           AND EXISTS (
+            SELECT 1 FROM partidas_casuais pc WHERE pc.partida_id = partidas.id
+           )'
+    );
+
+    if (isset($jogadores['id']) && isset($jogadores['nome_convidado'])) {
+        $pdo->exec(
+            'CREATE INDEX IF NOT EXISTS idx_partidas_evento ON partidas(evento_id)'
+        );
+        $pdo->exec(
+            'CREATE INDEX IF NOT EXISTS idx_partida_jogadores_participante
+             ON partida_jogadores(participante_id)'
+        );
+
+        return $changed;
+    }
+
+    $pdo->exec('PRAGMA foreign_keys = OFF');
+    $pdo->beginTransaction();
+
+    try {
+        $pdo->exec(
+            'CREATE TABLE partida_jogadores_nova (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                partida_id INTEGER NOT NULL,
+                participante_id INTEGER,
+                nome_convidado TEXT,
+                colocacao INTEGER,
+                pontuacao INTEGER,
+                FOREIGN KEY (partida_id) REFERENCES partidas(id) ON DELETE CASCADE,
+                FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id),
+                CHECK (
+                    (participante_id IS NOT NULL AND nome_convidado IS NULL)
+                    OR (
+                        participante_id IS NULL
+                        AND nome_convidado IS NOT NULL
+                        AND length(trim(nome_convidado)) > 0
+                    )
+                )
+            )'
+        );
+        $pdo->exec(
+            'INSERT INTO partida_jogadores_nova
+                (partida_id, participante_id, colocacao, pontuacao)
+             SELECT partida_id, participante_id, colocacao, pontuacao
+             FROM partida_jogadores'
+        );
+        $pdo->exec('DROP TABLE partida_jogadores');
+        $pdo->exec('ALTER TABLE partida_jogadores_nova RENAME TO partida_jogadores');
+        $pdo->exec(
+            'CREATE INDEX IF NOT EXISTS idx_partidas_evento ON partidas(evento_id)'
+        );
+        $pdo->exec(
+            'CREATE INDEX IF NOT EXISTS idx_partida_jogadores_participante
+             ON partida_jogadores(participante_id)'
+        );
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        $pdo->exec('PRAGMA foreign_keys = ON');
+        throw $exception;
+    }
+
+    $pdo->exec('PRAGMA foreign_keys = ON');
+
+    return true;
 }
 
 function inscricaoStatusLegado(PDO $pdo): bool
@@ -244,6 +376,64 @@ function atualizarStatusInscricao(PDO $pdo): void
             'CREATE INDEX IF NOT EXISTS idx_evento_participantes_participante
              ON evento_participantes(participante_id)'
         );
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        $pdo->exec('PRAGMA foreign_keys = ON');
+        throw $exception;
+    }
+
+    $pdo->exec('PRAGMA foreign_keys = ON');
+}
+
+function usuarioNomeSemLimite(PDO $pdo): bool
+{
+    $sql = $pdo->query(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'usuarios'"
+    )->fetchColumn();
+
+    return !is_string($sql) || !str_contains($sql, 'length(trim(nome))');
+}
+
+function limitarNomeUsuario(PDO $pdo): void
+{
+    $pdo->exec('PRAGMA foreign_keys = OFF');
+    $pdo->beginTransaction();
+
+    try {
+        $pdo->exec(
+            'CREATE TABLE usuarios_nome_limitado (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT CHECK (
+                    nome IS NULL
+                    OR (
+                        length(trim(nome)) BETWEEN 2 AND 20
+                        AND nome = trim(nome)
+                    )
+                ),
+                apelido TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                senha_hash TEXT NOT NULL,
+                ativo INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
+                criado_em TEXT NOT NULL DEFAULT (datetime(\'now\')),
+                atualizado_em TEXT NOT NULL DEFAULT (datetime(\'now\'))
+            )'
+        );
+        $pdo->exec(
+            'INSERT INTO usuarios_nome_limitado
+                (id, nome, apelido, email, senha_hash, ativo, criado_em, atualizado_em)
+             SELECT id,
+                    CASE
+                        WHEN nome IS NULL OR trim(nome) = \'\' THEN NULL
+                        ELSE trim(nome)
+                    END,
+                    apelido, email, senha_hash, ativo, criado_em, atualizado_em
+             FROM usuarios'
+        );
+        $pdo->exec('DROP TABLE usuarios');
+        $pdo->exec('ALTER TABLE usuarios_nome_limitado RENAME TO usuarios');
         $pdo->commit();
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) {

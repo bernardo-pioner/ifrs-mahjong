@@ -42,6 +42,10 @@ $router->get('/eventos/{id}/comprovantes/{participanteId}', [$events, 'downloadC
 $router->post('/eventos/{id}/participantes/{participanteId}/status', [$events, 'updateParticipantStatus']);
 $router->post('/eventos/{id}/excluir', [$events, 'destroy']);
 $router->get('/partidas', [$matches, 'index']);
+$router->get('/partidas/{id}', [$matches, 'show']);
+$router->get('/eventos/{id}/partidas/nova', [$matches, 'create']);
+$router->post('/eventos/{id}/partidas/nova', [$matches, 'store']);
+$router->post('/eventos/{id}/partidas/{partidaId}/excluir', [$matches, 'destroy']);
 $router->get('/rankings', [$rankings, 'index']);
 
 $router->get('/usuarios', [$users, 'index']);

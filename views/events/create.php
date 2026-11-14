@@ -13,7 +13,7 @@ if ($premiacaoQtd < 1 || $premiacaoQtd > 10) {
 }
 $recorrente = ($old['recorrente'] ?? '0') === '1';
 $isEdit = isset($evento);
-$dataMinima = $isEdit ? '' : (new DateTimeImmutable('today'))->format('Y-m-d');
+$dataMinima = (new DateTimeImmutable('today'))->format('Y-m-d');
 $tituloPagina = $tituloPagina ?? 'Criar evento';
 $descricaoPagina = $descricaoPagina ?? 'Preencha os dados para publicar um novo evento do clube.';
 $modalidades = eventModalidadeOptions();

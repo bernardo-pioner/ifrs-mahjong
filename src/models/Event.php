@@ -95,6 +95,8 @@ final class Event
                 +
                 (SELECT COUNT(*) FROM partidas_casuais WHERE encontro_id = :encontro_partidas)
                 +
+                (SELECT COUNT(*) FROM partidas WHERE evento_id = :evento_partidas)
+                +
                 (SELECT COUNT(*) FROM rankings_competitivos WHERE torneio_id = :torneio_rankings)
                 +
                 (SELECT COUNT(*) FROM rankings_casuais WHERE encontro_id = :encontro_rankings)'
@@ -102,6 +104,7 @@ final class Event
         $stmt->execute([
             ':torneio_partidas' => $eventoId,
             ':encontro_partidas' => $eventoId,
+            ':evento_partidas' => $eventoId,
             ':torneio_rankings' => $eventoId,
             ':encontro_rankings' => $eventoId,
         ]);

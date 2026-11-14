@@ -6,7 +6,13 @@ PRAGMA foreign_keys = ON;
 -- Usuário (idUsuario, Nome) + e-mail/senha/ativo para autenticação
 CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT,
+    nome TEXT CHECK (
+        nome IS NULL
+        OR (
+            length(trim(nome)) BETWEEN 2 AND 20
+            AND nome = trim(nome)
+        )
+    ),
     apelido TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE COLLATE NOCASE,
     senha_hash TEXT NOT NULL,
@@ -122,8 +128,18 @@ CREATE TABLE IF NOT EXISTS partidas (
         CHECK (status IN ('agendada', 'em_andamento', 'encerrada', 'cancelada')),
     mesa TEXT,
     observacoes TEXT,
+    evento_id INTEGER,
+    registrado_por INTEGER,
+    formato TEXT CHECK (formato IS NULL OR formato IN (
+        '4_jogadores_leste',
+        '4_jogadores_sul',
+        '3_jogadores_leste',
+        '3_jogadores_sul'
+    )),
     criada_em TEXT NOT NULL DEFAULT (datetime('now')),
-    atualizada_em TEXT NOT NULL DEFAULT (datetime('now'))
+    atualizada_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (evento_id) REFERENCES eventos(id),
+    FOREIGN KEY (registrado_por) REFERENCES usuarios(id)
 );
 
 -- Partida competitiva: HoraInicio, HoraFim + vínculo ao torneio e rodada
@@ -148,13 +164,22 @@ CREATE TABLE IF NOT EXISTS partidas_casuais (
 
 -- Jogadores de uma partida (resultado da mesa)
 CREATE TABLE IF NOT EXISTS partida_jogadores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     partida_id INTEGER NOT NULL,
-    participante_id INTEGER NOT NULL,
+    participante_id INTEGER,
+    nome_convidado TEXT,
     colocacao INTEGER,
     pontuacao INTEGER,
-    PRIMARY KEY (partida_id, participante_id),
     FOREIGN KEY (partida_id) REFERENCES partidas(id) ON DELETE CASCADE,
-    FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id)
+    FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id),
+    CHECK (
+        (participante_id IS NOT NULL AND nome_convidado IS NULL)
+        OR (
+            participante_id IS NULL
+            AND nome_convidado IS NOT NULL
+            AND length(trim(nome_convidado)) > 0
+        )
+    )
 );
 
 -- Ranking (idUsuario, Pontuação) + posição e partidas jogadas
@@ -213,6 +238,8 @@ CREATE INDEX IF NOT EXISTS idx_evento_participantes_participante ON evento_parti
 CREATE INDEX IF NOT EXISTS idx_partidas_tipo ON partidas(tipo);
 CREATE INDEX IF NOT EXISTS idx_partidas_competitivas_torneio ON partidas_competitivas(torneio_id);
 CREATE INDEX IF NOT EXISTS idx_partidas_casuais_encontro ON partidas_casuais(encontro_id);
+CREATE INDEX IF NOT EXISTS idx_partidas_evento ON partidas(evento_id);
+CREATE INDEX IF NOT EXISTS idx_partida_jogadores_participante ON partida_jogadores(participante_id);
 CREATE INDEX IF NOT EXISTS idx_rankings_usuario ON rankings(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_rankings_competitivos_torneio ON rankings_competitivos(torneio_id);
 CREATE INDEX IF NOT EXISTS idx_rankings_casuais_encontro ON rankings_casuais(encontro_id);

@@ -246,7 +246,7 @@ final class EventController extends Controller
         }
 
         $old = $this->collectFormInput();
-        [$errors, $parsed] = $this->validateEventForm($old, false);
+        [$errors, $parsed] = $this->validateEventForm($old, false, true);
 
         if ($errors !== []) {
             http_response_code(422);
@@ -397,6 +397,9 @@ final class EventController extends Controller
             'vagasOcupadas' => $vagasOcupadas,
             'temVaga' => $temVaga,
             'organizador' => $organizador,
+            'partidas' => in_array($evento['tipo'], ['encontro', 'oficina'], true)
+                ? GameMatch::forEvent((int) $id)
+                : [],
         ]);
     }
 

@@ -265,9 +265,9 @@ $podeEnviarComprovante = !$ehAdmin
             </section>
         <?php endif; ?>
 
-        <div class="event-form-divider"></div>
-
         <?php
+        $mostraPartidas = in_array($evento['tipo'], ['encontro', 'oficina'], true);
+        $abaPartidas = $mostraPartidas && request('aba') === 'partidas';
         $totalInscritos = 0;
         foreach ($participantes ?? [] as $inscrito) {
             if ((int) ($inscrito['suplente'] ?? 0) !== 1) {
@@ -275,15 +275,72 @@ $podeEnviarComprovante = !$ehAdmin
             }
         }
         ?>
-        <section class="event-participants">
-            <h2>Participantes inscritos (<?= $totalInscritos ?>)</h2>
+
+        <?php if ($mostraPartidas): ?>
+            <div class="event-form-divider"></div>
+            <div class="event-show-tabs" role="tablist" aria-label="Conteúdo do evento">
+                <button
+                    type="button"
+                    class="event-show-tab"
+                    id="tab-inscritos"
+                    role="tab"
+                    aria-controls="panel-inscritos"
+                    aria-selected="<?= $abaPartidas ? 'false' : 'true' ?>"
+                    tabindex="<?= $abaPartidas ? '-1' : '0' ?>"
+                >
+                    Inscritos
+                </button>
+                <button
+                    type="button"
+                    class="event-show-tab"
+                    id="tab-partidas"
+                    role="tab"
+                    aria-controls="panel-partidas"
+                    aria-selected="<?= $abaPartidas ? 'true' : 'false' ?>"
+                    tabindex="<?= $abaPartidas ? '0' : '-1' ?>"
+                >
+                    Partidas
+                </button>
+            </div>
+        <?php else: ?>
+            <div class="event-form-divider"></div>
+        <?php endif; ?>
+
+        <section
+            class="event-participants"
+            id="panel-inscritos"
+            <?= $mostraPartidas ? 'role="tabpanel" aria-labelledby="tab-inscritos"' : '' ?>
+            <?= $abaPartidas ? 'hidden' : '' ?>
+        >
+            <?php if (!$mostraPartidas): ?>
+                <h2>Participantes inscritos (<?= $totalInscritos ?>)</h2>
+            <?php endif; ?>
 
             <?php if (empty($participantes)): ?>
                 <p class="event-participants-empty">
                     Nenhum participante inscrito neste evento.
                 </p>
             <?php else: ?>
+                <?php if ($mostraPartidas): ?>
+                    <div class="event-participant-search-wrap">
+                        <label class="event-participant-search">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="11" cy="11" r="6.25"></circle>
+                                <path d="M16 16.25 20 20.25"></path>
+                            </svg>
+                            <input
+                                type="search"
+                                id="participant-search"
+                                aria-label="Buscar por apelido ou nome"
+                                placeholder="Buscar por apelido ou nome"
+                                autocomplete="off"
+                                spellcheck="false"
+                                enterkeyhint="search"
+                            >
+                        </label>
+                <?php endif; ?>
                 <div class="event-participants-list">
+                    <?php $ordemInscrito = 0; ?>
                     <?php foreach ($participantes as $participante): ?>
                         <?php
                         $username = trim((string) ($participante['username'] ?? ''));
@@ -303,7 +360,12 @@ $podeEnviarComprovante = !$ehAdmin
                         $memberSince = (string) ($participante['member_since'] ?? '');
                         $levelLabel = (string) ($participante['level_label'] ?? '');
                         ?>
-                        <div class="event-participant">
+                        <div
+                            class="event-participant"
+                            data-order="<?= $ordemInscrito++ ?>"
+                            data-username="<?= e($username) ?>"
+                            data-name="<?= e((string) ($participante['nome'] ?? '')) ?>"
+                        >
                             <div class="event-participant-main">
                                 <span class="user-table-avatar" aria-hidden="true">
                                     <?php if ($photoUrl !== ''): ?>
@@ -372,9 +434,95 @@ $podeEnviarComprovante = !$ehAdmin
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
+                    <?php if ($mostraPartidas): ?>
+                        <p class="event-participants-empty" id="participant-search-empty" hidden>
+                            Nenhum inscrito encontrado.
+                        </p>
+                    <?php endif; ?>
                 </div>
+                <?php if ($mostraPartidas): ?>
+                        <nav class="event-pager" id="participant-pager" aria-label="Paginação de inscritos" hidden></nav>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
         </section>
+
+        <?php if ($mostraPartidas): ?>
+            <section
+                class="event-participants"
+                id="panel-partidas"
+                role="tabpanel"
+                aria-labelledby="tab-partidas"
+                <?= $abaPartidas ? '' : 'hidden' ?>
+            >
+                <div class="event-match-list">
+                    <a class="event-match-add" href="/eventos/<?= $eventoId ?>/partidas/nova">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 5v14M5 12h14"></path>
+                        </svg>
+                        Nova partida
+                    </a>
+
+                <?php if (($partidas ?? []) === []): ?>
+                    <p class="event-participants-empty">Nenhuma partida registrada neste evento.</p>
+                <?php else: ?>
+                        <?php foreach ($partidas as $partida): ?>
+                            <?php
+                            $formatoPartida = (string) ($partida['formato'] ?? '');
+                            $rotuloPartida = $formatoPartida !== ''
+                                ? eventModalidadeLabel($formatoPartida)
+                                : (string) ($partida['modalidade'] ?? '');
+                            $quandoPartida = $formatarData(
+                                isset($partida['criada_em']) ? (string) $partida['criada_em'] : null
+                            );
+                            $partidaPropria = (int) ($partida['registrado_por'] ?? 0) === $userId;
+                            ?>
+                            <article class="event-match-card<?= $partidaPropria ? ' is-owned' : '' ?>">
+                                <?php if ($partidaPropria): ?>
+                                    <button
+                                        type="button"
+                                        class="event-match-delete"
+                                        data-delete-match="<?= (int) $partida['id'] ?>"
+                                        aria-label="Excluir partida"
+                                    >
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M9.2 5V3.4a1 1 0 0 1 1-1h3.6a1 1 0 0 1 1 1V5"></path>
+                                            <path d="M4.2 6.2h15.6"></path>
+                                            <path d="M6.4 6.2l.9 12.4a1.4 1.4 0 0 0 1.4 1.3h6.6a1.4 1.4 0 0 0 1.4-1.3l.9-12.4"></path>
+                                            <path d="M10 9.2v7.4"></path>
+                                            <path d="M12 9.2v7.4"></path>
+                                            <path d="M14 9.2v7.4"></path>
+                                        </svg>
+                                    </button>
+                                <?php endif; ?>
+                                <header class="event-match-head">
+                                    <span><?= e($rotuloPartida) ?></span>
+                                    <time datetime="<?= e((string) ($partida['criada_em'] ?? '')) ?>"><?= e($quandoPartida) ?></time>
+                                </header>
+                                <div class="event-match-table">
+                                    <?php foreach ($partida['jogadores'] as $jogadorPartida): ?>
+                                        <?php $jogadorAtual = (int) ($jogadorPartida['usuario_id'] ?? 0) === $userId; ?>
+                                        <span class="event-match-place">
+                                            <?= $jogadorPartida['colocacao'] === null ? '—' : e((string) $jogadorPartida['colocacao']) . '°' ?>
+                                        </span>
+                                        <span class="event-match-name<?= $jogadorAtual ? ' is-self' : '' ?>">
+                                            <?= e((string) $jogadorPartida['nome']) ?>
+                                            <?php if (!empty($jogadorPartida['convidado'])): ?>
+                                                <span class="event-participant-status is-suplente">Convidado</span>
+                                            <?php endif; ?>
+                                        </span>
+                                        <span class="event-match-score">
+                                            <?= e(formatarPontuacao($jogadorPartida['pontuacao'])) ?>
+                                        </span>
+                                    <?php endforeach; ?>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                        <nav class="event-pager" id="match-pager" aria-label="Paginação de partidas" hidden></nav>
+                <?php endif; ?>
+                </div>
+            </section>
+        <?php endif; ?>
 
         <?php if ($ehAdmin && !empty($participantes)): ?>
             <div
@@ -565,6 +713,37 @@ $podeEnviarComprovante = !$ehAdmin
             </div>
         </div>
     </div>
+
+    <?php if ($mostraPartidas): ?>
+        <div
+            id="match-delete-modal"
+            class="series-choice-modal"
+            hidden
+            aria-hidden="true"
+        >
+            <div class="series-choice-backdrop" data-close-match-delete></div>
+            <div
+                class="series-choice-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="match-delete-title"
+            >
+                <button type="button" class="user-details-close" data-close-match-delete aria-label="Fechar">×</button>
+                <h2 id="match-delete-title">Excluir partida</h2>
+                <p>Esta ação não poderá ser desfeita.</p>
+                <form
+                    id="match-delete-form"
+                    method="post"
+                    action="#"
+                    class="series-choice-actions"
+                >
+                    <?= csrfField() ?>
+                    <button type="button" class="button button-secondary" data-close-match-delete>Cancelar</button>
+                    <button type="submit" class="button button-primary">Excluir</button>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
 </section>
 
 <script>
@@ -641,6 +820,175 @@ $podeEnviarComprovante = !$ehAdmin
     });
 
     document.addEventListener('DOMContentLoaded', function () {
+        function paintPager(nav, page, pages, onPick) {
+            if (!nav) {
+                return;
+            }
+            nav.hidden = pages < 2;
+            nav.innerHTML = '';
+            if (pages < 2) {
+                return;
+            }
+
+            function addButton(label, picked, current, disabled) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = label;
+                if (current) {
+                    button.setAttribute('aria-current', 'page');
+                }
+                if (disabled) {
+                    button.disabled = true;
+                } else {
+                    button.addEventListener('click', function () {
+                        onPick(picked);
+                    });
+                }
+                nav.appendChild(button);
+            }
+
+            addButton('Anterior', page - 1, false, page <= 1);
+            for (let number = 1; number <= pages; number += 1) {
+                addButton(String(number), number, number === page, false);
+            }
+            addButton('Próxima', page + 1, false, page >= pages);
+        }
+
+        function showPage(items, matched, pageSize, page) {
+            const pages = Math.max(1, Math.ceil(matched.length / pageSize));
+            const safePage = Math.min(Math.max(page, 1), pages);
+            const start = (safePage - 1) * pageSize;
+            items.forEach(function (item) {
+                const index = matched.indexOf(item);
+                item.hidden = index < 0 || index < start || index >= start + pageSize;
+            });
+            return { page: safePage, pages: pages };
+        }
+
+        function closeRowActions() {
+            const actionsMenu = document.getElementById('participant-actions-menu');
+            if (actionsMenu) {
+                actionsMenu.hidden = true;
+            }
+            document.querySelectorAll('.event-actions-trigger[aria-expanded="true"]').forEach(function (trigger) {
+                trigger.setAttribute('aria-expanded', 'false');
+            });
+        }
+
+        const participantSearch = document.getElementById('participant-search');
+        const participantSearchEmpty = document.getElementById('participant-search-empty');
+        const participantPager = document.getElementById('participant-pager');
+        if (participantSearch && participantPager) {
+            const participantList = document.querySelector('#panel-inscritos .event-participants-list');
+            const participantRows = Array.prototype.slice.call(
+                document.querySelectorAll('#panel-inscritos .event-participant')
+            );
+            let participantPage = 1;
+
+            function fold(value) {
+                return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            }
+
+            function rank(row, term) {
+                const username = fold(row.dataset.username);
+                const name = fold(row.dataset.name);
+                if (username === term) {
+                    return 0;
+                }
+                if (name === term) {
+                    return 1;
+                }
+                if (username.indexOf(term) === 0) {
+                    return 2;
+                }
+                if (name.indexOf(term) === 0) {
+                    return 3;
+                }
+                return 4;
+            }
+
+            function matchedParticipants() {
+                return participantRows.filter(function (row) {
+                    return row.dataset.matched !== '0';
+                });
+            }
+
+            function applyParticipants(page, scroll) {
+                const state = showPage(participantRows, matchedParticipants(), 8, page);
+                participantPage = state.page;
+                paintPager(participantPager, state.page, state.pages, function (picked) {
+                    applyParticipants(picked, true);
+                    closeRowActions();
+                });
+                if (scroll) {
+                    participantSearch.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                }
+            }
+
+            function filterParticipants() {
+                const term = fold(participantSearch.value.trim());
+                let visible = 0;
+                participantRows.forEach(function (row) {
+                    const username = fold(row.dataset.username);
+                    const name = fold(row.dataset.name);
+                    const match = term === ''
+                        || username.indexOf(term) !== -1
+                        || name.indexOf(term) !== -1;
+                    row.dataset.matched = match ? '1' : '0';
+                    if (match) {
+                        visible += 1;
+                    }
+                });
+                participantRows.sort(function (a, b) {
+                    if (term === '') {
+                        return Number(a.dataset.order) - Number(b.dataset.order);
+                    }
+                    const matchDiff = Number(a.dataset.matched) - Number(b.dataset.matched);
+                    if (matchDiff !== 0) {
+                        return matchDiff * -1;
+                    }
+                    return rank(a, term) - rank(b, term);
+                });
+                if (participantList) {
+                    participantRows.forEach(function (row) {
+                        participantList.insertBefore(row, participantSearchEmpty);
+                    });
+                }
+                if (participantSearchEmpty) {
+                    participantSearchEmpty.hidden = term === '' || visible > 0;
+                }
+                applyParticipants(1, false);
+                closeRowActions();
+            }
+
+            participantSearch.addEventListener('input', filterParticipants);
+            filterParticipants();
+        }
+
+        const matchPager = document.getElementById('match-pager');
+        if (matchPager) {
+            const matchCards = Array.prototype.slice.call(
+                document.querySelectorAll('#panel-partidas .event-match-card')
+            );
+            let matchPage = 1;
+
+            function applyMatches(page, scroll) {
+                const state = showPage(matchCards, matchCards, 5, page);
+                matchPage = state.page;
+                paintPager(matchPager, state.page, state.pages, function (picked) {
+                    applyMatches(picked, true);
+                });
+                if (scroll) {
+                    const anchor = document.querySelector('.event-match-add');
+                    if (anchor) {
+                        anchor.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                    }
+                }
+            }
+
+            applyMatches(1, false);
+        }
+
         const modal = document.getElementById('participant-bio-modal');
         if (!modal) {
             return;
@@ -748,7 +1096,6 @@ $podeEnviarComprovante = !$ehAdmin
             if (!actionsMenu || !approveForm || !pendingForm || !suplenteForm || !suplenteInput || !suplenteButton) {
                 return;
             }
-
             const action = '/eventos/' + trigger.dataset.eventId
                 + '/participantes/' + trigger.dataset.participantId
                 + '/status';
@@ -821,6 +1168,74 @@ $podeEnviarComprovante = !$ehAdmin
 
         window.addEventListener('resize', closeParticipantActions);
         window.addEventListener('scroll', closeParticipantActions, true);
+
+        const inscritosTab = document.getElementById('tab-inscritos');
+        const partidasTab = document.getElementById('tab-partidas');
+        const inscritosPanel = document.getElementById('panel-inscritos');
+        const partidasPanel = document.getElementById('panel-partidas');
+
+        function selecionarAba(partidas) {
+            if (!inscritosTab || !partidasTab || !inscritosPanel || !partidasPanel) {
+                return;
+            }
+            inscritosTab.setAttribute('aria-selected', partidas ? 'false' : 'true');
+            partidasTab.setAttribute('aria-selected', partidas ? 'true' : 'false');
+            inscritosTab.tabIndex = partidas ? -1 : 0;
+            partidasTab.tabIndex = partidas ? 0 : -1;
+            inscritosPanel.hidden = partidas;
+            partidasPanel.hidden = !partidas;
+        }
+
+        if (inscritosTab && partidasTab) {
+            inscritosTab.addEventListener('click', function () {
+                selecionarAba(false);
+            });
+            partidasTab.addEventListener('click', function () {
+                selecionarAba(true);
+            });
+        }
+
+        const matchDeleteModal = document.getElementById('match-delete-modal');
+        const matchDeleteForm = document.getElementById('match-delete-form');
+
+        function openMatchDelete(id) {
+            if (!matchDeleteModal || !matchDeleteForm) {
+                return;
+            }
+            matchDeleteForm.action = '/eventos/<?= $eventoId ?>/partidas/' + id + '/excluir';
+            matchDeleteModal.hidden = false;
+            matchDeleteModal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('series-choice-open');
+        }
+
+        function closeMatchDelete() {
+            if (!matchDeleteModal) {
+                return;
+            }
+            matchDeleteModal.hidden = true;
+            matchDeleteModal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('series-choice-open');
+        }
+
+        document.querySelectorAll('[data-delete-match]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                openMatchDelete(button.dataset.deleteMatch || '');
+            });
+        });
+
+        if (matchDeleteModal) {
+            matchDeleteModal.addEventListener('click', function (event) {
+                if (event.target.closest('[data-close-match-delete]')) {
+                    closeMatchDelete();
+                }
+            });
+        }
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeMatchDelete();
+            }
+        });
 
         document.querySelectorAll('[data-file-picker]').forEach(function (input) {
             const nameEl = input.closest('.file-picker')?.querySelector('[data-file-name]');

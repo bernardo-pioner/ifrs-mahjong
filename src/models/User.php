@@ -265,8 +265,9 @@ final class User
             $errors[] = 'Este apelido já está em uso.';
         }
 
-        if ($realName !== '' && mb_strlen($realName) > 80) {
-            $errors[] = 'O nome real deve ter no máximo 80 caracteres.';
+        $realNameLength = mb_strlen($realName);
+        if ($realName !== '' && ($realNameLength < 2 || $realNameLength > 20)) {
+            $errors[] = 'O nome deve ter de 2 a 20 caracteres.';
         }
 
         if (mb_strlen($bio) > 500) {

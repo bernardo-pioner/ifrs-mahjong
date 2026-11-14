@@ -80,9 +80,11 @@ $photoUrl = userPhotoUrl($user);
                 type="text"
                 name="real_name"
                 value="<?= e($realName) ?>"
-                maxlength="80"
+                minlength="2"
+                maxlength="20"
                 autocomplete="name"
             >
+            <span class="hint">Opcional. Se preenchido, de 2 a 20 caracteres.</span>
         </label>
         <label>
             Bio

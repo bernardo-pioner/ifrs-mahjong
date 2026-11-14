@@ -51,6 +51,15 @@ function e(?string $value): string
     return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+function formatarPontuacao(int|string|null $valor): string
+{
+    if ($valor === null || $valor === '') {
+        return '—';
+    }
+
+    return number_format((int) $valor, 0, ',', '.');
+}
+
 function redirect(string $path): never
 {
     header('Location: ' . $path);
@@ -188,6 +197,20 @@ function eventModalidadeLabel(?string $value): string
     $key = (string) ($value ?? '');
 
     return $options[$key] ?? $options['livre'];
+}
+
+/** Modalidades de mesa usadas no registro de partida. @return array<string, string> */
+function matchFormatOptions(): array
+{
+    $options = eventModalidadeOptions();
+    unset($options['livre']);
+
+    return $options;
+}
+
+function matchFormatSeatCount(string $formato): int
+{
+    return str_starts_with($formato, '3_') ? 3 : 4;
 }
 
 /** @return array<string, string> */
