@@ -39,6 +39,17 @@ final class MatchController extends Controller
         $user = $this->requireAuth();
         $evento = $this->casualEvent($eventoId);
         $choices = GameMatch::playerChoices();
+        $draft = $this->draftFor((int) $evento['id']);
+        $old = [
+            'modalidade' => $this->suggestedFormat($evento),
+            'seats' => $this->blankSeats((int) $user['id']),
+        ];
+        if (request('editar') === '1' && $draft !== null) {
+            $old = [
+                'modalidade' => $draft['formato'],
+                'seats' => $draft['seats'],
+            ];
+        }
 
         $this->view('matches/create', [
             'title' => 'Registrar partida',
@@ -47,10 +58,7 @@ final class MatchController extends Controller
             'evento' => $evento,
             'choices' => $choices,
             'errors' => [],
-            'old' => [
-                'modalidade' => $this->suggestedFormat($evento),
-                'seats' => $this->blankSeats((int) $user['id']),
-            ],
+            'old' => $old,
             'selfListed' => $this->listsUser($choices, (int) $user['id']),
         ]);
     }
@@ -79,30 +87,68 @@ final class MatchController extends Controller
             return;
         }
 
+        $_SESSION['match_draft'] = [
+            'evento_id' => (int) $evento['id'],
+            'formato' => $formato,
+            'seats' => $seats,
+        ];
+        redirect('/eventos/' . (int) $evento['id'] . '/partidas/revisao');
+    }
+
+    public function review(string $eventoId): void
+    {
+        $user = $this->requireAuth();
+        $evento = $this->casualEvent($eventoId);
+        $draft = $this->draftFor((int) $evento['id']);
+        if ($draft === null) {
+            redirect('/eventos/' . (int) $evento['id'] . '/partidas/nova');
+        }
+
+        $preview = GameMatch::preview((int) $user['id'], $draft['formato'], $draft['seats']);
+
+        $this->view('matches/review', [
+            'title' => 'Revisar partida',
+            'user' => $user,
+            'currentPath' => '/eventos',
+            'evento' => $evento,
+            'preview' => $preview,
+        ]);
+    }
+
+    public function confirm(string $eventoId): void
+    {
+        verifyCsrf();
+        $user = $this->requireAuth();
+        $evento = $this->casualEvent($eventoId);
+        $draft = $this->draftFor((int) $evento['id']);
+        if ($draft === null) {
+            flash('error', 'Não há uma partida para salvar.');
+            redirect('/eventos/' . (int) $evento['id'] . '/partidas/nova');
+        }
+
         $result = GameMatch::register(
             (int) $evento['id'],
             (string) $evento['tipo'],
-            $userId,
-            $formato,
-            $seats
+            (int) $user['id'],
+            $draft['formato'],
+            $draft['seats']
         );
-
         if ($result['errors'] !== []) {
-            $this->view('matches/create', [
-                'title' => 'Registrar partida',
-                'user' => $user,
-                'currentPath' => '/eventos',
-                'evento' => $evento,
-                'choices' => $choices,
-                'errors' => $result['errors'],
-                'old' => ['modalidade' => $formato, 'seats' => $seats],
-                'selfListed' => true,
-            ]);
-            return;
+            redirect('/eventos/' . (int) $evento['id'] . '/partidas/revisao');
         }
 
+        unset($_SESSION['match_draft']);
         flash('success', 'Partida registrada.');
-        redirect('/partidas/' . $result['id']);
+        redirect('/eventos/' . (int) $evento['id'] . '?aba=partidas');
+    }
+
+    public function discard(string $eventoId): void
+    {
+        verifyCsrf();
+        $this->requireAuth();
+        $evento = $this->casualEvent($eventoId);
+        unset($_SESSION['match_draft']);
+        redirect('/eventos/' . (int) $evento['id']);
     }
 
     public function destroy(string $eventoId, string $partidaId): void
@@ -188,6 +234,26 @@ final class MatchController extends Controller
         }
 
         return array_slice($seats, 0, 4);
+    }
+
+    /** @return array{formato: string, seats: list<array{jogador: string, convidado: string, pontuacao: string}>}|null */
+    private function draftFor(int $eventoId): ?array
+    {
+        $draft = $_SESSION['match_draft'] ?? null;
+        if (!is_array($draft) || (int) ($draft['evento_id'] ?? 0) !== $eventoId) {
+            return null;
+        }
+
+        $formato = (string) ($draft['formato'] ?? '');
+        $seats = $draft['seats'] ?? null;
+        if (!is_array($seats)) {
+            return null;
+        }
+
+        return [
+            'formato' => $formato,
+            'seats' => array_values($seats),
+        ];
     }
 
     /** @param list<array{id: int, username: string, name: string}> $choices */

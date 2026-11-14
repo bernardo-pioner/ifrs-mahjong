@@ -52,6 +52,11 @@ final class Event
         return $dia[1] > $ontem;
     }
 
+    public static function isEncerrado(array $evento): bool
+    {
+        return !self::isEmAndamento($evento);
+    }
+
     /** @return list<array<string, mixed>> */
     public static function activeInSeries(?int $serieId): array
     {
@@ -356,7 +361,6 @@ final class Event
      *   data_inicio: string,
      *   data_fim: ?string,
      *   local: ?string,
-     *   inscricoes_abertas: int,
      *   limite: ?int,
      *   taxa: float,
      *   premiacao: list<string>
@@ -368,9 +372,9 @@ final class Event
 
         $stmt = $pdo->prepare(
             'INSERT INTO eventos
-                (admin_id, tipo, modalidade, titulo, descricao, data_inicio, data_fim, local, serie_id, inscricoes_abertas)
+                (admin_id, tipo, modalidade, titulo, descricao, data_inicio, data_fim, local, serie_id)
              VALUES
-                (:admin_id, :tipo, :modalidade, :titulo, :descricao, :data_inicio, :data_fim, :local, :serie_id, :inscricoes_abertas)'
+                (:admin_id, :tipo, :modalidade, :titulo, :descricao, :data_inicio, :data_fim, :local, :serie_id)'
         );
         $stmt->execute([
             ':admin_id' => $data['admin_id'],
@@ -382,7 +386,6 @@ final class Event
             ':data_fim' => $data['data_fim'],
             ':local' => $data['local'],
             ':serie_id' => $data['serie_id'] ?? null,
-            ':inscricoes_abertas' => $data['inscricoes_abertas'],
         ]);
 
         $eventoId = (int) $pdo->lastInsertId();
@@ -391,7 +394,6 @@ final class Event
             $data['tipo'],
             $data['limite'],
             $data['taxa'],
-            $data['inscricoes_abertas'],
             $data['premiacao'] ?? []
         );
 
@@ -404,7 +406,6 @@ final class Event
         string $tipo,
         ?int $limite,
         float $taxa,
-        int $inscricoesAbertas,
         array $premiacao = []
     ): void {
         $pdo = db();
@@ -439,14 +440,11 @@ final class Event
         }
 
         $stmt = $pdo->prepare(
-            'INSERT INTO encontros (evento_id, aberto_publico, observacoes)
-             VALUES (:evento_id, 1, :observacoes)'
+            'INSERT INTO encontros (evento_id, aberto_publico)
+             VALUES (:evento_id, 1)'
         );
         $stmt->execute([
             ':evento_id' => $eventoId,
-            ':observacoes' => $inscricoesAbertas === 1
-                ? 'Inscrições habilitadas'
-                : 'Inscrições não habilitadas',
         ]);
     }
 
@@ -460,7 +458,6 @@ final class Event
      *   data_inicio: string,
      *   data_fim: ?string,
      *   local: ?string,
-     *   inscricoes_abertas: int,
      *   limite: ?int,
      *   taxa: float,
      *   premiacao: list<string>
@@ -523,8 +520,8 @@ final class Event
      */
     public static function register(array $evento, int $participanteId): array
     {
-        if (!(int) ($evento['inscricoes_abertas'] ?? 0)) {
-            return ['ok' => false, 'error' => 'As inscrições para este evento estão fechadas.'];
+        if (self::isEncerrado($evento)) {
+            return ['ok' => false, 'error' => 'Este evento já foi encerrado.'];
         }
 
         $existing = self::findParticipation((int) $evento['id'], $participanteId);
@@ -604,10 +601,64 @@ final class Event
         }
     }
 
+    public static function canUnregister(array $evento, ?array $participation): bool
+    {
+        if ($participation === null || ($participation['status'] ?? '') === 'cancelado') {
+            return false;
+        }
+
+        $tipo = (string) ($evento['tipo'] ?? '');
+        if ($tipo === 'encontro') {
+            return !self::isEncerrado($evento);
+        }
+
+        if (in_array($tipo, ['torneio', 'oficina'], true)) {
+            return ($participation['status'] ?? '') === 'pendente';
+        }
+
+        return false;
+    }
+
     /**
-     * @return array{ok: bool, error: ?string, previous_path: ?string}
+     * @return array{ok: bool, error: ?string}
      */
-    public static function upsertPaymentProof(
+    public static function unregister(array $evento, int $participanteId): array
+    {
+        $participation = self::findParticipation((int) $evento['id'], $participanteId);
+        if ($participation === null || ($participation['status'] ?? '') === 'cancelado') {
+            return ['ok' => false, 'error' => 'Você não está inscrito neste evento.'];
+        }
+
+        $tipo = (string) ($evento['tipo'] ?? '');
+        if ($tipo === 'encontro') {
+            if (self::isEncerrado($evento)) {
+                return ['ok' => false, 'error' => 'Não é possível cancelar a inscrição de um encontro encerrado.'];
+            }
+        } elseif (in_array($tipo, ['torneio', 'oficina'], true)) {
+            if (($participation['status'] ?? '') !== 'pendente') {
+                return ['ok' => false, 'error' => 'Só é possível cancelar a inscrição enquanto ela estiver pendente.'];
+            }
+        } else {
+            return ['ok' => false, 'error' => 'Não é possível cancelar esta inscrição.'];
+        }
+
+        $stmt = db()->prepare(
+            "UPDATE evento_participantes
+             SET status = 'cancelado'
+             WHERE evento_id = :evento_id AND participante_id = :participante_id"
+        );
+        $stmt->execute([
+            ':evento_id' => (int) $evento['id'],
+            ':participante_id' => $participanteId,
+        ]);
+
+        return ['ok' => true, 'error' => null];
+    }
+
+/**
+ * @return array{ok: bool, error: ?string, previous_path: ?string}
+ */
+public static function upsertPaymentProof(
         array $evento,
         int $participanteId,
         string $comprovantePath
@@ -714,6 +765,13 @@ final class Event
             return ['ok' => false, 'error' => 'Evento não encontrado.'];
         }
 
+        if (
+            ($participation['status'] ?? '') === 'cancelado'
+            && $status !== 'cancelado'
+        ) {
+            return ['ok' => false, 'error' => 'Não é possível alterar uma inscrição cancelada.'];
+        }
+
         $ehSuplente = (int) ($participation['suplente'] ?? 0) === 1;
         if (
             $status === 'aprovado'
@@ -782,6 +840,10 @@ final class Event
             return ['ok' => false, 'error' => 'Evento não encontrado.'];
         }
 
+        if (($participation['status'] ?? '') === 'cancelado') {
+            return ['ok' => false, 'error' => 'Não é possível alterar uma inscrição cancelada.'];
+        }
+
         $jaSuplente = (int) ($participation['suplente'] ?? 0) === 1;
         if (
             !$suplente
@@ -804,5 +866,72 @@ final class Event
         ]);
 
         return ['ok' => true, 'error' => null];
+    }
+
+    /**
+     * @return array{ok: bool, error: ?string, files: list<string>}
+     */
+    public static function removeParticipant(int $eventoId, int $participanteId): array
+    {
+        $participation = self::findParticipation($eventoId, $participanteId);
+        if ($participation === null) {
+            return ['ok' => false, 'error' => 'Inscrição não encontrada.', 'files' => []];
+        }
+
+        if (self::findById($eventoId) === null) {
+            return ['ok' => false, 'error' => 'Evento não encontrado.', 'files' => []];
+        }
+
+        $stmt = db()->prepare(
+            'SELECT comprovante
+             FROM pagamentos
+             WHERE evento_id = :evento_id AND participante_id = :participante_id'
+        );
+        $stmt->execute([
+            ':evento_id' => $eventoId,
+            ':participante_id' => $participanteId,
+        ]);
+
+        $files = [];
+        foreach ($stmt->fetchAll() as $pagamento) {
+            $path = self::resolveComprovantePath(
+                isset($pagamento['comprovante']) ? (string) $pagamento['comprovante'] : null
+            );
+            if ($path !== null) {
+                $files[] = $path;
+            }
+        }
+
+        $pdo = db();
+        $pdo->beginTransaction();
+
+        try {
+            $stmt = $pdo->prepare(
+                'DELETE FROM pagamentos
+                 WHERE evento_id = :evento_id AND participante_id = :participante_id'
+            );
+            $stmt->execute([
+                ':evento_id' => $eventoId,
+                ':participante_id' => $participanteId,
+            ]);
+
+            $stmt = $pdo->prepare(
+                'DELETE FROM evento_participantes
+                 WHERE evento_id = :evento_id AND participante_id = :participante_id'
+            );
+            $stmt->execute([
+                ':evento_id' => $eventoId,
+                ':participante_id' => $participanteId,
+            ]);
+
+            $pdo->commit();
+
+            return ['ok' => true, 'error' => null, 'files' => $files];
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
     }
 }

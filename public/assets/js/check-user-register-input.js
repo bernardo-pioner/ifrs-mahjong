@@ -61,7 +61,7 @@ async function checkUserRegisterInput() {
   if (!isUsernameValid) {
     setElementHidden(usernameAvailabilityMessage, true);
     usernameInputErrorTxt.textContent =
-      "O apelido deve ter de 3 a 20 caracteres, apenas letras e números";
+      "O apelido deve ter de 3 a 12 caracteres, apenas letras e números";
     setElementHidden(usernameInputErrorDiv, false);
   } else {
     setElementHidden(usernameInputErrorDiv, true);

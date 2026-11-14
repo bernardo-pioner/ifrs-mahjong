@@ -37,11 +37,12 @@ $userId = (int) ($user['id'] ?? 0);
 $taxa = (float) ($details['taxa'] ?? 0);
 $limite = $details['limite'] ?? null;
 $premiacao = is_array($details['premiacao'] ?? null) ? $details['premiacao'] : [];
-$inscricoesAbertas = (int) ($evento['inscricoes_abertas'] ?? 0) === 1;
+$eventoEncerrado = Event::isEncerrado($evento);
 $precisaPagamento = in_array($evento['tipo'], ['torneio', 'oficina'], true) && $taxa > 0;
 $jaInscrito = $minhaParticipacao !== null && ($minhaParticipacao['status'] ?? '') !== 'cancelado';
 $statusInscricao = (string) ($minhaParticipacao['status'] ?? '');
-$podeInscrever = !$ehAdmin && $inscricoesAbertas && !$jaInscrito && $temVaga;
+$podeInscrever = !$ehAdmin && !$eventoEncerrado && !$jaInscrito && $temVaga;
+$podeCancelar = !$ehAdmin && Event::canUnregister($evento, $minhaParticipacao);
 $meuPagamento = $meuPagamento ?? null;
 $temComprovante = is_array($meuPagamento) && !empty($meuPagamento['comprovante']);
 $podeEnviarComprovante = !$ehAdmin
@@ -216,7 +217,6 @@ $podeEnviarComprovante = !$ehAdmin
                                             name="comprovante"
                                             type="file"
                                             accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-                                            required
                                             data-file-picker
                                         >
                                         <span class="file-picker-button">Escolher arquivo</span>
@@ -224,6 +224,9 @@ $podeEnviarComprovante = !$ehAdmin
                                             Nenhum arquivo selecionado
                                         </span>
                                     </label>
+                                    <p class="file-picker-error" data-file-error hidden>
+                                        Anexe o comprovante de pagamento.
+                                    </p>
                                 </div>
 
                                 <button class="button button-primary" type="submit">
@@ -234,8 +237,21 @@ $podeEnviarComprovante = !$ehAdmin
                     <?php elseif ($statusInscricao === 'pendente'): ?>
                         <p>Aguarde a aprovação do administrador.</p>
                     <?php endif; ?>
-                <?php elseif (!$inscricoesAbertas): ?>
-                    <p>As inscrições para este evento estão fechadas.</p>
+
+                    <?php if ($podeCancelar): ?>
+                        <form
+                            method="post"
+                            action="/eventos/<?= $eventoId ?>/desinscrever"
+                            class="event-register-form"
+                        >
+                            <?= csrfField() ?>
+                            <button class="button button-secondary" type="submit">
+                                Cancelar inscrição
+                            </button>
+                        </form>
+                    <?php endif; ?>
+                <?php elseif ($eventoEncerrado): ?>
+                    <p>Este evento já foi encerrado.</p>
                 <?php elseif (!$temVaga): ?>
                     <p>Não há mais vagas disponíveis neste evento.</p>
                 <?php elseif ($podeInscrever): ?>
@@ -269,11 +285,120 @@ $podeEnviarComprovante = !$ehAdmin
         $mostraPartidas = in_array($evento['tipo'], ['encontro', 'oficina'], true);
         $abaPartidas = $mostraPartidas && request('aba') === 'partidas';
         $totalInscritos = 0;
+        $pendentes = [];
+        $demaisParticipantes = [];
         foreach ($participantes ?? [] as $inscrito) {
             if ((int) ($inscrito['suplente'] ?? 0) !== 1) {
                 $totalInscritos++;
             }
+            if ($ehAdmin && ($inscrito['status'] ?? '') === 'pendente') {
+                $pendentes[] = $inscrito;
+                continue;
+            }
+            $demaisParticipantes[] = $inscrito;
         }
+
+        $renderInscrito = static function (array $participante) use ($eventoId, $ehAdmin, $statusLabels): void {
+            $username = trim((string) ($participante['username'] ?? ''));
+            $nickname = trim((string) ($participante['apelido'] ?? ''));
+            if ($nickname === '') {
+                $nickname = $username !== '' ? $username : 'Participante';
+            }
+            $displayName = trim((string) ($participante['nome'] ?? ''));
+            if ($displayName === '') {
+                $displayName = $nickname;
+            }
+            $bio = trim((string) ($participante['bio'] ?? ''));
+            $mahjongSoul = trim((string) ($participante['mahjong_soul'] ?? ''));
+            $riichiCity = trim((string) ($participante['riichi_city'] ?? ''));
+            $discord = trim((string) ($participante['discord'] ?? ''));
+            $photoUrl = (string) ($participante['photo_url'] ?? '');
+            $memberSince = (string) ($participante['member_since'] ?? '');
+            $levelLabel = (string) ($participante['level_label'] ?? '');
+            $aguardando = ($participante['status'] ?? '') === 'pendente';
+            ?>
+            <div
+                class="event-participant"
+                data-username="<?= e($username) ?>"
+                data-name="<?= e((string) ($participante['nome'] ?? '')) ?>"
+                <?= $aguardando ? 'data-pending="1"' : '' ?>
+            >
+                <div class="event-participant-main">
+                    <span class="user-table-avatar" aria-hidden="true">
+                        <?php if ($photoUrl !== ''): ?>
+                            <img src="<?= e($photoUrl) ?>" alt="">
+                        <?php else: ?>
+                            <span class="icon icon-user"></span>
+                        <?php endif; ?>
+                    </span>
+                    <div>
+                        <button
+                            type="button"
+                            class="event-participant-name"
+                            data-open-bio
+                            data-nickname="<?= e($nickname) ?>"
+                            data-username="<?= e($username) ?>"
+                            data-real-name="<?= e((string) ($participante['nome'] ?? '')) ?>"
+                            data-bio="<?= e($bio) ?>"
+                            data-mahjong-soul="<?= e($mahjongSoul) ?>"
+                            data-riichi-city="<?= e($riichiCity) ?>"
+                            data-discord="<?= e($discord) ?>"
+                            data-photo="<?= e($photoUrl) ?>"
+                            data-member-since="<?= e($memberSince) ?>"
+                            data-level="<?= e($levelLabel) ?>"
+                        >
+                            <?= e($displayName) ?>
+                            <?php if ($nickname !== '' && $nickname !== $displayName): ?>
+                                <small>(<?= e($nickname) ?>)</small>
+                            <?php endif; ?>
+                        </button>
+
+                        <div class="event-participant-meta">
+                            <span class="event-participant-status is-<?= e($participante['status']) ?>">
+                                <?= e($statusLabels[$participante['status']] ?? $participante['status']) ?>
+                            </span>
+                            <?php if ((int) ($participante['suplente'] ?? 0) === 1): ?>
+                                <span class="event-participant-status is-suplente">Suplente</span>
+                            <?php endif; ?>
+
+                            <?php if (!empty($participante['pode_ver_comprovante'])): ?>
+                                <a
+                                    href="/eventos/<?= $eventoId ?>/comprovantes/<?= (int) $participante['usuario_id'] ?>"
+                                    target="_blank"
+                                    rel="noopener"
+                                >
+                                    Ver comprovante
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <?php if ($ehAdmin): ?>
+                    <?php
+                    $rotuloAcao = $displayName;
+                    if ($nickname !== '' && $nickname !== $displayName) {
+                        $rotuloAcao .= ' (' . $nickname . ')';
+                    }
+                    ?>
+                    <button
+                        type="button"
+                        class="user-actions-trigger event-actions-trigger"
+                        aria-haspopup="menu"
+                        aria-expanded="false"
+                        aria-label="Ações de <?= e($displayName) ?>"
+                        data-event-id="<?= $eventoId ?>"
+                        data-participant-id="<?= (int) $participante['usuario_id'] ?>"
+                        data-label="<?= e($rotuloAcao) ?>"
+                        data-status="<?= e((string) $participante['status']) ?>"
+                        data-suplente="<?= (int) ($participante['suplente'] ?? 0) === 1 ? '1' : '0' ?>"
+                    >
+                        <span class="user-actions-dots" aria-hidden="true"></span>
+                    </button>
+                <?php endif; ?>
+            </div>
+            <?php
+        };
         ?>
 
         <?php if ($mostraPartidas): ?>
@@ -321,129 +446,42 @@ $podeEnviarComprovante = !$ehAdmin
                     Nenhum participante inscrito neste evento.
                 </p>
             <?php else: ?>
-                <?php if ($mostraPartidas): ?>
-                    <div class="event-participant-search-wrap">
-                        <label class="event-participant-search">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <circle cx="11" cy="11" r="6.25"></circle>
-                                <path d="M16 16.25 20 20.25"></path>
-                            </svg>
-                            <input
-                                type="search"
-                                id="participant-search"
-                                aria-label="Buscar por apelido ou nome"
-                                placeholder="Buscar por apelido ou nome"
-                                autocomplete="off"
-                                spellcheck="false"
-                                enterkeyhint="search"
-                            >
-                        </label>
-                <?php endif; ?>
-                <div class="event-participants-list">
-                    <?php $ordemInscrito = 0; ?>
-                    <?php foreach ($participantes as $participante): ?>
-                        <?php
-                        $username = trim((string) ($participante['username'] ?? ''));
-                        $nickname = trim((string) ($participante['apelido'] ?? ''));
-                        if ($nickname === '') {
-                            $nickname = $username !== '' ? $username : 'Participante';
-                        }
-                        $displayName = trim((string) ($participante['nome'] ?? ''));
-                        if ($displayName === '') {
-                            $displayName = $nickname;
-                        }
-                        $bio = trim((string) ($participante['bio'] ?? ''));
-                        $mahjongSoul = trim((string) ($participante['mahjong_soul'] ?? ''));
-                        $riichiCity = trim((string) ($participante['riichi_city'] ?? ''));
-                        $discord = trim((string) ($participante['discord'] ?? ''));
-                        $photoUrl = (string) ($participante['photo_url'] ?? '');
-                        $memberSince = (string) ($participante['member_since'] ?? '');
-                        $levelLabel = (string) ($participante['level_label'] ?? '');
-                        ?>
-                        <div
-                            class="event-participant"
-                            data-order="<?= $ordemInscrito++ ?>"
-                            data-username="<?= e($username) ?>"
-                            data-name="<?= e((string) ($participante['nome'] ?? '')) ?>"
+                <div class="event-participant-search-wrap">
+                    <label class="event-participant-search">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="11" cy="11" r="6.25"></circle>
+                            <path d="M16 16.25 20 20.25"></path>
+                        </svg>
+                        <input
+                            type="search"
+                            id="participant-search"
+                            aria-label="Buscar por apelido ou nome"
+                            placeholder="Buscar por apelido ou nome"
+                            autocomplete="off"
+                            spellcheck="false"
+                            enterkeyhint="search"
                         >
-                            <div class="event-participant-main">
-                                <span class="user-table-avatar" aria-hidden="true">
-                                    <?php if ($photoUrl !== ''): ?>
-                                        <img src="<?= e($photoUrl) ?>" alt="">
-                                    <?php else: ?>
-                                        <span class="icon icon-user"></span>
-                                    <?php endif; ?>
-                                </span>
-                                <div>
-                                    <button
-                                        type="button"
-                                        class="event-participant-name"
-                                        data-open-bio
-                                        data-nickname="<?= e($nickname) ?>"
-                                        data-username="<?= e($username) ?>"
-                                        data-real-name="<?= e((string) ($participante['nome'] ?? '')) ?>"
-                                        data-bio="<?= e($bio) ?>"
-                                        data-mahjong-soul="<?= e($mahjongSoul) ?>"
-                                        data-riichi-city="<?= e($riichiCity) ?>"
-                                        data-discord="<?= e($discord) ?>"
-                                        data-photo="<?= e($photoUrl) ?>"
-                                        data-member-since="<?= e($memberSince) ?>"
-                                        data-level="<?= e($levelLabel) ?>"
-                                    >
-                                    <?= e($displayName) ?>
-                                    <?php if ($nickname !== '' && $nickname !== $displayName): ?>
-                                        <small>(<?= e($nickname) ?>)</small>
-                                    <?php endif; ?>
-                                </button>
-
-                                <div class="event-participant-meta">
-                                    <span class="event-participant-status is-<?= e($participante['status']) ?>">
-                                        <?= e($statusLabels[$participante['status']] ?? $participante['status']) ?>
-                                    </span>
-                                    <?php if ((int) ($participante['suplente'] ?? 0) === 1): ?>
-                                        <span class="event-participant-status is-suplente">Suplente</span>
-                                    <?php endif; ?>
-
-                                    <?php if (!empty($participante['pode_ver_comprovante'])): ?>
-                                        <a
-                                            href="/eventos/<?= $eventoId ?>/comprovantes/<?= (int) $participante['usuario_id'] ?>"
-                                            target="_blank"
-                                            rel="noopener"
-                                        >
-                                            Ver comprovante
-                                        </a>
-                                    <?php endif; ?>
-                                </div>
-                                </div>
+                    </label>
+                <div class="event-participants-list">
+                    <?php if ($pendentes !== []): ?>
+                        <section class="event-pending-group" id="pending-group">
+                            <h3>Aguardando aprovação</h3>
+                            <div class="event-participants-list">
+                                <?php foreach ($pendentes as $participante): ?>
+                                    <?php $renderInscrito($participante); ?>
+                                <?php endforeach; ?>
                             </div>
-
-                            <?php if ($ehAdmin): ?>
-                                <button
-                                    type="button"
-                                    class="user-actions-trigger event-actions-trigger"
-                                    aria-haspopup="menu"
-                                    aria-expanded="false"
-                                    aria-label="Ações de <?= e($displayName) ?>"
-                                    data-event-id="<?= $eventoId ?>"
-                                    data-participant-id="<?= (int) $participante['usuario_id'] ?>"
-                                    data-status="<?= e((string) $participante['status']) ?>"
-                                    data-suplente="<?= (int) ($participante['suplente'] ?? 0) === 1 ? '1' : '0' ?>"
-                                >
-                                    <span class="user-actions-dots" aria-hidden="true"></span>
-                                </button>
-                            <?php endif; ?>
-                        </div>
-                    <?php endforeach; ?>
-                    <?php if ($mostraPartidas): ?>
-                        <p class="event-participants-empty" id="participant-search-empty" hidden>
-                            Nenhum inscrito encontrado.
-                        </p>
+                        </section>
                     <?php endif; ?>
+                    <?php foreach ($demaisParticipantes as $participante): ?>
+                        <?php $renderInscrito($participante); ?>
+                    <?php endforeach; ?>
+                    <p class="event-participants-empty" id="participant-search-empty" hidden>
+                        Nenhum inscrito encontrado.
+                    </p>
                 </div>
-                <?php if ($mostraPartidas): ?>
-                        <nav class="event-pager" id="participant-pager" aria-label="Paginação de inscritos" hidden></nav>
-                    </div>
-                <?php endif; ?>
+                    <nav class="event-pager" id="participant-pager" aria-label="Paginação de inscritos" hidden></nav>
+                </div>
             <?php endif; ?>
         </section>
 
@@ -505,12 +543,30 @@ $podeEnviarComprovante = !$ehAdmin
                                         <span class="event-match-place">
                                             <?= $jogadorPartida['colocacao'] === null ? '—' : e((string) $jogadorPartida['colocacao']) . '°' ?>
                                         </span>
-                                        <span class="event-match-name<?= $jogadorAtual ? ' is-self' : '' ?>">
-                                            <?= e((string) $jogadorPartida['nome']) ?>
-                                            <?php if (!empty($jogadorPartida['convidado'])): ?>
+                                        <?php if (!empty($jogadorPartida['convidado'])): ?>
+                                            <span class="event-match-name">
+                                                <?= e((string) $jogadorPartida['nome']) ?>
                                                 <span class="event-participant-status is-suplente">Convidado</span>
-                                            <?php endif; ?>
-                                        </span>
+                                            </span>
+                                        <?php else: ?>
+                                            <button
+                                                type="button"
+                                                class="event-match-name event-participant-name<?= $jogadorAtual ? ' is-self' : '' ?>"
+                                                data-open-bio
+                                                data-nickname="<?= e((string) ($jogadorPartida['nickname'] ?? '')) ?>"
+                                                data-username="<?= e((string) ($jogadorPartida['username'] ?? '')) ?>"
+                                                data-real-name="<?= e((string) ($jogadorPartida['real_name'] ?? '')) ?>"
+                                                data-bio="<?= e((string) ($jogadorPartida['bio'] ?? '')) ?>"
+                                                data-mahjong-soul="<?= e((string) ($jogadorPartida['mahjong_soul'] ?? '')) ?>"
+                                                data-riichi-city="<?= e((string) ($jogadorPartida['riichi_city'] ?? '')) ?>"
+                                                data-discord="<?= e((string) ($jogadorPartida['discord'] ?? '')) ?>"
+                                                data-photo="<?= e((string) ($jogadorPartida['photo_url'] ?? '')) ?>"
+                                                data-member-since="<?= e((string) ($jogadorPartida['member_since'] ?? '')) ?>"
+                                                data-level="<?= e((string) ($jogadorPartida['level_label'] ?? '')) ?>"
+                                            >
+                                                <?= e((string) $jogadorPartida['nome']) ?>
+                                            </button>
+                                        <?php endif; ?>
                                         <span class="event-match-score">
                                             <?= e(formatarPontuacao($jogadorPartida['pontuacao'])) ?>
                                         </span>
@@ -567,6 +623,38 @@ $podeEnviarComprovante = !$ehAdmin
                         Marcar como suplente
                     </button>
                 </form>
+                <button type="button" class="user-actions-item" role="menuitem" id="participant-remove-button">
+                    Remover inscrição
+                </button>
+            </div>
+
+            <div
+                id="participant-remove-modal"
+                class="series-choice-modal"
+                hidden
+                aria-hidden="true"
+            >
+                <div class="series-choice-backdrop" data-close-participant-remove></div>
+                <div
+                    class="series-choice-dialog"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="participant-remove-title"
+                >
+                    <button type="button" class="user-details-close" data-close-participant-remove aria-label="Fechar">×</button>
+                    <h2 id="participant-remove-title">Remover inscrição</h2>
+                    <p>Tem certeza que deseja remover “<strong id="participant-remove-name"></strong>” do evento?</p>
+                    <form
+                        id="participant-remove-form"
+                        method="post"
+                        action="#"
+                        class="series-choice-actions"
+                    >
+                        <?= csrfField() ?>
+                        <button type="button" class="button button-secondary" data-close-participant-remove>Cancelar</button>
+                        <button type="submit" class="button button-primary">Remover</button>
+                    </form>
+                </div>
             </div>
         <?php endif; ?>
 
@@ -574,12 +662,14 @@ $podeEnviarComprovante = !$ehAdmin
             <div class="event-form-divider"></div>
 
             <div class="event-form-actions">
-                <a
-                    class="button button-secondary"
-                    href="/eventos/<?= $eventoId ?>/editar"
-                >
-                    Editar evento
-                </a>
+                <?php if (!$eventoEncerrado): ?>
+                    <a
+                        class="button button-secondary"
+                        href="/eventos/<?= $eventoId ?>/editar"
+                    >
+                        Editar evento
+                    </a>
+                <?php endif; ?>
 
                 <form
                     id="form-excluir-evento"
@@ -881,8 +971,12 @@ $podeEnviarComprovante = !$ehAdmin
         if (participantSearch && participantPager) {
             const participantList = document.querySelector('#panel-inscritos .event-participants-list');
             const participantRows = Array.prototype.slice.call(
-                document.querySelectorAll('#panel-inscritos .event-participant')
+                document.querySelectorAll('#panel-inscritos .event-participant:not([data-pending])')
             );
+            const pendingRows = Array.prototype.slice.call(
+                document.querySelectorAll('#panel-inscritos .event-participant[data-pending]')
+            );
+            const pendingGroup = document.getElementById('pending-group');
             let participantPage = 1;
 
             function fold(value) {
@@ -907,15 +1001,25 @@ $podeEnviarComprovante = !$ehAdmin
                 return 4;
             }
 
-            function matchedParticipants() {
-                return participantRows.filter(function (row) {
+            function matchedRows(rows) {
+                return rows.filter(function (row) {
                     return row.dataset.matched !== '0';
                 });
             }
 
+            function orderedParticipants() {
+                return matchedRows(pendingRows).concat(matchedRows(participantRows));
+            }
+
             function applyParticipants(page, scroll) {
-                const state = showPage(participantRows, matchedParticipants(), 8, page);
+                const ordered = orderedParticipants();
+                const state = showPage(pendingRows.concat(participantRows), ordered, 8, page);
                 participantPage = state.page;
+                if (pendingGroup) {
+                    pendingGroup.hidden = !pendingRows.some(function (row) {
+                        return !row.hidden;
+                    });
+                }
                 paintPager(participantPager, state.page, state.pages, function (picked) {
                     applyParticipants(picked, true);
                     closeRowActions();
@@ -928,13 +1032,24 @@ $podeEnviarComprovante = !$ehAdmin
             function filterParticipants() {
                 const term = fold(participantSearch.value.trim());
                 let visible = 0;
-                participantRows.forEach(function (row) {
+                function matches(row) {
                     const username = fold(row.dataset.username);
                     const name = fold(row.dataset.name);
-                    const match = term === ''
+                    return term === ''
                         || username.indexOf(term) !== -1
                         || name.indexOf(term) !== -1;
+                }
+                pendingRows.forEach(function (row) {
+                    const match = matches(row);
                     row.dataset.matched = match ? '1' : '0';
+                    if (match) {
+                        visible += 1;
+                    }
+                });
+                participantRows.forEach(function (row, index) {
+                    const match = matches(row);
+                    row.dataset.matched = match ? '1' : '0';
+                    row.dataset.order = String(index);
                     if (match) {
                         visible += 1;
                     }
@@ -1100,13 +1215,15 @@ $podeEnviarComprovante = !$ehAdmin
                 + '/participantes/' + trigger.dataset.participantId
                 + '/status';
             const status = trigger.dataset.status || '';
+            const cancelada = status === 'cancelado';
             const suplente = trigger.dataset.suplente === '1';
 
             approveForm.action = action;
             pendingForm.action = action;
             suplenteForm.action = action;
-            approveForm.hidden = status === 'aprovado';
-            pendingForm.hidden = status === 'pendente';
+            approveForm.hidden = cancelada || status === 'aprovado';
+            pendingForm.hidden = cancelada || status === 'pendente';
+            suplenteForm.hidden = cancelada;
             suplenteInput.value = suplente ? '0' : '1';
             suplenteButton.textContent = suplente ? 'Remover suplente' : 'Marcar como suplente';
 
@@ -1168,6 +1285,61 @@ $podeEnviarComprovante = !$ehAdmin
 
         window.addEventListener('resize', closeParticipantActions);
         window.addEventListener('scroll', closeParticipantActions, true);
+
+        const removeButton = document.getElementById('participant-remove-button');
+        const removeModal = document.getElementById('participant-remove-modal');
+        const removeForm = document.getElementById('participant-remove-form');
+        const removeName = document.getElementById('participant-remove-name');
+
+        function closeParticipantRemove() {
+            if (!removeModal) {
+                return;
+            }
+            removeModal.hidden = true;
+            removeModal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('series-choice-open');
+        }
+
+        function openParticipantRemove() {
+            if (!activeActionsTrigger || !removeModal || !removeForm || !removeName) {
+                return;
+            }
+            const trigger = activeActionsTrigger;
+            removeForm.action = '/eventos/' + trigger.dataset.eventId
+                + '/participantes/' + trigger.dataset.participantId
+                + '/remover';
+            removeName.textContent = trigger.dataset.label || 'este usuário';
+            closeParticipantActions();
+            removeModal.hidden = false;
+            removeModal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('series-choice-open');
+            const confirm = removeForm.querySelector('[type="submit"]');
+            if (confirm) {
+                confirm.focus();
+            }
+        }
+
+        if (removeButton) {
+            removeButton.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                openParticipantRemove();
+            });
+        }
+
+        if (removeModal) {
+            removeModal.addEventListener('click', function (event) {
+                if (event.target.closest('[data-close-participant-remove]')) {
+                    closeParticipantRemove();
+                }
+            });
+        }
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeParticipantRemove();
+            }
+        });
 
         const inscritosTab = document.getElementById('tab-inscritos');
         const partidasTab = document.getElementById('tab-partidas');
@@ -1238,14 +1410,35 @@ $podeEnviarComprovante = !$ehAdmin
         });
 
         document.querySelectorAll('[data-file-picker]').forEach(function (input) {
-            const nameEl = input.closest('.file-picker')?.querySelector('[data-file-name]');
-            if (!nameEl) {
-                return;
-            }
+            const picker = input.closest('.file-picker');
+            const nameEl = picker ? picker.querySelector('[data-file-name]') : null;
+            const form = input.closest('form');
+            const errorEl = form ? form.querySelector('[data-file-error]') : null;
 
             input.addEventListener('change', function () {
                 const file = input.files && input.files[0];
-                nameEl.textContent = file ? file.name : 'Nenhum arquivo selecionado';
+                if (nameEl) {
+                    nameEl.textContent = file ? file.name : 'Nenhum arquivo selecionado';
+                }
+                if (errorEl && file) {
+                    errorEl.hidden = true;
+                }
+            });
+
+            if (!form || !form.querySelector('[data-file-error]')) {
+                return;
+            }
+
+            form.addEventListener('submit', function (event) {
+                const file = input.files && input.files[0];
+                if (file) {
+                    return;
+                }
+
+                event.preventDefault();
+                if (errorEl) {
+                    errorEl.hidden = false;
+                }
             });
         });
     });

@@ -256,22 +256,7 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         
 
         <div class="event-form-divider"></div>
-        <div class="form-field">
-            <label for="inscricoes">Inscrições</label>
-        </div>
-        <label class="event-registration-option">
-            <input
-                type="checkbox"
-                id="inscricoes"
-                name="inscricoes"
-                value="1"
-                <?= !isset($old['inscricoes']) || $old['inscricoes'] === '1' ? 'checked' : '' ?>
-            >
-            <span>
-                <strong>Permitir inscrições de participantes</strong>
-            </span>
-        </label>
-        
+
         <div
             class="event-option-block"
             id="campo-limite"

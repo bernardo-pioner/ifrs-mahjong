@@ -67,12 +67,12 @@ $photoUrl = userPhotoUrl($user);
                 name="nickname"
                 value="<?= e($nickname) ?>"
                 minlength="3"
-                maxlength="20"
-                pattern="[A-Za-z0-9]{3,20}"
+                maxlength="12"
+                pattern="[A-Za-z0-9]{3,12}"
                 autocomplete="username"
                 required
             >
-            <span class="hint">De 3 a 20 caracteres, apenas letras e números. Também é usado no login.</span>
+            <span class="hint">De 3 a 12 caracteres, apenas letras e números. Também é usado no login.</span>
         </label>
         <label>
             Nome

@@ -86,91 +86,65 @@ final class GameMatch
 
     /**
      * @param list<array{jogador: string, convidado: string, pontuacao: string}> $seats
+     * @return array{
+     *   errors: list<string>,
+     *   formato: string,
+     *   jogadores: list<array<string, mixed>>,
+     *   prepared: list<array{participante_id: ?int, nome_convidado: ?string, pontuacao: int}>
+     * }
+     */
+    public static function preview(int $userId, string $formato, array $seats): array
+    {
+        $built = self::buildRows($userId, $formato, $seats);
+        $profiles = self::playerProfiles(array_values(array_filter(
+            array_column($built['prepared'], 'participante_id')
+        )));
+        $ranks = $built['errors'] === []
+            ? self::ranks(array_column($built['prepared'], 'pontuacao'))
+            : [];
+        $jogadores = [];
+
+        foreach ($built['prepared'] as $index => $row) {
+            $playerId = $row['participante_id'];
+            $profile = $playerId !== null ? ($profiles[$playerId] ?? null) : null;
+            $jogadores[] = [
+                'nome' => $row['nome_convidado'] !== null
+                    ? $row['nome_convidado']
+                    : (string) ($profile['username'] ?? 'Participante'),
+                'convidado' => $row['eh_convidado'],
+                'pontuacao' => $row['pontuacao_valida'] ? $row['pontuacao'] : null,
+                'colocacao' => $ranks[$index] ?? null,
+                'photo_url' => (string) ($profile['photo_url'] ?? ''),
+            ];
+        }
+
+        if ($ranks !== []) {
+            usort(
+                $jogadores,
+                static fn (array $a, array $b): int => ((int) $a['colocacao']) <=> ((int) $b['colocacao'])
+            );
+        }
+
+        return [
+            'errors' => $built['errors'],
+            'formato' => $formato,
+            'jogadores' => $jogadores,
+            'prepared' => $built['errors'] === [] ? $built['prepared'] : [],
+        ];
+    }
+
+    /**
+     * @param list<array{jogador: string, convidado: string, pontuacao: string}> $seats
      * @return array{errors: list<string>, id: int}
      */
     public static function register(int $eventoId, string $tipo, int $userId, string $formato, array $seats): array
     {
-        $formats = matchFormatOptions();
-        $errors = [];
-        if (!isset($formats[$formato])) {
-            $errors[] = 'Selecione a modalidade da mesa.';
-            return ['errors' => $errors, 'id' => 0];
+        $preview = self::preview($userId, $formato, $seats);
+        if ($preview['errors'] !== []) {
+            return ['errors' => $preview['errors'], 'id' => 0];
         }
 
-        $count = matchFormatSeatCount($formato);
-        $seats = array_slice(array_values($seats), 0, $count);
-        if (count($seats) < $count) {
-            $errors[] = 'Informe todos os jogadores da mesa.';
-        }
-
-        $choices = [];
-        foreach (self::playerChoices() as $choice) {
-            $choices[$choice['id']] = $choice;
-        }
-
-        $used = [];
-        $includesSelf = false;
-        $prepared = [];
-
-        foreach ($seats as $index => $seat) {
-            $label = 'Jogador ' . ($index + 1);
-            $jogador = trim((string) ($seat['jogador'] ?? ''));
-            $convidado = trim((string) ($seat['convidado'] ?? ''));
-            $pontuacao = trim((string) ($seat['pontuacao'] ?? ''));
-            $score = filter_var($pontuacao, FILTER_VALIDATE_INT);
-
-            if ($score === false) {
-                $errors[] = 'Informe a pontuação do ' . $label . ' com um número inteiro.';
-            }
-
-            if ($jogador === 'convidado') {
-                if ($convidado === '') {
-                    $errors[] = 'Informe o nome do convidado no ' . $label . '.';
-                } elseif (mb_strlen($convidado) > 40) {
-                    $errors[] = 'O nome do convidado no ' . $label . ' deve ter no máximo 40 caracteres.';
-                }
-                $prepared[] = [
-                    'participante_id' => null,
-                    'nome_convidado' => $convidado,
-                    'pontuacao' => $score === false ? 0 : (int) $score,
-                ];
-                continue;
-            }
-
-            if ($jogador === '' || !ctype_digit($jogador)) {
-                $errors[] = 'Selecione o ' . $label . '.';
-                continue;
-            }
-
-            $playerId = (int) $jogador;
-            if (!isset($choices[$playerId])) {
-                $errors[] = 'O ' . $label . ' não está cadastrado.';
-                continue;
-            }
-            if (isset($used[$playerId])) {
-                $errors[] = 'O mesmo jogador não pode ocupar dois lugares.';
-                continue;
-            }
-
-            $used[$playerId] = true;
-            if ($playerId === $userId) {
-                $includesSelf = true;
-            }
-            $prepared[] = [
-                'participante_id' => $playerId,
-                'nome_convidado' => null,
-                'pontuacao' => $score === false ? 0 : (int) $score,
-            ];
-        }
-
-        if ($errors === [] && !$includesSelf) {
-            $errors[] = 'Inclua você mesmo entre os jogadores da mesa.';
-        }
-
-        if ($errors !== []) {
-            return ['errors' => $errors, 'id' => 0];
-        }
-
+        $prepared = $preview['prepared'];
         $ranks = self::ranks(array_column($prepared, 'pontuacao'));
         $now = date('Y-m-d H:i:s');
         $pdo = db();
@@ -254,6 +228,150 @@ final class GameMatch
     }
 
     /**
+     * @param list<array{jogador: string, convidado: string, pontuacao: string}> $seats
+     * @return array{
+     *   errors: list<string>,
+     *   prepared: list<array{participante_id: ?int, nome_convidado: ?string, pontuacao: int, pontuacao_valida: bool}>
+     * }
+     */
+    private static function buildRows(int $userId, string $formato, array $seats): array
+    {
+        $formats = matchFormatOptions();
+        $errors = [];
+        $prepared = [];
+        if (!isset($formats[$formato])) {
+            return [
+                'errors' => ['Selecione a modalidade da mesa.'],
+                'prepared' => [],
+            ];
+        }
+
+        $count = matchFormatSeatCount($formato);
+        $seats = array_slice(array_values($seats), 0, $count);
+        if (count($seats) < $count) {
+            $errors[] = 'Informe todos os jogadores da mesa.';
+        }
+
+        $choices = [];
+        foreach (self::playerChoices() as $choice) {
+            $choices[$choice['id']] = $choice;
+        }
+
+        $used = [];
+        $includesSelf = false;
+
+        foreach ($seats as $index => $seat) {
+            $label = 'Jogador ' . ($index + 1);
+            $jogador = trim((string) ($seat['jogador'] ?? ''));
+            $convidado = trim((string) ($seat['convidado'] ?? ''));
+            $pontuacao = trim((string) ($seat['pontuacao'] ?? ''));
+            $score = filter_var($pontuacao, FILTER_VALIDATE_INT);
+            $valida = $score !== false;
+
+            if (!$valida) {
+                $errors[] = 'Informe a pontuação do ' . $label . ' com um número inteiro.';
+            }
+
+            if ($jogador === 'convidado') {
+                if ($convidado === '') {
+                    $errors[] = 'Informe o nome do convidado no ' . $label . '.';
+                    $convidado = 'Convidado';
+                } elseif (mb_strlen($convidado) > 40) {
+                    $errors[] = 'O nome do convidado no ' . $label . ' deve ter no máximo 40 caracteres.';
+                }
+                $prepared[] = [
+                    'participante_id' => null,
+                    'nome_convidado' => $convidado,
+                    'eh_convidado' => true,
+                    'pontuacao' => $valida ? (int) $score : 0,
+                    'pontuacao_valida' => $valida,
+                ];
+                continue;
+            }
+
+            if ($jogador === '' || !ctype_digit($jogador)) {
+                $errors[] = 'Selecione o ' . $label . '.';
+                $prepared[] = [
+                    'participante_id' => null,
+                    'nome_convidado' => 'Não selecionado',
+                    'eh_convidado' => false,
+                    'pontuacao' => $valida ? (int) $score : 0,
+                    'pontuacao_valida' => $valida,
+                ];
+                continue;
+            }
+
+            $playerId = (int) $jogador;
+            if (!isset($choices[$playerId])) {
+                $errors[] = 'O ' . $label . ' não está cadastrado.';
+                $prepared[] = [
+                    'participante_id' => null,
+                    'nome_convidado' => 'Não cadastrado',
+                    'eh_convidado' => false,
+                    'pontuacao' => $valida ? (int) $score : 0,
+                    'pontuacao_valida' => $valida,
+                ];
+                continue;
+            }
+            if (isset($used[$playerId])) {
+                $errors[] = 'O mesmo jogador não pode ocupar dois lugares.';
+            }
+
+            $used[$playerId] = true;
+            if ($playerId === $userId) {
+                $includesSelf = true;
+            }
+            $prepared[] = [
+                'participante_id' => $playerId,
+                'nome_convidado' => null,
+                'eh_convidado' => false,
+                'pontuacao' => $valida ? (int) $score : 0,
+                'pontuacao_valida' => $valida,
+            ];
+        }
+
+        if ($errors === [] && !$includesSelf) {
+            $errors[] = 'Inclua você mesmo entre os jogadores da mesa.';
+        }
+
+        return ['errors' => $errors, 'prepared' => $prepared];
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return array<int, array{username: string, photo_url: string}>
+     */
+    private static function playerProfiles(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(
+            $ids,
+            static fn (mixed $id): bool => is_int($id) && $id > 0
+        )));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+        $stmt = db()->prepare(
+            "SELECT u.id, u.apelido AS username, p.foto AS photo
+             FROM usuarios u
+             LEFT JOIN participantes p ON p.usuario_id = u.id
+             WHERE u.id IN ($placeholders)"
+        );
+        $stmt->execute($ids);
+
+        $profiles = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $profiles[(int) $row['id']] = [
+                'username' => (string) $row['username'],
+                'photo_url' => (string) (userPhotoUrl($row) ?? ''),
+            ];
+        }
+
+        return $profiles;
+    }
+
+    /**
      * @param list<int> $scores
      * @return list<int>
      */
@@ -294,23 +412,44 @@ final class GameMatch
         $placeholders = implode(', ', array_fill(0, count($ids), '?'));
         $stmt = db()->prepare(
             "SELECT pj.partida_id, pj.participante_id, pj.nome_convidado,
-                    pj.pontuacao, pj.colocacao, u.apelido AS username
+                    pj.pontuacao, pj.colocacao,
+                    u.apelido AS username, u.nome AS real_name, u.criado_em AS created_at,
+                    p.apelido AS nickname, p.bio, p.mahjong_soul, p.riichi_city,
+                    p.discord, p.foto AS photo, p.nivel AS level
              FROM partida_jogadores pj
              LEFT JOIN usuarios u ON u.id = pj.participante_id
+             LEFT JOIN participantes p ON p.usuario_id = pj.participante_id
              WHERE pj.partida_id IN ($placeholders)
              ORDER BY pj.partida_id ASC, pj.pontuacao DESC, pj.colocacao ASC, pj.id ASC"
         );
         $stmt->execute($ids);
 
+        $levels = levelLabels();
         $byMatch = [];
         foreach ($stmt->fetchAll() as $row) {
             $guest = $row['participante_id'] === null;
+            $username = trim((string) ($row['username'] ?? ''));
+            $nickname = trim((string) ($row['nickname'] ?? ''));
+            if ($nickname === '') {
+                $nickname = $username !== '' ? $username : 'Participante';
+            }
+            $level = (string) ($row['level'] ?? '');
             $byMatch[(int) $row['partida_id']][] = [
                 'usuario_id' => $guest ? null : (int) $row['participante_id'],
-                'nome' => $guest ? (string) $row['nome_convidado'] : (string) ($row['username'] ?? 'Participante'),
+                'nome' => $guest ? (string) $row['nome_convidado'] : ($username !== '' ? $username : 'Participante'),
                 'convidado' => $guest,
                 'pontuacao' => $row['pontuacao'] === null ? null : (int) $row['pontuacao'],
                 'colocacao' => $row['colocacao'] === null ? null : (int) $row['colocacao'],
+                'username' => $username,
+                'nickname' => $nickname,
+                'real_name' => trim((string) ($row['real_name'] ?? '')),
+                'bio' => trim((string) ($row['bio'] ?? '')),
+                'mahjong_soul' => trim((string) ($row['mahjong_soul'] ?? '')),
+                'riichi_city' => trim((string) ($row['riichi_city'] ?? '')),
+                'discord' => trim((string) ($row['discord'] ?? '')),
+                'photo_url' => $guest ? '' : (string) (userPhotoUrl($row) ?? ''),
+                'member_since' => $guest ? '' : formatMemberSince(isset($row['created_at']) ? (string) $row['created_at'] : null),
+                'level_label' => $guest ? '' : ($levels[$level] ?? ''),
             ];
         }
 

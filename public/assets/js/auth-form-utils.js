@@ -9,7 +9,7 @@ export function debounce(fn, delay) {
 }
 
 export function checkUsernameInput(username) {
-  return /^[a-zA-Z0-9]{3,20}$/.test(username.trim());
+  return /^[a-zA-Z0-9]{3,12}$/.test(username.trim());
 }
 
 export function checkEmailInput(email) {

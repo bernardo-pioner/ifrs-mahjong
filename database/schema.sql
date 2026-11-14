@@ -65,7 +65,6 @@ CREATE TABLE IF NOT EXISTS eventos (
     data_fim TEXT,
     local TEXT,
     serie_id INTEGER,
-    inscricoes_abertas INTEGER NOT NULL DEFAULT 1 CHECK (inscricoes_abertas IN (0, 1)),
     criado_em TEXT NOT NULL DEFAULT (datetime('now')),
     atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (admin_id) REFERENCES admins(usuario_id)

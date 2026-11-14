@@ -143,7 +143,7 @@ foreach ($choices as $choice) {
 
             <div class="event-form-actions">
                 <a class="button button-secondary" href="/eventos/<?= $eventoId ?>">Cancelar</a>
-                <button class="button button-primary" type="submit">Registrar partida</button>
+                <button class="button button-primary" type="submit">Revisar partida</button>
             </div>
         </form>
     <?php endif; ?>

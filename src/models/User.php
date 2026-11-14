@@ -210,7 +210,7 @@ final class User
         $username = trim($username);
         $email = strtolower(trim($email));
 
-        if (!preg_match('/^[a-zA-Z0-9]{3,20}$/', $username)) {
+        if (!preg_match('/^[a-zA-Z0-9]{3,12}$/', $username)) {
             return false;
         }
 
@@ -256,8 +256,8 @@ final class User
         $riichiCity = trim($riichiCity);
         $discord = trim($discord);
 
-        if (!preg_match('/^[a-zA-Z0-9]{3,20}$/', $nickname)) {
-            $errors[] = 'O apelido deve ter de 3 a 20 caracteres, apenas letras e números.';
+        if (!preg_match('/^[a-zA-Z0-9]{3,12}$/', $nickname)) {
+            $errors[] = 'O apelido deve ter de 3 a 12 caracteres, apenas letras e números.';
         } elseif (
             $userId !== null
             && self::usernameExistsForOtherUser($nickname, $userId)

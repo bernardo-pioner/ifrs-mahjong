@@ -22,7 +22,7 @@
         <label>
             Apelido
             <input id="usernameInput" type="text" name="username" value="<?= e($username) ?>"
-                minlength="3" maxlength="20" pattern="[A-Za-z0-9]{3,20}" required>
+                minlength="3" maxlength="12" pattern="[A-Za-z0-9]{3,12}" required>
             <div id="usernameAvailabilityMessage" class="hidden">
                 <img id="usernameAvailabilityMessageImg" class="message-icon-img" src="" alt="">
                 <span class="hint register-input-msg" id="usernameAvailabilityMessageTxt"></span>

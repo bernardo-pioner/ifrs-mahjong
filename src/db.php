@@ -158,8 +158,14 @@ function applyCompatibleSchemaUpdates(PDO $pdo): bool
         $changed = true;
     }
 
-    if (!isset($eventos['inscricoes_abertas'])) {
-        $pdo->exec('ALTER TABLE eventos ADD COLUMN inscricoes_abertas INTEGER NOT NULL DEFAULT 1');
+    if (isset($eventos['inscricoes_abertas'])) {
+        $pdo->exec(
+            "UPDATE encontros
+             SET observacoes = NULL
+             WHERE observacoes IN ('Inscrições habilitadas', 'Inscrições não habilitadas')"
+        );
+        $pdo->exec('ALTER TABLE eventos DROP COLUMN inscricoes_abertas');
+        unset($eventos['inscricoes_abertas']);
         $changed = true;
     }
 

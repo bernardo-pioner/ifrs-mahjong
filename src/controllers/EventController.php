@@ -58,15 +58,17 @@ final class EventController extends Controller
             $params[':tipo'] = $tipo;
         }
 
+        $dataReferencia = "COALESCE(NULLIF(e.data_fim, ''), NULLIF(e.data_inicio, ''))";
+        $eventoAberto = "({$dataReferencia} IS NULL OR date({$dataReferencia}) > date('now', 'localtime', '-1 day'))";
+
         if ($inscricao === 'pendente') {
-            $sql .= " AND ep.status = 'pendente'";
+            $sql .= " AND ep.status = 'pendente' AND {$eventoAberto}";
         } elseif ($inscricao === 'inscrito') {
-            $sql .= " AND ep.status = 'aprovado'";
+            $sql .= " AND ep.status = 'aprovado' AND {$eventoAberto}";
         } elseif ($inscricao === 'nao_inscrito') {
-            $sql .= ' AND ep.evento_id IS NULL';
+            $sql .= " AND ep.evento_id IS NULL AND {$eventoAberto}";
         }
 
-        $dataReferencia = "COALESCE(NULLIF(e.data_fim, ''), NULLIF(e.data_inicio, ''))";
         if ($situacao === 'encerrado') {
             $sql .= " AND {$dataReferencia} IS NOT NULL AND date({$dataReferencia}) <= date('now', 'localtime', '-1 day')";
         } elseif ($situacao === 'em_andamento') {
@@ -139,7 +141,6 @@ final class EventController extends Controller
             'data_inicio' => $parsed['inicio']->format('Y-m-d H:i:s'),
             'data_fim' => $parsed['fim']?->format('Y-m-d H:i:s'),
             'local' => $parsed['local'],
-            'inscricoes_abertas' => $parsed['inscricoes_abertas'],
             'limite' => $parsed['limite'],
             'taxa' => $parsed['taxa'],
             'premiacao' => $parsed['premiacao'],
@@ -184,6 +185,12 @@ final class EventController extends Controller
             return;
         }
 
+        if (Event::isEncerrado($evento)) {
+            flash('error', 'Eventos encerrados não podem ser editados.');
+            redirect('/eventos/' . (int) $evento['id']);
+            return;
+        }
+
         $inicio = !empty($evento['data_inicio'])
             ? new DateTimeImmutable($evento['data_inicio'])
             : null;
@@ -215,7 +222,6 @@ final class EventController extends Controller
                 ? (string) count($details['premiacao'])
                 : '3',
             'premiacao' => $details['premiacao'] ?? [],
-            'inscricoes' => (int) ($evento['inscricoes_abertas'] ?? 1) === 1 ? '1' : '0',
             'recorrente' => '0',
             'recorrencia_dias' => '7',
             'recorrencia_ocorrencias' => '4',
@@ -242,6 +248,12 @@ final class EventController extends Controller
         if (!$evento) {
             http_response_code(404);
             echo 'Evento não encontrado.';
+            return;
+        }
+
+        if (Event::isEncerrado($evento)) {
+            flash('error', 'Eventos encerrados não podem ser editados.');
+            redirect('/eventos/' . (int) $evento['id']);
             return;
         }
 
@@ -285,7 +297,7 @@ final class EventController extends Controller
             }
 
             foreach ($alvos as $alvo) {
-                if ((int) $alvo['id'] === (int) $evento['id']) {
+                if ((int) $alvo['id'] === (int) $evento['id'] || Event::isEncerrado($alvo)) {
                     continue;
                 }
                 $deslocado = $this->shiftOccurrence(
@@ -496,6 +508,29 @@ final class EventController extends Controller
         redirect('/eventos/' . (int) $id);
     }
 
+    public function unregister(string $id): void
+    {
+        $user = $this->requireAuth();
+        verifyCsrf();
+
+        $evento = Event::findById((int) $id);
+        if (!$evento) {
+            flash('error', 'Evento não encontrado.');
+            redirect('/eventos');
+            return;
+        }
+
+        $result = Event::unregister($evento, (int) $user['id']);
+        if (!$result['ok']) {
+            flash('error', (string) $result['error']);
+            redirect('/eventos/' . (int) $id);
+            return;
+        }
+
+        flash('success', 'Inscrição cancelada.');
+        redirect('/eventos/' . (int) $id);
+    }
+
     public function uploadComprovante(string $id): void
     {
         $user = $this->requireAuth();
@@ -564,6 +599,28 @@ final class EventController extends Controller
             flash('success', $mensagem);
         }
 
+        redirect('/eventos/' . (int) $id);
+    }
+
+    public function removeParticipant(string $id, string $participanteId): void
+    {
+        $this->requireAdmin();
+        verifyCsrf();
+
+        $result = Event::removeParticipant((int) $id, (int) $participanteId);
+        if (!$result['ok']) {
+            flash('error', (string) $result['error']);
+            redirect('/eventos/' . (int) $id);
+            return;
+        }
+
+        foreach ($result['files'] as $path) {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+
+        flash('success', 'Inscrição removida.');
         redirect('/eventos/' . (int) $id);
     }
 
@@ -665,7 +722,6 @@ final class EventController extends Controller
                  data_inicio = :data_inicio,
                  data_fim = :data_fim,
                  local = :local,
-                 inscricoes_abertas = :inscricoes_abertas,
                  atualizado_em = datetime(\'now\')
              WHERE id = :id'
         );
@@ -677,7 +733,6 @@ final class EventController extends Controller
             ':data_inicio' => $inicio->format('Y-m-d H:i:s'),
             ':data_fim' => $fim?->format('Y-m-d H:i:s'),
             ':local' => $parsed['local'],
-            ':inscricoes_abertas' => $parsed['inscricoes_abertas'],
             ':id' => $eventoId,
         ]);
 
@@ -699,7 +754,6 @@ final class EventController extends Controller
                 $parsed['tipo'],
                 $parsed['limite'],
                 $parsed['taxa'],
-                $parsed['inscricoes_abertas'],
                 $parsed['premiacao']
             );
             return;
@@ -738,18 +792,6 @@ final class EventController extends Controller
             ]);
             return;
         }
-
-        $stmt = $pdo->prepare(
-            'UPDATE encontros
-             SET observacoes = :observacoes
-             WHERE evento_id = :id'
-        );
-        $stmt->execute([
-            ':observacoes' => $parsed['inscricoes_abertas'] === 1
-                ? 'Inscrições habilitadas'
-                : 'Inscrições não habilitadas',
-            ':id' => $eventoId,
-        ]);
     }
 
     /** @return array{0: DateTimeImmutable, 1: ?DateTimeImmutable}|null */
@@ -837,7 +879,6 @@ final class EventController extends Controller
             'premiacao_qtd' => request('premiacao_qtd', '3'),
             'premiacao' => self::collectPremiacaoInput(),
             'descricao' => request('descricao'),
-            'inscricoes' => isset($_POST['inscricoes']) ? '1' : '0',
             'recorrente' => isset($_POST['recorrente']) ? '1' : '0',
             'recorrencia_dias' => request('recorrencia_dias', '7'),
             'recorrencia_ocorrencias' => request('recorrencia_ocorrencias', '4'),
@@ -1031,7 +1072,6 @@ final class EventController extends Controller
             'limite' => $limite,
             'taxa' => $taxa,
             'premiacao' => $premiacao,
-            'inscricoes_abertas' => $old['inscricoes'] === '1' ? 1 : 0,
             'recorrente' => $recorrente,
             'recorrencia_dias' => (int) $recorrenciaDias,
             'recorrencia_ocorrencias' => (int) $recorrenciaOcorrencias,

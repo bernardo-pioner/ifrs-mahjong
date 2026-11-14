@@ -46,22 +46,7 @@ $partesData = static function (?string $data) use ($meses): array {
 };
 
 $eventoEncerrado = static function (array $evento): bool {
-    $data = trim((string) ($evento['data_fim'] ?? ''));
-    if ($data === '') {
-        $data = trim((string) ($evento['data_inicio'] ?? ''));
-    }
-
-    if ($data === '') {
-        return false;
-    }
-
-    if (!preg_match('/^(\d{4}-\d{2}-\d{2})/', $data, $dia)) {
-        return false;
-    }
-
-    $ontem = (new DateTimeImmutable('today'))->modify('-1 day')->format('Y-m-d');
-
-    return $dia[1] <= $ontem;
+    return Event::isEncerrado($evento);
 };
 
 $inscricaoUsuario = static function (array $evento): array {
@@ -133,13 +118,13 @@ $renderLinha = static function (array $evento, bool $comTipo) use (
     $ehAdmin
 ): void {
     $quando = $partesData($evento['data_inicio'] ?? null);
-    $status = $ehAdmin
-        ? (
-            $eventoEncerrado($evento)
-                ? ['label' => 'Encerrado', 'class' => 'is-off']
-                : ['label' => 'Em andamento', 'class' => 'is-on']
-        )
-        : $inscricaoUsuario($evento);
+    if ($eventoEncerrado($evento)) {
+        $status = null;
+    } elseif ($ehAdmin) {
+        $status = ['label' => 'Em andamento', 'class' => 'is-on'];
+    } else {
+        $status = $inscricaoUsuario($evento);
+    }
     $tipo = (string) ($evento['tipo'] ?? '');
     $local = trim((string) ($evento['local'] ?? ''));
     $detalhes = array_filter([
@@ -166,7 +151,9 @@ $renderLinha = static function (array $evento, bool $comTipo) use (
                 <?php endforeach; ?>
             </span>
         </span>
-        <span class="status <?= e($status['class']) ?>"><?= e($status['label']) ?></span>
+        <?php if ($status !== null): ?>
+            <span class="status <?= e($status['class']) ?>"><?= e($status['label']) ?></span>
+        <?php endif; ?>
     </a>
     <?php
 };
