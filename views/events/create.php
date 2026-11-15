@@ -257,14 +257,14 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         
 
         <div class="event-form-divider"></div>
-        <div class="form-field">
-            <label for="inscricoes">Inscrições</label>
-        </div>
         <div
             class="event-option-block"
             id="campo-limite"
             <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
         >
+            <div class="form-field">
+                <label for="inscricoes">Inscrições</label>
+            </div>
             <label class="event-registration-option" for="tem_limite">
                 <input
                     type="checkbox"
