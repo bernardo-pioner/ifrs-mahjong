@@ -379,6 +379,11 @@ final class UserController extends Controller
         }
 
         flash('success', 'Perfil atualizado.');
+        if (request('after_save') === 'logout') {
+            AuthService::logout();
+            redirect('/login');
+        }
+
         redirect($this->safeReturnPath(request('return_to')) ?? '/perfil');
     }
 

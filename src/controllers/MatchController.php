@@ -38,6 +38,7 @@ final class MatchController extends Controller
     {
         $user = $this->requireAuth();
         $evento = $this->casualEvent($eventoId);
+        $this->denyPendingWorkshop($evento, $user);
         $choices = GameMatch::playerChoices();
         $draft = $this->draftFor((int) $evento['id']);
         $old = [
@@ -68,6 +69,7 @@ final class MatchController extends Controller
         verifyCsrf();
         $user = $this->requireAuth();
         $evento = $this->casualEvent($eventoId);
+        $this->denyPendingWorkshop($evento, $user);
         $choices = GameMatch::playerChoices();
         $userId = (int) $user['id'];
         $formato = request('modalidade');
@@ -99,6 +101,7 @@ final class MatchController extends Controller
     {
         $user = $this->requireAuth();
         $evento = $this->casualEvent($eventoId);
+        $this->denyPendingWorkshop($evento, $user);
         $draft = $this->draftFor((int) $evento['id']);
         if ($draft === null) {
             redirect('/eventos/' . (int) $evento['id'] . '/partidas/nova');
@@ -120,6 +123,7 @@ final class MatchController extends Controller
         verifyCsrf();
         $user = $this->requireAuth();
         $evento = $this->casualEvent($eventoId);
+        $this->denyPendingWorkshop($evento, $user);
         $draft = $this->draftFor((int) $evento['id']);
         if ($draft === null) {
             flash('error', 'Não há uma partida para salvar.');
@@ -140,6 +144,25 @@ final class MatchController extends Controller
         unset($_SESSION['match_draft']);
         flash('success', 'Partida registrada.');
         redirect('/eventos/' . (int) $evento['id'] . '?aba=partidas');
+    }
+
+    public function validate(string $id): void
+    {
+        verifyCsrf();
+        $user = $this->requireAuth();
+        if (!ctype_digit($id) || (int) $id <= 0) {
+            flash('error', 'Partida não encontrada.');
+            redirect('/partidas');
+        }
+
+        $confirmed = GameMatch::confirmParticipation((int) $id, (int) $user['id']);
+        if ($confirmed) {
+            flash('success', 'Participação confirmada.');
+        } else {
+            flash('error', 'Não foi possível validar esta partida.');
+        }
+
+        redirect('/partidas');
     }
 
     public function discard(string $eventoId): void
@@ -186,6 +209,32 @@ final class MatchController extends Controller
         return $evento;
     }
 
+    /**
+     * Jogador com inscrição pendente em oficina não registra partidas.
+     *
+     * @param array<string, mixed> $evento
+     * @param array<string, mixed> $user
+     */
+    private function denyPendingWorkshop(array $evento, array $user): void
+    {
+        if (($evento['tipo'] ?? '') !== 'oficina') {
+            return;
+        }
+
+        $participation = Event::findParticipation((int) $evento['id'], (int) $user['id']);
+        if (($participation['status'] ?? '') !== 'pendente') {
+            return;
+        }
+
+        $draft = $_SESSION['match_draft'] ?? null;
+        if (is_array($draft) && (int) ($draft['evento_id'] ?? 0) === (int) $evento['id']) {
+            unset($_SESSION['match_draft']);
+        }
+
+        flash('error', 'Não é possível registrar partidas enquanto sua inscrição na oficina estiver pendente.');
+        redirect('/eventos/' . (int) $evento['id'] . '?aba=partidas');
+    }
+
     /** @param array<string, mixed> $evento */
     private function suggestedFormat(array $evento): string
     {
@@ -225,7 +274,7 @@ final class MatchController extends Controller
             $seats[] = [
                 'jogador' => trim((string) ($seat['jogador'] ?? '')),
                 'convidado' => trim((string) ($seat['convidado'] ?? '')),
-                'pontuacao' => trim((string) ($seat['pontuacao'] ?? '')),
+                'pontuacao' => GameMatch::canonicalScore((string) ($seat['pontuacao'] ?? '')),
             ];
         }
 

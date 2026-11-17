@@ -169,6 +169,8 @@ CREATE TABLE IF NOT EXISTS partida_jogadores (
     nome_convidado TEXT,
     colocacao INTEGER,
     pontuacao INTEGER,
+    validacao TEXT NOT NULL DEFAULT 'confirmada'
+        CHECK (validacao IN ('pendente', 'confirmada')),
     FOREIGN KEY (partida_id) REFERENCES partidas(id) ON DELETE CASCADE,
     FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id),
     CHECK (

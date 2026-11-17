@@ -353,6 +353,31 @@ foreach ($choices as $choice) {
             });
         }
 
+        function canonicalScore(value) {
+            const text = value.trim();
+            if (!/^[+-]?\d+$/.test(text)) {
+                return value;
+            }
+            return String(parseInt(text, 10));
+        }
+
+        function normalizeScores() {
+            form.querySelectorAll('[data-score]').forEach(function (score) {
+                score.value = canonicalScore(score.value);
+            });
+        }
+
+        form.querySelectorAll('[data-score]').forEach(function (score) {
+            score.addEventListener('change', function () {
+                score.value = canonicalScore(score.value);
+            });
+        });
+
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.addEventListener('click', normalizeScores);
+        }
+
         modalidade.addEventListener('change', function () {
             closeResults(null);
             sync();

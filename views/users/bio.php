@@ -30,6 +30,7 @@ $photoUrl = userPhotoUrl($user);
     <form method="post" action="/perfil" class="form" enctype="multipart/form-data" novalidate>
         <?= csrfField() ?>
         <input type="hidden" name="return_to" id="bio-return-to" value="">
+        <input type="hidden" name="after_save" id="bio-after-save" value="">
 
         <div class="profile-photo-field">
             <span class="profile-photo-preview" aria-hidden="true">
@@ -238,7 +239,9 @@ $photoUrl = userPhotoUrl($user);
         const voltar = document.getElementById('bio-voltar');
         const modal = document.getElementById('bio-leave-modal');
         const returnTo = document.getElementById('bio-return-to');
-        if (!form || !voltar || !modal || !returnTo) {
+        const afterSave = document.getElementById('bio-after-save');
+        const logoutForm = document.querySelector('.sidebar-foot form');
+        if (!form || !voltar || !modal || !returnTo || !afterSave) {
             return;
         }
 
@@ -260,11 +263,15 @@ $photoUrl = userPhotoUrl($user);
         }
 
         const destino = destinoVolta();
+        let destinoSaida = destino;
+        let acaoSaida = '';
+        let saindo = false;
 
         function estadoFormulario() {
             const data = new FormData(form);
             data.delete('_csrf');
             data.delete('return_to');
+            data.delete('after_save');
             const partes = [];
             data.forEach(function (valor, chave) {
                 if (chave === 'photo') {
@@ -284,10 +291,6 @@ $photoUrl = userPhotoUrl($user);
             return estadoFormulario() !== estadoInicial;
         }
 
-        function sair() {
-            window.location.assign(destino);
-        }
-
         function abrirModal() {
             modal.hidden = false;
             modal.setAttribute('aria-hidden', 'false');
@@ -304,26 +307,76 @@ $photoUrl = userPhotoUrl($user);
             document.body.classList.remove('series-choice-open');
         }
 
-        function pedirSaida() {
+        function concluirSaida() {
+            saindo = true;
+            if (acaoSaida === 'logout' && logoutForm) {
+                logoutForm.submit();
+                return;
+            }
+            window.location.assign(destinoSaida);
+        }
+
+        function pedirSaida(novoDestino, acao) {
+            destinoSaida = novoDestino;
+            acaoSaida = acao || '';
             if (formularioAlterado()) {
                 abrirModal();
                 return;
             }
-            sair();
+            concluirSaida();
         }
 
-        voltar.addEventListener('click', pedirSaida);
-        document.getElementById('bio-cancelar').addEventListener('click', pedirSaida);
+        function salvarESair() {
+            returnTo.value = acaoSaida === 'logout' ? '' : destinoSaida;
+            afterSave.value = acaoSaida === 'logout' ? 'logout' : '';
+            saindo = true;
+            fecharModal();
+            form.submit();
+        }
+
+        voltar.addEventListener('click', function () {
+            pedirSaida(destino, '');
+        });
+        document.getElementById('bio-cancelar').addEventListener('click', function () {
+            pedirSaida(destino, '');
+        });
+
+        document.querySelectorAll('#sidebar a[href]').forEach(function (link) {
+            link.addEventListener('click', function (event) {
+                if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return;
+                }
+                let url;
+                try {
+                    url = new URL(link.href, window.location.origin);
+                } catch (error) {
+                    return;
+                }
+                if (url.origin !== window.location.origin || url.pathname === window.location.pathname) {
+                    return;
+                }
+                event.preventDefault();
+                pedirSaida(url.pathname + url.search + url.hash, '');
+            });
+        });
+
+        if (logoutForm) {
+            logoutForm.addEventListener('submit', function (event) {
+                if (saindo || !formularioAlterado()) {
+                    return;
+                }
+                event.preventDefault();
+                destinoSaida = destino;
+                acaoSaida = 'logout';
+                abrirModal();
+            });
+        }
 
         document.getElementById('bio-leave-no').addEventListener('click', function () {
             fecharModal();
-            sair();
+            concluirSaida();
         });
-        document.getElementById('bio-leave-yes').addEventListener('click', function () {
-            returnTo.value = destino;
-            fecharModal();
-            form.submit();
-        });
+        document.getElementById('bio-leave-yes').addEventListener('click', salvarESair);
         modal.querySelectorAll('[data-close-bio-leave]').forEach(function (el) {
             el.addEventListener('click', fecharModal);
         });
@@ -331,6 +384,32 @@ $photoUrl = userPhotoUrl($user);
             if (event.key === 'Escape' && !modal.hidden) {
                 fecharModal();
             }
+        });
+
+        window.addEventListener('beforeunload', function (event) {
+            if (saindo || !formularioAlterado()) {
+                return;
+            }
+            event.preventDefault();
+            event.returnValue = '';
+        });
+
+        let ignorandoVolta = false;
+        history.pushState({ bioGuard: 1 }, '');
+        window.addEventListener('popstate', function () {
+            if (ignorandoVolta) {
+                return;
+            }
+            if (!formularioAlterado()) {
+                ignorandoVolta = true;
+                saindo = true;
+                history.back();
+                return;
+            }
+            destinoSaida = destino;
+            acaoSaida = '';
+            history.pushState({ bioGuard: 1 }, '');
+            abrirModal();
         });
     });
 </script>

@@ -1157,17 +1157,18 @@ body.is-guest .lede {
 
 .match-scoreboard .data-table th:nth-child(1),
 .match-scoreboard .data-table td:nth-child(1) {
-    width: 58%;
+    width: 18%;
+    text-align: center;
 }
 
 .match-scoreboard .data-table th:nth-child(2),
 .match-scoreboard .data-table td:nth-child(2) {
-    width: 24%;
+    width: 58%;
 }
 
 .match-scoreboard .data-table th:nth-child(3),
 .match-scoreboard .data-table td:nth-child(3) {
-    width: 18%;
+    width: 24%;
 }
 
 .match-scoreboard .data-table th {
@@ -1210,17 +1211,17 @@ body.is-guest .lede {
 
     .match-scoreboard .data-table th:nth-child(1),
     .match-scoreboard .data-table td:nth-child(1) {
-        width: 44%;
+        width: 22%;
     }
 
     .match-scoreboard .data-table th:nth-child(2),
     .match-scoreboard .data-table td:nth-child(2) {
-        width: 32%;
+        width: 46%;
     }
 
     .match-scoreboard .data-table th:nth-child(3),
     .match-scoreboard .data-table td:nth-child(3) {
-        width: 24%;
+        width: 32%;
     }
 
     .match-scoreboard .data-table th,
@@ -1772,9 +1773,36 @@ body.is-guest .lede {
 }
 
 body.user-details-open,
+body.match-details-open,
 body.series-choice-open,
 body.image-crop-open {
     overflow: hidden;
+}
+
+.user-details-dialog.match-details-dialog {
+    width: min(100%, 44rem);
+    max-width: 44rem;
+}
+
+.match-details-dialog .user-details-heading {
+    padding-right: 1.75rem;
+}
+
+.match-details-dialog .user-details-heading h2 {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 1.35rem;
+    font-weight: 650;
+    color: var(--ink);
+}
+
+.match-details-dialog .user-details-heading .lede {
+    margin: 0.2rem 0 0;
+}
+
+.match-details-dialog .match-scoreboard {
+    width: 100%;
+    margin-top: 0.35rem;
 }
 
 .series-choice-modal {
@@ -2971,6 +2999,11 @@ button.btn-delete-user svg {
     gap: 0.4rem;
     min-width: 0;
     color: var(--ink);
+}
+
+.event-match-name .user-table-avatar {
+    width: 1.75rem;
+    height: 1.75rem;
 }
 
 button.event-match-name {

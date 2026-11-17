@@ -294,69 +294,78 @@ function atualizarPartidasEvento(PDO $pdo): bool
            )'
     );
 
-    if (isset($jogadores['id']) && isset($jogadores['nome_convidado'])) {
-        $pdo->exec(
-            'CREATE INDEX IF NOT EXISTS idx_partidas_evento ON partidas(evento_id)'
-        );
-        $pdo->exec(
-            'CREATE INDEX IF NOT EXISTS idx_partida_jogadores_participante
-             ON partida_jogadores(participante_id)'
-        );
+    if (!isset($jogadores['id']) || !isset($jogadores['nome_convidado'])) {
+        $pdo->exec('PRAGMA foreign_keys = OFF');
+        $pdo->beginTransaction();
 
-        return $changed;
-    }
-
-    $pdo->exec('PRAGMA foreign_keys = OFF');
-    $pdo->beginTransaction();
-
-    try {
-        $pdo->exec(
-            'CREATE TABLE partida_jogadores_nova (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                partida_id INTEGER NOT NULL,
-                participante_id INTEGER,
-                nome_convidado TEXT,
-                colocacao INTEGER,
-                pontuacao INTEGER,
-                FOREIGN KEY (partida_id) REFERENCES partidas(id) ON DELETE CASCADE,
-                FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id),
-                CHECK (
-                    (participante_id IS NOT NULL AND nome_convidado IS NULL)
-                    OR (
-                        participante_id IS NULL
-                        AND nome_convidado IS NOT NULL
-                        AND length(trim(nome_convidado)) > 0
+        try {
+            $pdo->exec(
+                'CREATE TABLE partida_jogadores_nova (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    partida_id INTEGER NOT NULL,
+                    participante_id INTEGER,
+                    nome_convidado TEXT,
+                    colocacao INTEGER,
+                    pontuacao INTEGER,
+                    FOREIGN KEY (partida_id) REFERENCES partidas(id) ON DELETE CASCADE,
+                    FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id),
+                    CHECK (
+                        (participante_id IS NOT NULL AND nome_convidado IS NULL)
+                        OR (
+                            participante_id IS NULL
+                            AND nome_convidado IS NOT NULL
+                            AND length(trim(nome_convidado)) > 0
+                        )
                     )
-                )
-            )'
-        );
-        $pdo->exec(
-            'INSERT INTO partida_jogadores_nova
-                (partida_id, participante_id, colocacao, pontuacao)
-             SELECT partida_id, participante_id, colocacao, pontuacao
-             FROM partida_jogadores'
-        );
-        $pdo->exec('DROP TABLE partida_jogadores');
-        $pdo->exec('ALTER TABLE partida_jogadores_nova RENAME TO partida_jogadores');
-        $pdo->exec(
-            'CREATE INDEX IF NOT EXISTS idx_partidas_evento ON partidas(evento_id)'
-        );
-        $pdo->exec(
-            'CREATE INDEX IF NOT EXISTS idx_partida_jogadores_participante
-             ON partida_jogadores(participante_id)'
-        );
-        $pdo->commit();
-    } catch (Throwable $exception) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
+                )'
+            );
+            $pdo->exec(
+                'INSERT INTO partida_jogadores_nova
+                    (partida_id, participante_id, colocacao, pontuacao)
+                 SELECT partida_id, participante_id, colocacao, pontuacao
+                 FROM partida_jogadores'
+            );
+            $pdo->exec('DROP TABLE partida_jogadores');
+            $pdo->exec('ALTER TABLE partida_jogadores_nova RENAME TO partida_jogadores');
+            $pdo->exec(
+                'CREATE INDEX IF NOT EXISTS idx_partidas_evento ON partidas(evento_id)'
+            );
+            $pdo->exec(
+                'CREATE INDEX IF NOT EXISTS idx_partida_jogadores_participante
+                 ON partida_jogadores(participante_id)'
+            );
+            $pdo->commit();
+        } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            $pdo->exec('PRAGMA foreign_keys = ON');
+            throw $exception;
         }
+
         $pdo->exec('PRAGMA foreign_keys = ON');
-        throw $exception;
+        $changed = true;
+        $jogadores = tableColumns($pdo, 'partida_jogadores') ?? [];
     }
 
-    $pdo->exec('PRAGMA foreign_keys = ON');
+    if (!isset($jogadores['validacao'])) {
+        $pdo->exec(
+            "ALTER TABLE partida_jogadores
+             ADD COLUMN validacao TEXT NOT NULL DEFAULT 'confirmada'
+             CHECK (validacao IN ('pendente', 'confirmada'))"
+        );
+        $changed = true;
+    }
 
-    return true;
+    $pdo->exec(
+        'CREATE INDEX IF NOT EXISTS idx_partidas_evento ON partidas(evento_id)'
+    );
+    $pdo->exec(
+        'CREATE INDEX IF NOT EXISTS idx_partida_jogadores_participante
+         ON partida_jogadores(participante_id)'
+    );
+
+    return $changed;
 }
 
 function inscricaoStatusLegado(PDO $pdo): bool

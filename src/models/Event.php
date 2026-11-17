@@ -816,7 +816,7 @@ public static function upsertPaymentProof(
             ]);
 
             if ($status === 'aprovado' && ($participation['status'] ?? '') !== 'aprovado') {
-                Notification::forgetApprovedPending();
+                Notification::dismissApprovedPending();
             }
 
             if ($status === 'aprovado') {

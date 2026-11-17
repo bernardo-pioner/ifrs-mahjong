@@ -49,11 +49,13 @@ final class Notification
         ];
     }
 
-    public static function forgetApprovedPending(): void
+    public static function dismissApprovedPending(): void
     {
         db()->exec(
-            "DELETE FROM notificacoes
+            "UPDATE notificacoes
+             SET dispensada_em = datetime('now')
              WHERE tipo = 'pendente'
+               AND dispensada_em IS NULL
                AND EXISTS (
                    SELECT 1
                    FROM evento_participantes ep
@@ -160,6 +162,7 @@ final class Notification
                 'pendente' => 'Inscrições pendentes',
                 'usuario' => 'Novos usuários',
                 'evento' => 'Eventos criados',
+                'partida' => 'Partidas',
             ];
         }
 
@@ -185,7 +188,7 @@ final class Notification
     private static function sync(int $userId, array $items, bool $admin): void
     {
         if ($admin) {
-            self::forgetApprovedPending();
+            self::dismissApprovedPending();
         }
 
         if ($items === []) {
@@ -215,18 +218,28 @@ final class Notification
     /** @return list<array{chave: string, tipo: string, text: string, href: string, at: string}> */
     private static function forMember(int $userId): array
     {
-        $items = [];
+        $items = self::pendingMatchValidations($userId);
 
         $partidas = db()->prepare(
-            'SELECT p.id, p.criada_em, e.titulo
+            "SELECT p.id, p.criada_em, e.titulo
              FROM partidas p
              INNER JOIN partida_jogadores pj
                 ON pj.partida_id = p.id
                AND pj.participante_id = :usuario_id
+               AND pj.validacao <> 'pendente'
              LEFT JOIN eventos e ON e.id = p.evento_id
-             ORDER BY p.criada_em DESC, p.id DESC'
+             WHERE NOT EXISTS (
+                 SELECT 1
+                 FROM notificacoes n
+                 WHERE n.usuario_id = :usuario_aviso
+                   AND n.chave = 'validar-partida:' || p.id
+             )
+             ORDER BY p.criada_em DESC, p.id DESC"
         );
-        $partidas->execute([':usuario_id' => $userId]);
+        $partidas->execute([
+            ':usuario_id' => $userId,
+            ':usuario_aviso' => $userId,
+        ]);
         foreach ($partidas->fetchAll() as $row) {
             $evento = trim((string) ($row['titulo'] ?? ''));
             $items[] = [
@@ -283,7 +296,7 @@ final class Notification
     /** @return list<array{chave: string, tipo: string, text: string, href: string, at: string}> */
     private static function forAdmin(int $userId): array
     {
-        $items = [];
+        $items = self::pendingMatchValidations($userId);
 
         $pendentes = db()->query(
             "SELECT ep.participante_id, ep.inscrito_em, e.id, e.titulo, e.tipo, u.apelido, u.nome
@@ -337,6 +350,75 @@ final class Notification
         }
 
         return $items;
+    }
+
+    /**
+     * @param list<int> $userIds
+     */
+    public static function notifyMatchValidation(int $partidaId, array $userIds, string $evento, string $at): void
+    {
+        $userIds = array_values(array_unique(array_filter(
+            $userIds,
+            static fn (int $id): bool => $id > 0
+        )));
+        if ($partidaId <= 0 || $userIds === [] || $at === '') {
+            return;
+        }
+
+        $stmt = db()->prepare(
+            "INSERT OR IGNORE INTO notificacoes
+                (usuario_id, chave, tipo, texto, href, ocorrido_em)
+             VALUES
+                (:usuario_id, :chave, 'partida', :texto, '/partidas', :ocorrido_em)"
+        );
+        $texto = self::textoValidacaoPartida($evento);
+        $chave = 'validar-partida:' . $partidaId;
+        foreach ($userIds as $userId) {
+            $stmt->execute([
+                ':usuario_id' => $userId,
+                ':chave' => $chave,
+                ':texto' => $texto,
+                ':ocorrido_em' => $at,
+            ]);
+        }
+    }
+
+    /** @return list<array{chave: string, tipo: string, text: string, href: string, at: string}> */
+    private static function pendingMatchValidations(int $userId): array
+    {
+        $stmt = db()->prepare(
+            "SELECT p.id, p.criada_em, e.titulo
+             FROM partidas p
+             INNER JOIN partida_jogadores pj
+                ON pj.partida_id = p.id
+               AND pj.participante_id = :usuario_id
+               AND pj.validacao = 'pendente'
+             LEFT JOIN eventos e ON e.id = p.evento_id
+             ORDER BY p.criada_em DESC, p.id DESC"
+        );
+        $stmt->execute([':usuario_id' => $userId]);
+
+        $items = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $items[] = [
+                'chave' => 'validar-partida:' . (int) $row['id'],
+                'tipo' => 'partida',
+                'text' => self::textoValidacaoPartida((string) ($row['titulo'] ?? '')),
+                'href' => '/partidas',
+                'at' => (string) ($row['criada_em'] ?? ''),
+            ];
+        }
+
+        return $items;
+    }
+
+    private static function textoValidacaoPartida(string $evento): string
+    {
+        $evento = trim($evento);
+
+        return $evento !== ''
+            ? 'Confirme se você participou da partida em ' . $evento . '.'
+            : 'Confirme se você participou de uma partida.';
     }
 
     /** @param array<string, mixed> $row */

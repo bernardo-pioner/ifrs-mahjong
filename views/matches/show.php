@@ -41,33 +41,33 @@ $eventoId = (int) ($match['evento_id'] ?? 0);
         <div class="table-wrap match-scoreboard">
             <table class="data-table">
                 <thead>
-                    <tr>
-                        <th>Jogador</th>
-                        <th>Pontuação</th>
-                        <th>Colocação</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($match['jogadores'] as $jogador): ?>
                         <tr>
-                            <td>
-                                <span class="match-player">
-                                    <span class="user-table-avatar" aria-hidden="true">
-                                        <?php if (!empty($jogador['photo_url'])): ?>
-                                            <img src="<?= e((string) $jogador['photo_url']) ?>" alt="">
-                                        <?php else: ?>
-                                            <span class="icon icon-user"></span>
+                            <th>Colocação</th>
+                            <th>Jogador</th>
+                            <th>Pontuação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($match['jogadores'] as $jogador): ?>
+                            <tr>
+                                <td><?= $jogador['colocacao'] === null ? '—' : e((string) $jogador['colocacao']) . 'º' ?></td>
+                                <td>
+                                    <span class="match-player">
+                                        <span class="user-table-avatar" aria-hidden="true">
+                                            <?php if (!empty($jogador['photo_url'])): ?>
+                                                <img src="<?= e((string) $jogador['photo_url']) ?>" alt="">
+                                            <?php else: ?>
+                                                <span class="icon icon-user"></span>
+                                            <?php endif; ?>
+                                        </span>
+                                        <span class="match-player-label"><?= e((string) $jogador['nome']) ?></span>
+                                        <?php if (!empty($jogador['convidado'])): ?>
+                                            <span class="event-participant-status is-suplente">Convidado</span>
                                         <?php endif; ?>
                                     </span>
-                                    <span class="match-player-label"><?= e((string) $jogador['nome']) ?></span>
-                                    <?php if (!empty($jogador['convidado'])): ?>
-                                        <span class="event-participant-status is-suplente">Convidado</span>
-                                    <?php endif; ?>
-                                </span>
-                            </td>
-                            <td><?= e(formatarPontuacao($jogador['pontuacao'])) ?></td>
-                            <td><?= $jogador['colocacao'] === null ? '—' : e((string) $jogador['colocacao']) . 'º' ?></td>
-                        </tr>
+                                </td>
+                                <td><?= e(formatarPontuacao($jogador['pontuacao'])) ?></td>
+                            </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>

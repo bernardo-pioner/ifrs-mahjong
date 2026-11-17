@@ -51,13 +51,13 @@ final class GameMatch
     {
         $stmt = db()->prepare(
             'SELECT p.id, p.formato, p.modalidade, p.criada_em, p.evento_id,
-                    e.titulo AS evento, e.tipo AS evento_tipo
+                    e.titulo AS evento, e.tipo AS evento_tipo, pj.validacao
              FROM partidas p
              INNER JOIN partida_jogadores pj
                 ON pj.partida_id = p.id
                AND pj.participante_id = :usuario_id
              LEFT JOIN eventos e ON e.id = p.evento_id
-             ORDER BY p.id DESC'
+             ORDER BY CASE WHEN pj.validacao = \'pendente\' THEN 0 ELSE 1 END, p.id DESC'
         );
         $stmt->execute([':usuario_id' => $usuarioId]);
 
@@ -112,7 +112,7 @@ final class GameMatch
                     ? $row['nome_convidado']
                     : (string) ($profile['username'] ?? 'Participante'),
                 'convidado' => $row['eh_convidado'],
-                'pontuacao' => $row['pontuacao_valida'] ? $row['pontuacao'] : null,
+                'pontuacao' => $row['pontuacao_valida'] ? (int) $row['pontuacao'] : null,
                 'colocacao' => $ranks[$index] ?? null,
                 'photo_url' => (string) ($profile['photo_url'] ?? ''),
             ];
@@ -178,19 +178,34 @@ final class GameMatch
 
             $player = $pdo->prepare(
                 'INSERT INTO partida_jogadores
-                    (partida_id, participante_id, nome_convidado, colocacao, pontuacao)
+                    (partida_id, participante_id, nome_convidado, colocacao, pontuacao, validacao)
                  VALUES
-                    (:partida_id, :participante_id, :nome_convidado, :colocacao, :pontuacao)'
+                    (:partida_id, :participante_id, :nome_convidado, :colocacao, :pontuacao, :validacao)'
             );
+            $selecionados = [];
             foreach ($prepared as $index => $row) {
+                $participanteId = $row['participante_id'];
                 $player->execute([
                     ':partida_id' => $partidaId,
-                    ':participante_id' => $row['participante_id'],
+                    ':participante_id' => $participanteId,
                     ':nome_convidado' => $row['nome_convidado'],
                     ':colocacao' => $ranks[$index],
                     ':pontuacao' => $row['pontuacao'],
+                    ':validacao' => $participanteId !== null ? 'pendente' : 'confirmada',
                 ]);
+                if ($participanteId !== null) {
+                    $selecionados[] = (int) $participanteId;
+                }
             }
+
+            $titulo = $pdo->prepare('SELECT titulo FROM eventos WHERE id = :id');
+            $titulo->execute([':id' => $eventoId]);
+            Notification::notifyMatchValidation(
+                $partidaId,
+                $selecionados,
+                (string) ($titulo->fetchColumn() ?: ''),
+                $now
+            );
 
             $pdo->commit();
         } catch (Throwable $exception) {
@@ -221,10 +236,83 @@ final class GameMatch
             return false;
         }
 
-        $delete = db()->prepare('DELETE FROM partidas WHERE id = :id');
-        $delete->execute([':id' => $partidaId]);
+        $pdo = db();
+        $pdo->beginTransaction();
 
-        return $delete->rowCount() > 0;
+        try {
+            $clear = $pdo->prepare(
+                'DELETE FROM notificacoes
+                 WHERE chave = :validar OR chave = :partida'
+            );
+            $clear->execute([
+                ':validar' => 'validar-partida:' . $partidaId,
+                ':partida' => 'partida:' . $partidaId,
+            ]);
+
+            $delete = $pdo->prepare('DELETE FROM partidas WHERE id = :id');
+            $delete->execute([':id' => $partidaId]);
+            $removed = $delete->rowCount() > 0;
+            $pdo->commit();
+        } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $exception;
+        }
+
+        return $removed;
+    }
+
+    public static function confirmParticipation(int $partidaId, int $userId): bool
+    {
+        $stmt = db()->prepare(
+            "UPDATE partida_jogadores
+             SET validacao = 'confirmada'
+             WHERE partida_id = :partida_id
+               AND participante_id = :usuario_id
+               AND validacao = 'pendente'"
+        );
+        $stmt->execute([
+            ':partida_id' => $partidaId,
+            ':usuario_id' => $userId,
+        ]);
+        if ($stmt->rowCount() < 1) {
+            return false;
+        }
+
+        Notification::dismiss(['id' => $userId], 'validar-partida:' . $partidaId);
+
+        return true;
+    }
+
+    /** Aceita zero, negativos e zeros à esquerda ("001" vale 1). */
+    public static function canonicalScore(string $value): string
+    {
+        $value = trim($value);
+        $score = self::parseScore($value);
+
+        return $score === null ? $value : (string) $score;
+    }
+
+    private static function parseScore(string $value): ?int
+    {
+        if (preg_match('/^[+-]?\d+$/', $value) !== 1) {
+            return null;
+        }
+
+        $negative = str_starts_with($value, '-');
+        $digits = ltrim($value, '+-');
+        $digits = ltrim($digits, '0');
+        if ($digits === '') {
+            return 0;
+        }
+
+        $number = (int) ($negative ? '-' . $digits : $digits);
+        if ((string) abs($number) !== $digits) {
+            return null;
+        }
+
+        return $number;
     }
 
     /**
@@ -265,8 +353,8 @@ final class GameMatch
             $jogador = trim((string) ($seat['jogador'] ?? ''));
             $convidado = trim((string) ($seat['convidado'] ?? ''));
             $pontuacao = trim((string) ($seat['pontuacao'] ?? ''));
-            $score = filter_var($pontuacao, FILTER_VALIDATE_INT);
-            $valida = $score !== false;
+            $score = self::parseScore($pontuacao);
+            $valida = $score !== null;
 
             if (!$valida) {
                 $errors[] = 'Informe a pontuação do ' . $label . ' com um número inteiro.';

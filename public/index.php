@@ -46,6 +46,7 @@ $router->post('/eventos/{id}/participantes/{participanteId}/status', [$events, '
 $router->post('/eventos/{id}/participantes/{participanteId}/remover', [$events, 'removeParticipant']);
 $router->post('/eventos/{id}/excluir', [$events, 'destroy']);
 $router->get('/partidas', [$matches, 'index']);
+$router->post('/partidas/{id}/validar', [$matches, 'validate']);
 $router->get('/partidas/{id}', [$matches, 'show']);
 $router->get('/eventos/{id}/partidas/nova', [$matches, 'create']);
 $router->post('/eventos/{id}/partidas/nova', [$matches, 'store']);

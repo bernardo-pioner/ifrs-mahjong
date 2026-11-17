@@ -283,6 +283,8 @@ $podeEnviarComprovante = !$ehAdmin
         <?php
         $mostraPartidas = in_array($evento['tipo'], ['encontro', 'oficina'], true);
         $abaPartidas = $mostraPartidas && request('aba') === 'partidas';
+        $inscricaoOficinaPendente = ($evento['tipo'] ?? '') === 'oficina'
+            && $statusInscricao === 'pendente';
         $totalInscritos = 0;
         $pendentes = [];
         $demaisParticipantes = [];
@@ -493,12 +495,18 @@ $podeEnviarComprovante = !$ehAdmin
                 <?= $abaPartidas ? '' : 'hidden' ?>
             >
                 <div class="event-match-list">
-                    <a class="event-match-add" href="/eventos/<?= $eventoId ?>/partidas/nova">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M12 5v14M5 12h14"></path>
-                        </svg>
-                        Nova partida
-                    </a>
+                    <?php if ($inscricaoOficinaPendente): ?>
+                        <p class="event-participants-empty">
+                            Sua inscrição está pendente. Não é possível registrar partidas até a aprovação.
+                        </p>
+                    <?php else: ?>
+                        <a class="event-match-add" href="/eventos/<?= $eventoId ?>/partidas/nova">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 5v14M5 12h14"></path>
+                            </svg>
+                            Nova partida
+                        </a>
+                    <?php endif; ?>
 
                 <?php if (($partidas ?? []) === []): ?>
                     <p class="event-participants-empty">Nenhuma partida registrada neste evento.</p>
@@ -544,6 +552,9 @@ $podeEnviarComprovante = !$ehAdmin
                                         </span>
                                         <?php if (!empty($jogadorPartida['convidado'])): ?>
                                             <span class="event-match-name">
+                                                <span class="user-table-avatar" aria-hidden="true">
+                                                    <span class="icon icon-user"></span>
+                                                </span>
                                                 <?= e((string) $jogadorPartida['nome']) ?>
                                                 <span class="event-participant-status is-suplente">Convidado</span>
                                             </span>
@@ -563,6 +574,13 @@ $podeEnviarComprovante = !$ehAdmin
                                                 data-member-since="<?= e((string) ($jogadorPartida['member_since'] ?? '')) ?>"
                                                 data-level="<?= e((string) ($jogadorPartida['level_label'] ?? '')) ?>"
                                             >
+                                                <span class="user-table-avatar" aria-hidden="true">
+                                                    <?php if (!empty($jogadorPartida['photo_url'])): ?>
+                                                        <img src="<?= e((string) $jogadorPartida['photo_url']) ?>" alt="">
+                                                    <?php else: ?>
+                                                        <span class="icon icon-user"></span>
+                                                    <?php endif; ?>
+                                                </span>
                                                 <?= e((string) $jogadorPartida['nome']) ?>
                                             </button>
                                         <?php endif; ?>

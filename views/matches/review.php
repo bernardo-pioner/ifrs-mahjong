@@ -20,7 +20,7 @@ $jogadores = $preview['jogadores'] ?? [];
     </header>
 
     <?php if ($errors !== []): ?>
-        <div class="flash flash-error" role="alert">
+        <div class="flash flash-error" role="alert" data-static>
             <strong>Confira os dados informados:</strong>
             <ul>
                 <?php foreach ($errors as $error): ?>
@@ -42,14 +42,15 @@ $jogadores = $preview['jogadores'] ?? [];
                 <table class="data-table">
                     <thead>
                         <tr>
+                            <th>Colocação</th>
                             <th>Jogador</th>
                             <th>Pontuação</th>
-                            <th>Colocação</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($jogadores as $jogador): ?>
                             <tr>
+                                <td><?= $jogador['colocacao'] === null ? '—' : e((string) $jogador['colocacao']) . 'º' ?></td>
                                 <td>
                                     <span class="match-player">
                                         <span class="user-table-avatar" aria-hidden="true">
@@ -66,7 +67,6 @@ $jogadores = $preview['jogadores'] ?? [];
                                     </span>
                                 </td>
                                 <td><?= e(formatarPontuacao($jogador['pontuacao'])) ?></td>
-                                <td><?= $jogador['colocacao'] === null ? '—' : e((string) $jogador['colocacao']) . 'º' ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
