@@ -1,3 +1,14 @@
+# Uploads de perfil
+/public/uploads/avatars/*
+!/public/uploads/avatars/.gitkeep
+
+# Comprovantes de pagamento
+/storage/comprovantes/*
+!/storage/comprovantes/.gitkeep
+/public/uploads/comprovantes/*
+!/public/uploads/comprovantes/.gitkeep
+!/public/uploads/comprovantes/.htaccess
+
 # SQLite local
 /data/*.sqlite
 /data/*.sqlite-journal

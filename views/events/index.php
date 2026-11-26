@@ -1,7 +1,326 @@
-<section class="page-head">
-    <h1>Gerenciamento de Eventos</h1>
-</section>
+<?php
+$tiposEvento = [
+    'encontro' => 'Encontro',
+    'oficina' => 'Oficina',
+    'torneio' => 'Torneio',
+];
 
-<div class="empty">
-    <p>Nenhum evento cadastrado. O formato (inscrições, mesas, pontuação) ainda será definido.</p>
+$gruposEvento = [
+    'encontro' => 'Encontros',
+    'oficina' => 'Oficinas',
+    'torneio' => 'Torneios',
+];
+
+$meses = [
+    1 => 'jan',
+    2 => 'fev',
+    3 => 'mar',
+    4 => 'abr',
+    5 => 'mai',
+    6 => 'jun',
+    7 => 'jul',
+    8 => 'ago',
+    9 => 'set',
+    10 => 'out',
+    11 => 'nov',
+    12 => 'dez',
+];
+
+$partesData = static function (?string $data) use ($meses): array {
+    if (!$data) {
+        return ['dia' => '—', 'mes' => '', 'hora' => 'A definir', 'iso' => ''];
+    }
+
+    try {
+        $quando = new DateTimeImmutable($data);
+    } catch (Exception) {
+        return ['dia' => '—', 'mes' => '', 'hora' => 'A definir', 'iso' => ''];
+    }
+
+    return [
+        'dia' => $quando->format('d'),
+        'mes' => $meses[(int) $quando->format('n')] ?? '',
+        'hora' => $quando->format('H:i'),
+        'iso' => $quando->format('c'),
+    ];
+};
+
+$eventoEncerrado = static function (array $evento): bool {
+    return Event::isEncerrado($evento);
+};
+
+$inscricaoUsuario = static function (array $evento): array {
+    $status = (string) ($evento['minha_inscricao'] ?? '');
+
+    if ($status === 'aprovado') {
+        return ['label' => 'Inscrito', 'class' => 'is-on'];
+    }
+
+    if ($status === 'pendente') {
+        return ['label' => 'Pendente', 'class' => 'is-pending'];
+    }
+
+    return ['label' => 'Não Inscrito', 'class' => 'is-off'];
+};
+
+$montarUrl = static function (array $mudancas) use ($busca, $tipoFiltro, $inscricaoFiltro, $situacaoFiltro): string {
+    $params = [
+        'busca' => $busca ?? '',
+        'tipo' => $tipoFiltro ?? '',
+        'inscricao' => $inscricaoFiltro ?? '',
+        'situacao' => $situacaoFiltro ?? '',
+    ];
+
+    foreach ($mudancas as $chave => $valor) {
+        $params[$chave] = $valor;
+    }
+
+    $params = array_filter(
+        $params,
+        static fn ($valor): bool => $valor !== '' && $valor !== null
+    );
+
+    $query = http_build_query($params);
+
+    return '/eventos' . ($query !== '' ? '?' . $query : '');
+};
+
+$proximos = [
+    'encontro' => [],
+    'oficina' => [],
+    'torneio' => [],
+];
+$encerrados = [];
+
+foreach ($eventos as $evento) {
+    $tipo = (string) ($evento['tipo'] ?? '');
+    if (!isset($proximos[$tipo])) {
+        $tipo = 'encontro';
+    }
+
+    if ($eventoEncerrado($evento)) {
+        $encerrados[] = $evento;
+        continue;
+    }
+
+    $proximos[$tipo][] = $evento;
+}
+
+$encerrados = array_reverse($encerrados);
+$mostrarTipo = ($tipoFiltro ?? '') === '';
+$ehAdmin = ($user['role'] ?? '') === 'admin';
+
+$renderLinha = static function (array $evento, bool $comTipo) use (
+    $tiposEvento,
+    $partesData,
+    $inscricaoUsuario,
+    $eventoEncerrado,
+    $ehAdmin
+): void {
+    $quando = $partesData($evento['data_inicio'] ?? null);
+    if ($eventoEncerrado($evento)) {
+        $status = null;
+    } elseif ($ehAdmin) {
+        $status = ['label' => 'Em andamento', 'class' => 'is-on'];
+    } else {
+        $status = $inscricaoUsuario($evento);
+    }
+    $tipo = (string) ($evento['tipo'] ?? '');
+    $local = trim((string) ($evento['local'] ?? ''));
+    $detalhes = array_filter([
+        $quando['hora'],
+        $local !== '' ? $local : null,
+        eventModalidadeLabel($evento['modalidade'] ?? null),
+    ]);
+    ?>
+    <a class="event-row" href="/eventos/<?= (int) $evento['id'] ?>">
+        <time <?= $quando['iso'] !== '' ? 'datetime="' . e($quando['iso']) . '"' : '' ?>>
+            <span class="event-date-day"><?= e($quando['dia']) ?></span>
+            <?php if ($quando['mes'] !== ''): ?>
+                <span class="event-date-mon"><?= e($quando['mes']) ?></span>
+            <?php endif; ?>
+        </time>
+        <span class="event-copy">
+            <span class="event-title"><?= e((string) $evento['titulo']) ?></span>
+            <span class="event-meta">
+                <?php if ($comTipo): ?>
+                    <span class="event-kind is-<?= e($tipo) ?>"><?= e($tiposEvento[$tipo] ?? 'Outro') ?></span>
+                <?php endif; ?>
+                <?php foreach ($detalhes as $detalhe): ?>
+                    <span><?= e($detalhe) ?></span>
+                <?php endforeach; ?>
+            </span>
+        </span>
+        <?php if ($status !== null): ?>
+            <span class="status <?= e($status['class']) ?>"><?= e($status['label']) ?></span>
+        <?php endif; ?>
+    </a>
+    <?php
+};
+
+$renderGrupo = static function (string $titulo, string $tipo, array $itens, bool $comTipo) use ($renderLinha): void {
+    if ($itens === []) {
+        return;
+    }
+    ?>
+    <section class="event-group">
+        <h2>
+            <?php if ($tipo !== ''): ?>
+                <span class="event-mark is-<?= e($tipo) ?>" aria-hidden="true"></span>
+            <?php endif; ?>
+            <?= e($titulo) ?>
+        </h2>
+        <div class="event-panel">
+            <?php foreach ($itens as $evento): ?>
+                <?php $renderLinha($evento, $comTipo); ?>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php
+};
+
+$temEventos = false;
+foreach ($proximos as $itens) {
+    if ($itens !== []) {
+        $temEventos = true;
+        break;
+    }
+}
+$temEventos = $temEventos || $encerrados !== [];
+?>
+
+<div class="events-browse">
+    <section class="page-head events-list-head">
+        <h1>Eventos</h1>
+        <?php if ($ehAdmin): ?>
+            <a class="button button-primary" href="/eventos/novo">
+                <span aria-hidden="true">＋</span>
+                Novo evento
+            </a>
+        <?php endif; ?>
+    </section>
+
+    <div class="events-toolbar">
+        <nav class="event-type-tabs" aria-label="Tipo de evento">
+            <?php foreach (['' => 'Todos'] + $gruposEvento as $valor => $rotulo): ?>
+                <a
+                    href="<?= e($montarUrl(['tipo' => $valor])) ?>"
+                    <?= ($tipoFiltro ?? '') === $valor ? 'aria-current="page"' : '' ?>
+                ><?= e($rotulo) ?></a>
+            <?php endforeach; ?>
+        </nav>
+
+        <form id="events-filters" class="user-filters" method="get" action="/eventos">
+            <input type="hidden" name="tipo" value="<?= e($tipoFiltro ?? '') ?>">
+
+            <div class="user-search">
+                <label for="busca">Pesquisar</label>
+                <input
+                    type="search"
+                    id="busca"
+                    name="busca"
+                    placeholder="Nome do evento..."
+                    value="<?= e($busca ?? '') ?>"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="user-role-filter">
+                <?php if ($ehAdmin): ?>
+                    <label for="situacao">Status</label>
+                    <select id="situacao" name="situacao">
+                        <option value="">Todos</option>
+                        <option value="em_andamento" <?= ($situacaoFiltro ?? '') === 'em_andamento' ? 'selected' : '' ?>>
+                            Em andamento
+                        </option>
+                        <option value="encerrado" <?= ($situacaoFiltro ?? '') === 'encerrado' ? 'selected' : '' ?>>
+                            Encerrado
+                        </option>
+                    </select>
+                <?php else: ?>
+                    <label for="inscricao">Inscrição</label>
+                    <select id="inscricao" name="inscricao">
+                        <option value="">Todas</option>
+                        <option value="inscrito" <?= ($inscricaoFiltro ?? '') === 'inscrito' ? 'selected' : '' ?>>
+                            Inscrito
+                        </option>
+                        <option value="pendente" <?= ($inscricaoFiltro ?? '') === 'pendente' ? 'selected' : '' ?>>
+                            Pendente
+                        </option>
+                        <option value="nao_inscrito" <?= ($inscricaoFiltro ?? '') === 'nao_inscrito' ? 'selected' : '' ?>>
+                            Não Inscrito
+                        </option>
+                    </select>
+                <?php endif; ?>
+            </div>
+        </form>
+    </div>
+
+    <?php if (!$temEventos && !empty($clubeSemEventos)): ?>
+        <div class="events-empty">
+            <h2 class="events-empty-title">Ainda não há nenhum evento do clube.</h2>
+            <?php if ($ehAdmin): ?>
+                <p>Deseja criar um novo evento?</p>
+                <a class="button button-primary" href="/eventos/novo">Criar evento</a>
+            <?php endif; ?>
+        </div>
+    <?php elseif (!$temEventos): ?>
+        <h2 class="events-empty-title">
+            <?php if (($busca ?? '') !== ''): ?>
+                Oops! Nenhum evento encontrado para esta busca. :(
+            <?php else: ?>
+                Oops! Nenhum evento encontrado. :(
+            <?php endif; ?>
+        </h2>
+    <?php else: ?>
+        <div class="event-groups">
+            <?php foreach ($gruposEvento as $tipo => $rotulo): ?>
+                <?php $renderGrupo($rotulo, $tipo, $proximos[$tipo], false); ?>
+            <?php endforeach; ?>
+            <?php $renderGrupo('Encerrados', 'encerrado', $encerrados, $mostrarTipo); ?>
+        </div>
+    <?php endif; ?>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const formulario = document.getElementById('events-filters');
+    if (!formulario) {
+        return;
+    }
+
+    const busca = document.getElementById('busca');
+    const filtro = document.getElementById('inscricao') || document.getElementById('situacao');
+    let temporizador;
+
+    if (sessionStorage.getItem('eventos-busca-foco') === '1') {
+        sessionStorage.removeItem('eventos-busca-foco');
+        busca.focus();
+        const fim = busca.value.length;
+        busca.setSelectionRange(fim, fim);
+    }
+
+    function aplicarFiltros() {
+        const parametros = new URLSearchParams(new FormData(formulario));
+
+        for (const [chave, valor] of [...parametros.entries()]) {
+            if (!String(valor).trim()) {
+                parametros.delete(chave);
+            }
+        }
+
+        const url = '/eventos' + (parametros.toString() ? '?' + parametros.toString() : '');
+        window.location.href = url;
+    }
+
+    busca.addEventListener('input', function () {
+        sessionStorage.setItem('eventos-busca-foco', '1');
+        clearTimeout(temporizador);
+        temporizador = setTimeout(aplicarFiltros, 500);
+    });
+
+    if (filtro) {
+        filtro.addEventListener('change', aplicarFiltros);
+    }
+});
+</script>

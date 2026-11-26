@@ -6,7 +6,14 @@ PRAGMA foreign_keys = ON;
 -- Usuário (idUsuario, Nome) + e-mail/senha/ativo para autenticação
 CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT NOT NULL,
+    nome TEXT CHECK (
+        nome IS NULL
+        OR (
+            length(trim(nome)) BETWEEN 2 AND 20
+            AND nome = trim(nome)
+        )
+    ),
+    apelido TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE COLLATE NOCASE,
     senha_hash TEXT NOT NULL,
     ativo INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
@@ -27,6 +34,9 @@ CREATE TABLE IF NOT EXISTS participantes (
     usuario_id INTEGER PRIMARY KEY,
     foto TEXT,
     bio TEXT,
+    mahjong_soul TEXT,
+    riichi_city TEXT,
+    discord TEXT,
     data_cadastro TEXT NOT NULL DEFAULT (datetime('now')),
     apelido TEXT,
     nivel TEXT NOT NULL DEFAULT 'iniciante'
@@ -41,12 +51,21 @@ CREATE TABLE IF NOT EXISTS eventos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     admin_id INTEGER NOT NULL,
     tipo TEXT NOT NULL CHECK (tipo IN ('torneio', 'oficina', 'encontro')),
+    modalidade TEXT NOT NULL DEFAULT 'livre'
+        CHECK (modalidade IN (
+            'livre',
+            '4_jogadores_leste',
+            '4_jogadores_sul',
+            '3_jogadores_leste',
+            '3_jogadores_sul'
+        )),
     titulo TEXT NOT NULL,
     descricao TEXT,
     imagem TEXT,
     data_inicio TEXT,
     data_fim TEXT,
     local TEXT,
+    serie_id INTEGER,
     criado_em TEXT NOT NULL DEFAULT (datetime('now')),
     atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (admin_id) REFERENCES admins(usuario_id)
@@ -57,8 +76,9 @@ CREATE TABLE IF NOT EXISTS evento_participantes (
     evento_id INTEGER NOT NULL,
     participante_id INTEGER NOT NULL,
     inscrito_em TEXT NOT NULL DEFAULT (datetime('now')),
-    status TEXT NOT NULL DEFAULT 'inscrito'
-        CHECK (status IN ('inscrito', 'confirmado', 'lista_espera', 'cancelado')),
+    status TEXT NOT NULL DEFAULT 'pendente'
+        CHECK (status IN ('pendente', 'aprovado', 'cancelado')),
+    suplente INTEGER NOT NULL DEFAULT 0 CHECK (suplente IN (0, 1)),
     PRIMARY KEY (evento_id, participante_id),
     FOREIGN KEY (evento_id) REFERENCES eventos(id) ON DELETE CASCADE,
     FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id)
@@ -85,6 +105,7 @@ CREATE TABLE IF NOT EXISTS oficinas (
     carga_horaria_minutos INTEGER,
     material TEXT,
     taxa_inscricao REAL NOT NULL DEFAULT 0 CHECK (taxa_inscricao >= 0),
+    premiacao TEXT,
     FOREIGN KEY (evento_id) REFERENCES eventos(id) ON DELETE CASCADE
 );
 
@@ -107,8 +128,18 @@ CREATE TABLE IF NOT EXISTS partidas (
         CHECK (status IN ('agendada', 'em_andamento', 'encerrada', 'cancelada')),
     mesa TEXT,
     observacoes TEXT,
+    evento_id INTEGER,
+    registrado_por INTEGER,
+    formato TEXT CHECK (formato IS NULL OR formato IN (
+        '4_jogadores_leste',
+        '4_jogadores_sul',
+        '3_jogadores_leste',
+        '3_jogadores_sul'
+    )),
     criada_em TEXT NOT NULL DEFAULT (datetime('now')),
-    atualizada_em TEXT NOT NULL DEFAULT (datetime('now'))
+    atualizada_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (evento_id) REFERENCES eventos(id),
+    FOREIGN KEY (registrado_por) REFERENCES usuarios(id)
 );
 
 -- Partida competitiva: HoraInicio, HoraFim + vínculo ao torneio e rodada
@@ -133,13 +164,24 @@ CREATE TABLE IF NOT EXISTS partidas_casuais (
 
 -- Jogadores de uma partida (resultado da mesa)
 CREATE TABLE IF NOT EXISTS partida_jogadores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     partida_id INTEGER NOT NULL,
-    participante_id INTEGER NOT NULL,
+    participante_id INTEGER,
+    nome_convidado TEXT,
     colocacao INTEGER,
     pontuacao INTEGER,
-    PRIMARY KEY (partida_id, participante_id),
+    validacao TEXT NOT NULL DEFAULT 'confirmada'
+        CHECK (validacao IN ('pendente', 'confirmada')),
     FOREIGN KEY (partida_id) REFERENCES partidas(id) ON DELETE CASCADE,
-    FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id)
+    FOREIGN KEY (participante_id) REFERENCES participantes(usuario_id),
+    CHECK (
+        (participante_id IS NOT NULL AND nome_convidado IS NULL)
+        OR (
+            participante_id IS NULL
+            AND nome_convidado IS NOT NULL
+            AND length(trim(nome_convidado)) > 0
+        )
+    )
 );
 
 -- Ranking (idUsuario, Pontuação) + posição e partidas jogadas
@@ -185,6 +227,7 @@ CREATE TABLE IF NOT EXISTS pagamentos (
     status TEXT NOT NULL DEFAULT 'pendente'
         CHECK (status IN ('pendente', 'pago', 'isento', 'estornado')),
     forma TEXT CHECK (forma IS NULL OR forma IN ('pix', 'dinheiro', 'cartao', 'outro')),
+    comprovante TEXT,
     pago_em TEXT,
     criado_em TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (evento_id) REFERENCES eventos(id) ON DELETE CASCADE,
@@ -197,7 +240,112 @@ CREATE INDEX IF NOT EXISTS idx_evento_participantes_participante ON evento_parti
 CREATE INDEX IF NOT EXISTS idx_partidas_tipo ON partidas(tipo);
 CREATE INDEX IF NOT EXISTS idx_partidas_competitivas_torneio ON partidas_competitivas(torneio_id);
 CREATE INDEX IF NOT EXISTS idx_partidas_casuais_encontro ON partidas_casuais(encontro_id);
+CREATE INDEX IF NOT EXISTS idx_partidas_evento ON partidas(evento_id);
+CREATE INDEX IF NOT EXISTS idx_partida_jogadores_participante ON partida_jogadores(participante_id);
 CREATE INDEX IF NOT EXISTS idx_rankings_usuario ON rankings(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_rankings_competitivos_torneio ON rankings_competitivos(torneio_id);
 CREATE INDEX IF NOT EXISTS idx_rankings_casuais_encontro ON rankings_casuais(encontro_id);
 CREATE INDEX IF NOT EXISTS idx_pagamentos_evento ON pagamentos(evento_id);
+
+CREATE TABLE IF NOT EXISTS notificacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    chave TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    texto TEXT NOT NULL,
+    href TEXT NOT NULL,
+    ocorrido_em TEXT NOT NULL,
+    dispensada_em TEXT,
+    UNIQUE (usuario_id, chave),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario ON notificacoes(usuario_id, ocorrido_em);
+
+/*
+-- ============================================
+-- DADOS DE TESTE: PARTIDA CASUAL
+-- ============================================
+
+-- Criar encontro de teste, caso ainda não exista
+INSERT INTO eventos (
+    admin_id,
+    tipo,
+    titulo,
+    descricao,
+    local
+)
+SELECT
+    usuario_id,
+    'encontro',
+    'Encontro de teste',
+    'Encontro criado para testar a tela de partidas.',
+    'Sala do clube'
+FROM admins
+ORDER BY usuario_id
+LIMIT 1;
+
+-- Criar o registro específico do encontro
+INSERT INTO encontros (
+    evento_id,
+    quantidade_mesas,
+    aberto_publico,
+    observacoes
+)
+SELECT
+    id,
+    4,
+    1,
+    'Encontro para teste de partidas casuais.'
+FROM eventos
+WHERE titulo = 'Encontro de teste'
+  AND tipo = 'encontro'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM encontros en
+      WHERE en.evento_id = eventos.id
+  );
+
+-- Criar uma partida casual vinculada ao encontro
+
+-- Criar uma partida casual de teste somente se ela não existir
+INSERT INTO partidas (
+    modalidade,
+    tipo,
+    status,
+    mesa,
+    observacoes
+)
+SELECT
+    'riichi',
+    'casual',
+    'agendada',
+    'Mesa 1',
+    'Partida casual para teste da interface.'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM partidas
+    WHERE observacoes = 'Partida casual para teste da interface.'
+      AND tipo = 'casual'
+);
+
+-- Vincular a partida ao encontro sem duplicar o vínculo
+INSERT INTO partidas_casuais (
+    partida_id,
+    encontro_id,
+    duracao_minutos
+)
+SELECT
+    p.id,
+    en.evento_id,
+    60
+FROM partidas p
+JOIN encontros en
+    ON en.observacoes = 'Encontro para teste de partidas casuais.'
+WHERE p.observacoes = 'Partida casual para teste da interface.'
+  AND p.tipo = 'casual'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM partidas_casuais pc
+      WHERE pc.partida_id = p.id
+  );

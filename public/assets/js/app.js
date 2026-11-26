@@ -19,10 +19,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    const flash = document.querySelector('.flash');
-    if (flash) {
+    document.querySelectorAll('.flash:not([data-static])').forEach((flash) => {
         window.setTimeout(() => {
             flash.classList.add('is-hiding');
-        }, 4200);
-    }
+            window.setTimeout(() => {
+                flash.remove();
+            }, 280);
+        }, 3200);
+    });
 });

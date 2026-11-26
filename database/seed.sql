@@ -1,5 +1,6 @@
-INSERT INTO usuarios (nome, email, senha_hash, ativo)
+INSERT INTO usuarios (apelido, nome, email, senha_hash, ativo)
 VALUES (
+    'admin',
     'Administrador',
     'admin',
     '$2y$10$B35.L5o26El7Ar/Rt3g7i.yYe8zdatw/KRldXy7JrWrakCjLtDvRq',

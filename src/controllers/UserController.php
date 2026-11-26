@@ -7,6 +7,7 @@ final class UserController extends Controller
     public function index(): void
     {
         $user = $this->requireAdmin();
+
         $this->view('users/index', [
             'title' => 'Usuários',
             'user' => $user,
@@ -14,4 +15,460 @@ final class UserController extends Controller
             'users' => User::all(),
         ]);
     }
+
+    public function edit(): void
+    {
+        $user = $this->requireAdmin();
+
+        $idText = request('id');
+
+        if ($idText === '' || !ctype_digit($idText) || (int) $idText <= 0) {
+            flash('error', 'ID de usuário inválido.');
+            redirect('/usuarios');
+        }
+
+        $id = (int) $idText;
+        $targetUser = User::findById($id);
+
+        if (!$targetUser) {
+            flash('error', 'Usuário não encontrado.');
+            redirect('/usuarios');
+        }
+
+        $this->view('users/edit', [
+            'title' => 'Editar perfil',
+            'user' => $user,
+            'currentPath' => '/usuarios',
+            'targetUser' => $targetUser,
+            'errors' => [],
+        ]);
+    }
+
+    public function bio(): void
+    {
+        $user = $this->requireAuth();
+        $nickname = trim((string) ($user['nickname'] ?? ''));
+        if ($nickname === '') {
+            $nickname = trim((string) ($user['username'] ?? ''));
+        }
+
+        $this->view('users/bio', [
+            'title' => 'Configurações de Bio',
+            'user' => $user,
+            'currentPath' => '/perfil',
+            'nickname' => $nickname,
+            'realName' => (string) ($user['name'] ?? ''),
+            'bio' => (string) ($user['bio'] ?? ''),
+            'mahjongSoul' => (string) ($user['mahjong_soul'] ?? ''),
+            'riichiCity' => (string) ($user['riichi_city'] ?? ''),
+            'discord' => (string) ($user['discord'] ?? ''),
+            'memberSince' => formatMemberSince($user['created_at'] ?? null),
+            'errors' => [],
+        ]);
+    }
+
+    
+ 
+    public function update(): void
+    {
+        $user = $this->requireAdmin();
+
+        verifyCsrf();
+
+        $idText = request('id');
+        $email = request('email');
+
+        $roleAction = request('role_action');
+        $statusAction = request('status_action');
+        $level = request('level', 'iniciante');
+
+        if ($idText === '' || !ctype_digit($idText) || (int) $idText <= 0) {
+            flash('error', 'ID de usuário inválido.');
+            redirect('/usuarios');
+        }
+
+        if (
+            !in_array($roleAction, ['keep', 'promote', 'demote'], true) ||
+            !in_array($statusAction, ['keep', 'activate', 'deactivate'], true)
+        ) {
+            flash('error', 'Opção de permissão ou status inválida.');
+            redirect('/usuarios');
+        }
+
+        $id = (int) $idText;
+        $targetUser = User::findById($id);
+
+        if ($targetUser === null) {
+            flash('error', 'Usuário não encontrado.');
+            redirect('/usuarios');
+        }
+
+        // Impede alterações de permissão ou status da própria conta.
+        if ($id === (int) $user['id']) {
+            $roleAction = 'keep';
+            $statusAction = 'keep';
+        }
+
+        $errors = User::updateProfile(
+            $id,
+            $email,
+            $roleAction,
+            $statusAction,
+            $level
+        );
+
+        if ($errors !== []) {
+            $targetUser['email'] = $email;
+            $targetUser['level'] = $level;
+            $targetUser['pending_role'] = $roleAction;
+            $targetUser['pending_status'] = $statusAction;
+
+            $this->view('users/edit', [
+                'title' => 'Editar perfil',
+                'user' => $user,
+                'currentPath' => '/usuarios',
+                'targetUser' => $targetUser,
+                'errors' => $errors,
+            ]);
+
+            return;
+        }
+
+        flash('success', 'Perfil atualizado com sucesso.');
+        redirect('/usuarios');
+    }
+
+
+
+    public function delete(): void
+    {
+        $user = $this->requireAdmin();
+
+        verifyCsrf();
+
+        $idText = request('id');
+
+        if ($idText === '' || !ctype_digit($idText) || (int) $idText <= 0) {
+            flash('error', 'ID de usuário inválido.');
+            redirect('/usuarios');
+        }
+
+        $id = (int) $idText;
+        $currentUserId = (int) $user['id'];
+
+        $result = User::deleteById($id, $currentUserId);
+
+        switch ($result) {
+            case 'success':
+                flash('success', 'Usuário excluído com sucesso.');
+                break;
+
+            case 'not_found':
+                flash('error', 'Usuário não encontrado.');
+                break;
+
+            case 'self':
+                flash('error', 'Você não pode excluir sua própria conta.');
+                break;
+
+            case 'last_admin':
+                flash('error', 'Não é possível excluir o último administrador.');
+                break;
+
+            case 'related_records':
+                flash(
+                    'error',
+                    'Não foi possível excluir: existem registros relacionados a este usuário.'
+                );
+                break;
+
+            default:
+                flash('error', 'Ocorreu um erro ao excluir o usuário.');
+                break;
+        }
+
+        redirect('/usuarios');
+    }
+
+    
+    public function changeStatus(): void
+    {
+        $user = $this->requireAdmin();
+
+        verifyCsrf();
+
+        $idText = request('id');
+        $action = request('action');
+
+        if ($idText === '' || !ctype_digit($idText) || (int) $idText <= 0) {
+            flash('error', 'ID de usuário inválido.');
+            redirect('/usuarios');
+        }
+
+        if (!in_array($action, ['activate', 'deactivate'], true)) {
+            flash('error', 'Ação inválida.');
+            redirect('/usuarios');
+        }
+
+        $id = (int) $idText;
+        $activate = $action === 'activate';
+
+        $result = User::changeStatus(
+            $id,
+            (int) $user['id'],
+            $activate
+        );
+
+        switch ($result) {
+            case 'success':
+                flash(
+                    'success',
+                    $activate
+                        ? 'Perfil reativado com sucesso.'
+                        : 'Perfil desativado com sucesso.'
+                );
+                break;
+
+            case 'not_found':
+                flash('error', 'Usuário não encontrado.');
+                break;
+
+            case 'self':
+                flash('error', 'Você não pode alterar o status do seu próprio perfil.');
+                break;
+
+            case 'last_admin':
+                flash('error', 'Não é possível inativar o último administrador ativo.');
+                break;
+
+            case 'unchanged':
+                flash('error', 'O perfil já está com esse status.');
+                break;
+
+            default:
+                flash('error', 'Ocorreu um erro ao alterar o status do perfil.');
+                break;
+        }
+
+        redirect('/usuarios');
+    }
+
+    
+    public function changeRole(): void
+    {
+        $user = $this->requireAdmin();
+
+        verifyCsrf();
+
+        $idText = request('id');
+        $action = request('action');
+
+        if ($idText === '' || !ctype_digit($idText) || (int) $idText <= 0) {
+            flash('error', 'ID de usuário inválido.');
+            redirect('/usuarios');
+        }
+
+        if (!in_array($action, ['promote', 'demote'], true)) {
+            flash('error', 'Ação de permissão inválida.');
+            redirect('/usuarios');
+        }
+
+        $id = (int) $idText;
+        $makeAdmin = $action === 'promote';
+
+        $result = User::changeRole(
+            $id,
+            (int) $user['id'],
+            $makeAdmin
+        );
+
+        switch ($result) {
+            case 'success':
+                flash(
+                    'success',
+                    $makeAdmin
+                        ? 'Usuário promovido a administrador com sucesso.'
+                        : 'Privilégios de administrador removidos com sucesso.'
+                );
+                break;
+
+            case 'not_found':
+                flash('error', 'Usuário não encontrado.');
+                break;
+
+            case 'self':
+                flash('error', 'Você não pode alterar sua própria permissão.');
+                break;
+
+            case 'last_admin':
+                flash('error', 'Não é possível remover os privilégios do último administrador ativo.');
+                break;
+
+            case 'unchanged':
+                flash('error', 'O usuário já possui essa permissão.');
+                break;
+
+            default:
+                flash('error', 'Ocorreu um erro ao alterar a permissão do usuário.');
+                break;
+        }
+
+        redirect('/usuarios');
+    }
+
+
+    public function updateBio(): void
+    {
+        $user = $this->requireAuth();
+        verifyCsrf();
+
+        $nickname = request('nickname');
+        $realName = request('real_name');
+        $bio = request('bio');
+        $mahjongSoul = request('mahjong_soul');
+        $riichiCity = request('riichi_city');
+        $discord = request('discord');
+        $errors = User::bioErrors(
+            $nickname,
+            $realName,
+            $bio,
+            (int) $user['id'],
+            $mahjongSoul,
+            $riichiCity,
+            $discord
+        );
+        $photo = null;
+
+        if ($errors === []) {
+            $upload = $this->storeProfilePhoto($user);
+            if ($upload['error'] !== null) {
+                $errors[] = $upload['error'];
+            } else {
+                $photo = $upload['path'];
+            }
+        }
+
+        if ($errors === []) {
+            $errors = User::updateBio(
+                (int) $user['id'],
+                $nickname,
+                $realName,
+                $bio,
+                $photo,
+                $mahjongSoul,
+                $riichiCity,
+                $discord
+            );
+        }
+
+        if ($errors !== []) {
+            $this->view('users/bio', [
+                'title' => 'Configurações de Bio',
+                'user' => $user,
+                'currentPath' => '/perfil',
+                'nickname' => $nickname,
+                'realName' => $realName,
+                'bio' => $bio,
+                'mahjongSoul' => $mahjongSoul,
+                'riichiCity' => $riichiCity,
+                'discord' => $discord,
+                'memberSince' => formatMemberSince($user['created_at'] ?? null),
+                'errors' => $errors,
+            ]);
+            return;
+        }
+
+        flash('success', 'Perfil atualizado.');
+        if (request('after_save') === 'logout') {
+            AuthService::logout();
+            redirect('/login');
+        }
+
+        redirect($this->safeReturnPath(request('return_to')) ?? '/perfil');
+    }
+
+    private function safeReturnPath(string $path): ?string
+    {
+        $path = trim($path);
+        if ($path === '' || !str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            return null;
+        }
+
+        $parts = parse_url($path);
+        if (!is_array($parts) || isset($parts['scheme']) || isset($parts['host']) || !isset($parts['path'])) {
+            return null;
+        }
+
+        if ($parts['path'] === '/perfil' || str_contains($parts['path'], '\\')) {
+            return null;
+        }
+
+        $destino = $parts['path'];
+        if (isset($parts['query']) && $parts['query'] !== '') {
+            $destino .= '?' . $parts['query'];
+        }
+
+        return $destino;
+    }
+
+    /** @return array{path: ?string, error: ?string} */
+    private function storeProfilePhoto(array $user): array
+    {
+        if (!isset($_FILES['photo']) || !is_array($_FILES['photo'])) {
+            return ['path' => null, 'error' => null];
+        }
+
+        $error = (int) ($_FILES['photo']['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($error === UPLOAD_ERR_NO_FILE) {
+            return ['path' => null, 'error' => null];
+        }
+
+        if ($error !== UPLOAD_ERR_OK) {
+            return ['path' => null, 'error' => 'Não foi possível enviar a foto. Tente novamente.'];
+        }
+
+        $tmp = (string) ($_FILES['photo']['tmp_name'] ?? '');
+        $size = (int) ($_FILES['photo']['size'] ?? 0);
+        if ($tmp === '' || !is_uploaded_file($tmp) || $size <= 0) {
+            return ['path' => null, 'error' => 'Arquivo de foto inválido.'];
+        }
+
+        if ($size > 2 * 1024 * 1024) {
+            return ['path' => null, 'error' => 'A foto deve ter no máximo 2 MB.'];
+        }
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = (string) $finfo->file($tmp);
+        $extensions = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'image/gif' => 'gif',
+        ];
+        if (!isset($extensions[$mime])) {
+            return ['path' => null, 'error' => 'Use uma imagem JPG, PNG, WEBP ou GIF.'];
+        }
+
+        $directory = ROOT_PATH . '/public/uploads/avatars';
+        if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
+            return ['path' => null, 'error' => 'Não foi possível salvar a foto.'];
+        }
+
+        $filename = (int) $user['id'] . '-' . bin2hex(random_bytes(8)) . '.' . $extensions[$mime];
+        $destination = $directory . '/' . $filename;
+        if (!move_uploaded_file($tmp, $destination)) {
+            return ['path' => null, 'error' => 'Não foi possível salvar a foto.'];
+        }
+
+        $previous = userPhotoUrl($user);
+        if ($previous !== null) {
+            $previousPath = ROOT_PATH . '/public' . $previous;
+            if (is_file($previousPath)) {
+                unlink($previousPath);
+            }
+        }
+
+        return ['path' => '/uploads/avatars/' . $filename, 'error' => null];
+    }
 }
+
