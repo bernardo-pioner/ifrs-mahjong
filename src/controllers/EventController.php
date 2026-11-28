@@ -852,13 +852,12 @@ final class EventController extends Controller
                 'UPDATE oficinas
                  SET vagas = :limite,
                      taxa_inscricao = :taxa,
-                     premiacao = :premiacao
+                     premiacao = NULL
                  WHERE evento_id = :id'
             );
             $stmt->execute([
                 ':limite' => $parsed['limite'],
                 ':taxa' => $parsed['taxa'],
-                ':premiacao' => Event::encodePremiacao($parsed['premiacao']),
                 ':id' => $eventoId,
             ]);
             return;
@@ -1210,7 +1209,7 @@ final class EventController extends Controller
         }
 
         $premiacao = [];
-        if (in_array($tipo, ['torneio', 'oficina'], true) && ($old['tem_premiacao'] ?? '0') === '1') {
+        if ($tipo === 'torneio' && ($old['tem_premiacao'] ?? '0') === '1') {
             $qtd = filter_var($old['premiacao_qtd'] ?? '', FILTER_VALIDATE_INT);
             if ($qtd === false || $qtd < 1 || $qtd > 10) {
                 $errors[] = 'Informe entre 1 e 10 colocações para a premiação.';

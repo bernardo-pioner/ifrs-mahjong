@@ -190,7 +190,7 @@ final class Event
 
         if ($tipo === 'oficina') {
             $stmt = db()->prepare(
-                'SELECT vagas AS limite, taxa_inscricao AS taxa, premiacao
+                'SELECT vagas AS limite, taxa_inscricao AS taxa
                  FROM oficinas WHERE evento_id = :id'
             );
             $stmt->execute([':id' => $id]);
@@ -199,7 +199,7 @@ final class Event
             return [
                 'limite' => isset($row['limite']) ? (int) $row['limite'] : null,
                 'taxa' => (float) ($row['taxa'] ?? 0),
-                'premiacao' => self::decodePremiacao($row['premiacao'] ?? null),
+                'premiacao' => [],
             ];
         }
 
@@ -685,13 +685,12 @@ final class Event
         if ($tipo === 'oficina') {
             $stmt = $pdo->prepare(
                 'INSERT INTO oficinas (evento_id, vagas, taxa_inscricao, premiacao)
-                 VALUES (:evento_id, :limite, :taxa, :premiacao)'
+                 VALUES (:evento_id, :limite, :taxa, NULL)'
             );
             $stmt->execute([
                 ':evento_id' => $eventoId,
                 ':limite' => $limite,
                 ':taxa' => $taxa,
-                ':premiacao' => $premiacaoJson,
             ]);
             return;
         }

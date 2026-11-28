@@ -4,7 +4,7 @@ $tipoAtual = $old['tipo'] ?? 'encontro';
 $modalidadeAtual = $old['modalidade'] ?? 'livre';
 $temLimite = ($old['tem_limite'] ?? '0') === '1';
 $temPagamento = ($old['tem_pagamento'] ?? '0') === '1';
-$temPremiacao = ($old['tem_premiacao'] ?? '0') === '1';
+$temPremiacao = $tipoAtual === 'torneio' && ($old['tem_premiacao'] ?? '0') === '1';
 $premiacaoItens = is_array($old['premiacao'] ?? null) ? array_values($old['premiacao']) : [];
 $premiacaoQtd = (int) ($old['premiacao_qtd'] ?? (count($premiacaoItens) > 0 ? count($premiacaoItens) : 3));
 if ($premiacaoQtd < 1 || $premiacaoQtd > 10) {
@@ -378,7 +378,7 @@ function eventDayValue(array $dia, string $key, string $default = ''): string
         <div
             class="event-option-block"
             id="campo-premiacao"
-            <?= $tipoAtual === 'encontro' ? 'hidden' : '' ?>
+            <?= $tipoAtual === 'torneio' ? '' : 'hidden' ?>
         >
             <label class="event-registration-option" for="tem_premiacao">
                 <input
@@ -387,7 +387,7 @@ function eventDayValue(array $dia, string $key, string $default = ''): string
                     name="tem_premiacao"
                     value="1"
                     <?= $temPremiacao ? 'checked' : '' ?>
-                    <?= $tipoAtual === 'encontro' ? 'disabled' : '' ?>
+                    <?= $tipoAtual === 'torneio' ? '' : 'disabled' ?>
                 >
                 <span>
                     <strong>Definir premiação</strong>
@@ -514,6 +514,11 @@ function eventDayValue(array $dia, string $key, string $default = ''): string
                 (tipoSelecionado.value === 'torneio' || tipoSelecionado.value === 'oficina');
         }
 
+        function tipoComPremiacao() {
+            const tipoSelecionado = document.querySelector('input[name="tipo"]:checked');
+            return tipoSelecionado && tipoSelecionado.value === 'torneio';
+        }
+
         function atualizarCampoModalidade() {
             const tipoSelecionado = document.querySelector('input[name="tipo"]:checked');
             const mostrar = tipoSelecionado && tipoSelecionado.value === 'torneio';
@@ -524,22 +529,23 @@ function eventDayValue(array $dia, string $key, string $default = ''): string
 
         function atualizarCamposTipo() {
             const mostrar = tipoComExtras();
+            const mostrarPremiacao = tipoComPremiacao();
             campoLimite.hidden = !mostrar;
             campoPagamento.hidden = !mostrar;
             if (campoPremiacao) {
-                campoPremiacao.hidden = !mostrar;
+                campoPremiacao.hidden = !mostrarPremiacao;
             }
             temLimite.disabled = !mostrar;
             temPagamento.disabled = !mostrar;
             if (temPremiacao) {
-                temPremiacao.disabled = !mostrar;
+                temPremiacao.disabled = !mostrarPremiacao;
             }
             if (!mostrar) {
                 temLimite.checked = false;
                 temPagamento.checked = false;
-                if (temPremiacao) {
-                    temPremiacao.checked = false;
-                }
+            }
+            if (!mostrarPremiacao && temPremiacao) {
+                temPremiacao.checked = false;
             }
             atualizarCampoLimiteValor();
             atualizarCampoTaxa();
@@ -563,7 +569,7 @@ function eventDayValue(array $dia, string $key, string $default = ''): string
                 return;
             }
 
-            const mostrar = tipoComExtras() && temPremiacao.checked;
+            const mostrar = tipoComPremiacao() && temPremiacao.checked;
             campoPremiacaoDetalhes.hidden = !mostrar;
             selectPremiacaoQtd.disabled = !mostrar;
             atualizarItensPremiacao(mostrar);

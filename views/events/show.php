@@ -165,7 +165,7 @@ $podeEnviarComprovante = $jaInscrito
             </div>
         <?php endif; ?>
 
-        <?php if ($premiacao !== []): ?>
+        <?php if (($evento['tipo'] ?? '') === 'torneio' && $premiacao !== []): ?>
             <div class="form-field event-premiacao-show">
                 <h2>Premiação</h2>
                 <ul class="event-premiacao-list">
