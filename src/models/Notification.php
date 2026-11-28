@@ -272,10 +272,11 @@ final class Notification
     public static function publishAdmins(): void
     {
         $ids = db()->query(
-            'SELECT a.usuario_id
+            "SELECT a.usuario_id
              FROM admins a
              INNER JOIN usuarios u ON u.id = a.usuario_id
-             WHERE u.ativo = 1'
+             WHERE u.ativo = 1
+               AND a.cargo = 'administrador'"
         )->fetchAll(PDO::FETCH_COLUMN);
         foreach ($ids as $id) {
             self::publish((int) $id);

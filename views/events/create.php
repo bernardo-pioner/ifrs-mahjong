@@ -38,11 +38,12 @@ function eventDayValue(array $dia, string $key, string $default = ''): string
 }
 ?>
 
-<a class="page-back" href="/eventos">← Voltar para eventos</a>
-
-<section class="event-form-page">
+<section class="event-form-page event-form-page--composer">
     <header class="event-form-header">
-        <h1><?= e($tituloPagina) ?></h1>
+        <div class="page-title-row">
+            <a class="page-back" href="/eventos">← Voltar para eventos</a>
+            <h1><?= e($tituloPagina) ?></h1>
+        </div>
         <p><?= e($descricaoPagina) ?></p>
     </header>
 
@@ -273,14 +274,28 @@ function eventDayValue(array $dia, string $key, string $default = ''): string
         </div>
 
         <div class="form-field">
-            <label for="descricao">Descrição</label>
-            <textarea
-                id="descricao"
-                name="descricao"
-                rows="4"
-                maxlength="2500"
-                placeholder="Conte aos participantes como será o evento."
-            ><?= eventFormValue($old, 'descricao') ?></textarea>
+            <label for="descricao-editor">Descrição</label>
+            <div class="rich-text">
+                <div class="rich-text-toolbar" role="toolbar" aria-label="Formatação da descrição">
+                    <button type="button" data-format="bold" aria-label="Negrito" title="Negrito"><strong>N</strong></button>
+                    <button type="button" data-format="italic" aria-label="Itálico" title="Itálico"><em>I</em></button>
+                    <button type="button" data-format="underline" aria-label="Sublinhado" title="Sublinhado"><span class="rich-text-underline">S</span></button>
+                    <span class="rich-text-separator" aria-hidden="true"></span>
+                    <button type="button" data-format="h1" aria-label="Título 1" title="Título 1">Título 1</button>
+                    <button type="button" data-format="h2" aria-label="Título 2" title="Título 2">Título 2</button>
+                    <button type="button" data-format="h3" aria-label="Título 3" title="Título 3">Título 3</button>
+                    <button type="button" data-format="p" aria-label="Texto" title="Texto">Texto</button>
+                </div>
+                <div
+                    id="descricao-editor"
+                    class="rich-text-body"
+                    contenteditable="true"
+                    role="textbox"
+                    aria-multiline="true"
+                    data-placeholder="Conte aos participantes como será o evento."
+                ><?= formatEventDescription(isset($old['descricao']) && is_string($old['descricao']) ? $old['descricao'] : '') ?></div>
+                <textarea id="descricao" name="descricao" hidden><?= eventFormValue($old, 'descricao') ?></textarea>
+            </div>
         </div>
 
         
@@ -466,6 +481,7 @@ function eventDayValue(array $dia, string $key, string $default = ''): string
     <?php endif; ?>
 </section>
 
+<script src="/assets/js/event-description-editor.js?v=<?= (int) @filemtime(ROOT_PATH . '/public/assets/js/event-description-editor.js') ?>"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const tipos = document.querySelectorAll('input[name="tipo"]');

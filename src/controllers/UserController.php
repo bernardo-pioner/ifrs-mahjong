@@ -288,9 +288,17 @@ final class UserController extends Controller
                 flash(
                     'success',
                     $makeAdmin
-                        ? 'Usuário promovido a administrador com sucesso.'
-                        : 'Privilégios de administrador removidos com sucesso.'
+                        ? 'Usuário promovido a moderador.'
+                        : 'Moderação removida. O usuário voltou a ser membro.'
                 );
+                break;
+
+            case 'is_admin':
+                flash('error', 'A permissão de administrador não é alterada por esta tela.');
+                break;
+
+            case 'has_events':
+                flash('error', 'Este moderador organiza eventos e continua responsável por eles.');
                 break;
 
             case 'not_found':

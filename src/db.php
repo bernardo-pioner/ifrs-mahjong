@@ -328,6 +328,26 @@ function applyCompatibleSchemaUpdates(PDO $pdo): bool
         $changed = true;
     }
 
+    $admins = tableColumns($pdo, 'admins');
+    if ($admins !== null && isset($admins['cargo'])) {
+        $pdo->exec(
+            "UPDATE admins
+             SET cargo = 'administrador'
+             WHERE cargo IS NULL OR trim(cargo) = ''"
+        );
+    }
+
+    if (tableColumns($pdo, 'participantes') !== null && tableColumns($pdo, 'usuarios') !== null) {
+        $pdo->exec(
+            "INSERT INTO participantes (usuario_id, apelido, nivel)
+             SELECT u.id, u.apelido, 'iniciante'
+             FROM usuarios u
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM participantes p WHERE p.usuario_id = u.id
+             )"
+        );
+    }
+
     return $changed || true;
 }
 

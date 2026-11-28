@@ -12,9 +12,20 @@ abstract class Controller
     protected function requireAdmin(): array
     {
         $user = $this->requireAuth();
-        if (($user['role'] ?? '') !== 'admin') {
+        if (!isAdmin($user)) {
             flash('error', 'Acesso restrito a administradores.');
             redirect('/');
+        }
+
+        return $user;
+    }
+
+    protected function requireOrganizer(): array
+    {
+        $user = $this->requireAuth();
+        if (!canOrganizeEvents($user)) {
+            flash('error', 'Acesso restrito a quem pode criar eventos.');
+            redirect('/eventos');
         }
 
         return $user;

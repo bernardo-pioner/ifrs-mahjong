@@ -22,11 +22,12 @@ foreach ($choices as $choice) {
 }
 ?>
 
-<a class="page-back" href="/eventos/<?= $eventoId ?>">← Voltar para o evento</a>
-
-<section class="event-form-page">
+<section class="event-form-page event-form-page--composer">
     <header class="event-form-header">
-        <h1>Registrar partida</h1>
+        <div class="page-title-row">
+            <a class="page-back" href="/eventos/<?= $eventoId ?>">← Voltar para o evento</a>
+            <h1>Registrar partida</h1>
+        </div>
         <p><?= e((string) $evento['titulo']) ?></p>
     </header>
 

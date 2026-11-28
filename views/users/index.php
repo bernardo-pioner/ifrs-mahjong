@@ -41,7 +41,8 @@ $levelLabels = levelLabels();
             <select id="user-role-select">
                 <option value="todos">Todas</option>
                 <option value="admin">Administradores</option>
-                <option value="participante">Participantes</option>
+                <option value="moderator">Moderadores</option>
+                <option value="member">Membros</option>
             </select>
         </div>
     </div>
@@ -61,7 +62,12 @@ $levelLabels = levelLabels();
             <tbody id="users-table-body">
                 <?php foreach ($users as $row): ?>
                     <?php
-                    $isAdmin = ($row['role'] ?? '') === 'admin';
+                    $role = userRole($row);
+                    $roleLabel = match ($role) {
+                        'admin' => 'Administrador',
+                        'moderator' => 'Moderador',
+                        default => 'Membro',
+                    };
                     $isActive = (int) ($row['active'] ?? 0) === 1;
                     $emailVerified = (int) ($row['email_verified'] ?? 0) === 1;
                     $statusKey = $emailVerified ? ($isActive ? 'ativo' : 'inativo') : 'pendente';
@@ -98,7 +104,7 @@ $levelLabels = levelLabels();
                         data-name="<?= e($username) ?>"
                         data-email="<?= e($email) ?>"
                         data-status="<?= e($statusKey) ?>"
-                        data-role="<?= $isAdmin ? 'admin' : 'participante' ?>"
+                        data-role="<?= e($role) ?>"
                     >
                         <td>
                             <div class="user-table-identity">
@@ -115,7 +121,7 @@ $levelLabels = levelLabels();
                             </div>
                         </td>
                         <td><?= e($email) ?></td>
-                        <td><?= $isAdmin ? 'Administrador' : 'Participante' ?></td>
+                        <td><?= e($roleLabel) ?></td>
                         <td>
                             <span class="status <?= e($statusClass) ?>">
                                 <?= e($statusLabel) ?>
@@ -140,7 +146,7 @@ $levelLabels = levelLabels();
                                 data-level="<?= e($levelLabel) ?>"
                                 data-member-since="<?= e($memberSince) ?>"
                                 data-photo="<?= e($photoUrl ?? '') ?>"
-                                data-role="<?= $isAdmin ? 'admin' : 'participante' ?>"
+                                data-role="<?= e($role) ?>"
                                 data-status="<?= $isActive ? 'ativo' : 'inativo' ?>"
                                 data-email-verified="<?= $emailVerified ? '1' : '0' ?>"
                                 data-self="<?= $isSelf ? '1' : '0' ?>"
@@ -188,7 +194,7 @@ $levelLabels = levelLabels();
             <input type="hidden" name="id" id="user-role-id" value="">
             <input type="hidden" name="action" id="user-role-action" value="">
             <button type="submit" class="user-actions-item" role="menuitem" id="user-role-button">
-                Dar permissão de admin
+                Tornar moderador
             </button>
         </form>
         <form
@@ -347,7 +353,7 @@ $levelLabels = levelLabels();
             }
 
             function openActionsMenu(trigger) {
-                const isAdmin = trigger.dataset.role === 'admin';
+                const role = trigger.dataset.role || 'member';
                 const isActive = trigger.dataset.status === 'ativo';
                 const isSelf = trigger.dataset.self === '1';
                 const userId = trigger.dataset.userId || '';
@@ -358,12 +364,12 @@ $levelLabels = levelLabels();
                     editLink.href = '/usuarios/editar?id=' + encodeURIComponent(userId);
                 }
 
-                if (isAdmin) {
+                if (role === 'moderator') {
                     roleActionInput.value = 'demote';
-                    roleButton.textContent = 'Remover permissão de admin';
+                    roleButton.textContent = 'Remover moderação';
                 } else {
                     roleActionInput.value = 'promote';
-                    roleButton.textContent = 'Dar permissão de admin';
+                    roleButton.textContent = 'Tornar moderador';
                 }
 
                 if (isActive) {
@@ -374,9 +380,9 @@ $levelLabels = levelLabels();
                     statusButton.textContent = 'Ativar usuário';
                 }
 
-                roleButton.disabled = isSelf;
+                roleButton.disabled = isSelf || role === 'admin';
                 statusButton.disabled = isSelf;
-                roleButton.hidden = isSelf;
+                roleButton.hidden = isSelf || role === 'admin';
                 statusButton.hidden = isSelf;
 
                 const rect = trigger.getBoundingClientRect();
@@ -445,10 +451,15 @@ $levelLabels = levelLabels();
 
                 fillText('user-details-name', trigger.dataset.realName, 'Não informado');
                 fillText('user-details-email', trigger.dataset.email, 'Não informado');
+                const roleLabels = {
+                    admin: 'Administrador',
+                    moderator: 'Moderador',
+                    member: 'Membro'
+                };
                 fillText(
                     'user-details-role',
-                    trigger.dataset.role === 'admin' ? 'Administrador' : 'Participante',
-                    'Participante'
+                    roleLabels[trigger.dataset.role] || 'Membro',
+                    'Membro'
                 );
 
                 if (statusEl) {

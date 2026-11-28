@@ -12,7 +12,7 @@ final class EventController extends Controller
         $tipo = (string) ($_GET['tipo'] ?? '');
         $inscricao = (string) ($_GET['inscricao'] ?? '');
         $situacao = (string) ($_GET['situacao'] ?? '');
-        $ehAdmin = ($user['role'] ?? '') === 'admin';
+        $ehAdmin = isAdmin($user);
 
         $tiposValidos = ['encontro', 'oficina', 'torneio'];
         $inscricoesValidas = ['pendente', 'inscrito', 'nao_inscrito'];
@@ -153,7 +153,7 @@ final class EventController extends Controller
 
     public function create(): void
     {
-        $user = $this->requireAdmin();
+        $user = $this->requireOrganizer();
 
         $this->view('events/create', [
             'title' => 'Criar evento',
@@ -166,7 +166,7 @@ final class EventController extends Controller
 
     public function store(): void
     {
-        $user = $this->requireAdmin();
+        $user = $this->requireOrganizer();
         verifyCsrf();
 
         $old = $this->collectFormInput();
@@ -200,13 +200,18 @@ final class EventController extends Controller
 
     public function edit(string $id): void
     {
-        $user = $this->requireAdmin();
+        $user = $this->requireAuth();
         $evento = Event::findById((int) $id);
 
         if (!$evento) {
             http_response_code(404);
             echo 'Evento não encontrado.';
             return;
+        }
+
+        if (!canManageEvent($user, $evento)) {
+            flash('error', 'Você só pode alterar eventos que você organizou.');
+            redirect('/eventos/' . (int) $evento['id']);
         }
 
         if (Event::isEncerrado($evento)) {
@@ -272,7 +277,7 @@ final class EventController extends Controller
 
     public function update(string $id): void
     {
-        $user = $this->requireAdmin();
+        $user = $this->requireAuth();
         verifyCsrf();
 
         $pdo = db();
@@ -282,6 +287,11 @@ final class EventController extends Controller
             http_response_code(404);
             echo 'Evento não encontrado.';
             return;
+        }
+
+        if (!canManageEvent($user, $evento)) {
+            flash('error', 'Você só pode alterar eventos que você organizou.');
+            redirect('/eventos/' . (int) $evento['id']);
         }
 
         if (Event::isEncerrado($evento)) {
@@ -307,7 +317,7 @@ final class EventController extends Controller
         }
 
         $escopo = request('aplicar_serie', 'atual');
-        if (!in_array($escopo, ['atual', 'seguintes', 'ativas'], true)) {
+        if (!isAdmin($user) || !in_array($escopo, ['atual', 'seguintes', 'ativas'], true)) {
             $escopo = 'atual';
         }
 
@@ -387,7 +397,7 @@ final class EventController extends Controller
         $meuPagamento = Event::findPayment((int) $id, (int) $user['id']);
         $vagasOcupadas = Event::countActiveParticipants((int) $id);
         $temVaga = Event::hasCapacity($evento);
-        $ehAdmin = ($user['role'] ?? '') === 'admin';
+        $podeGerir = canManageEvent($user, $evento);
         $userId = (int) $user['id'];
 
         $levelLabels = levelLabels();
@@ -423,7 +433,7 @@ final class EventController extends Controller
 
         foreach ($participantes as &$participante) {
             $dono = (int) ($participante['usuario_id'] ?? 0) === $userId;
-            $podeVerComprovante = $ehAdmin || $dono;
+            $podeVerComprovante = $podeGerir || $dono;
             $temComprovante = !empty($participante['comprovante']);
             $level = (string) ($participante['level'] ?? '');
 
@@ -458,18 +468,17 @@ final class EventController extends Controller
         $user = $this->requireAuth();
         $eventoId = (int) $id;
         $targetId = (int) $participanteId;
-        $ehAdmin = ($user['role'] ?? '') === 'admin';
-
-        if (!$ehAdmin && (int) $user['id'] !== $targetId) {
-            http_response_code(403);
-            echo 'Acesso negado.';
-            return;
-        }
 
         $evento = Event::findById($eventoId);
         if (!$evento) {
             http_response_code(404);
             echo 'Evento não encontrado.';
+            return;
+        }
+
+        if (!canManageEvent($user, $evento) && (int) $user['id'] !== $targetId) {
+            http_response_code(403);
+            echo 'Acesso negado.';
             return;
         }
 
@@ -612,8 +621,18 @@ final class EventController extends Controller
 
     public function updateParticipantStatus(string $id, string $participanteId): void
     {
-        $this->requireAdmin();
+        $user = $this->requireAuth();
         verifyCsrf();
+
+        $evento = Event::findById((int) $id);
+        if (!$evento) {
+            flash('error', 'Evento não encontrado.');
+            redirect('/eventos');
+        }
+        if (!canManageEvent($user, $evento)) {
+            flash('error', 'Você só pode alterar eventos que você organizou.');
+            redirect('/eventos/' . (int) $id);
+        }
 
         $suplente = request('suplente');
         if ($suplente === '0' || $suplente === '1') {
@@ -642,8 +661,18 @@ final class EventController extends Controller
 
     public function removeParticipant(string $id, string $participanteId): void
     {
-        $this->requireAdmin();
+        $user = $this->requireAuth();
         verifyCsrf();
+
+        $evento = Event::findById((int) $id);
+        if (!$evento) {
+            flash('error', 'Evento não encontrado.');
+            redirect('/eventos');
+        }
+        if (!canManageEvent($user, $evento)) {
+            flash('error', 'Você só pode alterar eventos que você organizou.');
+            redirect('/eventos/' . (int) $id);
+        }
 
         $result = Event::removeParticipant((int) $id, (int) $participanteId);
         if (!$result['ok']) {
@@ -664,7 +693,7 @@ final class EventController extends Controller
 
     public function destroy(string $id): void
     {
-        $this->requireAdmin();
+        $user = $this->requireAuth();
         verifyCsrf();
 
         $pdo = db();
@@ -677,7 +706,15 @@ final class EventController extends Controller
             return;
         }
 
+        if (!canManageEvent($user, $evento)) {
+            flash('error', 'Você só pode excluir eventos que você organizou.');
+            redirect('/eventos/' . $eventoId);
+        }
+
         $escopo = request('excluir_serie', 'atual');
+        if (!isAdmin($user)) {
+            $escopo = 'atual';
+        }
         if (!in_array($escopo, ['atual', 'seguintes', 'ativas'], true)) {
             $escopo = 'atual';
         }
@@ -1026,7 +1063,19 @@ final class EventController extends Controller
         $titulo = trim($old['titulo']);
         $tipo = $old['tipo'];
         $local = trim($old['local']);
-        $descricao = trim($old['descricao']);
+        $descricaoBruta = trim((string) ($old['descricao'] ?? ''));
+        $descricao = null;
+        if (mb_strlen($descricaoBruta) > 20000) {
+            $errors[] = 'A descrição deve ter no máximo 2.500 caracteres.';
+        } else {
+            $descricaoHtml = formatEventDescription($descricaoBruta);
+            $descricaoTexto = eventDescriptionText($descricaoHtml);
+            if (mb_strlen($descricaoTexto) > 2500) {
+                $errors[] = 'A descrição deve ter no máximo 2.500 caracteres.';
+            } elseif ($descricaoTexto !== '') {
+                $descricao = $descricaoHtml;
+            }
+        }
 
         if ($titulo === '') {
             $errors[] = 'Informe o nome do evento.';
@@ -1141,10 +1190,6 @@ final class EventController extends Controller
             $errors[] = 'O local deve ter no máximo 200 caracteres.';
         }
 
-        if (mb_strlen($descricao) > 2500) {
-            $errors[] = 'A descrição deve ter no máximo 2.500 caracteres.';
-        }
-
         $limite = null;
         if (in_array($tipo, ['torneio', 'oficina'], true) && ($old['tem_limite'] ?? '0') === '1') {
             $limite = filter_var($old['limite'], FILTER_VALIDATE_INT);
@@ -1220,7 +1265,7 @@ final class EventController extends Controller
             'fim' => $fim,
             'dias' => $dias,
             'local' => $local !== '' ? $local : null,
-            'descricao' => $descricao !== '' ? $descricao : null,
+            'descricao' => $descricao,
             'limite' => $limite,
             'taxa' => $taxa,
             'premiacao' => $premiacao,

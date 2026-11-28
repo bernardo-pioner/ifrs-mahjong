@@ -24,7 +24,8 @@ $formatarData = static function (?string $data): string {
     }
 };
 
-$ehAdmin = ($user['role'] ?? '') === 'admin';
+$ehAdmin = isAdmin($user);
+$podeGerirEvento = canManageEvent($user, $evento);
 $eventoId = (int) $evento['id'];
 $perguntarSerie = $ehAdmin
     && !empty($evento['serie_id'])
@@ -41,25 +42,23 @@ $eventoEncerrado = Event::isEncerrado($evento);
 $precisaPagamento = in_array($evento['tipo'], ['torneio', 'oficina'], true) && $taxa > 0;
 $jaInscrito = $minhaParticipacao !== null && ($minhaParticipacao['status'] ?? '') !== 'cancelado';
 $statusInscricao = (string) ($minhaParticipacao['status'] ?? '');
-$podeInscrever = !$ehAdmin && !$eventoEncerrado && !$jaInscrito && $temVaga;
-$podeCancelar = !$ehAdmin && Event::canUnregister($evento, $minhaParticipacao);
+$podeInscrever = !$eventoEncerrado && !$jaInscrito && $temVaga;
+$podeCancelar = Event::canUnregister($evento, $minhaParticipacao);
 $meuPagamento = $meuPagamento ?? null;
 $temComprovante = is_array($meuPagamento) && !empty($meuPagamento['comprovante']);
-$podeEnviarComprovante = !$ehAdmin
-    && $jaInscrito
+$podeEnviarComprovante = $jaInscrito
     && $precisaPagamento
     && $statusInscricao === 'pendente';
 
 ?>
 
-<a class="page-back" href="/eventos">← Voltar para eventos</a>
-
 <section class="event-form-page event-show-page">
     <header class="event-form-header">
-        <h1><?= e($evento['titulo']) ?></h1>
+        <a class="page-back" href="/eventos">← Voltar para eventos</a>
     </header>
 
     <article class="event-form-card">
+        <h1><?= e($evento['titulo']) ?></h1>
         <div class="event-card-top">
             <span class="event-type">
                 <?= e($tiposEvento[$evento['tipo']] ?? 'Outro') ?>
@@ -84,12 +83,25 @@ $podeEnviarComprovante = !$ehAdmin
         }
         ?>
         <div class="event-details">
-            <div class="event-detail">
-                <span>
-                    <strong>Data:</strong>
-                    <?= e($formatarData($evento['data_inicio'] ?? null)) ?>
-                </span>
-            </div>
+            <?php if (count($linhasDias) > 1): ?>
+                <div class="event-detail">
+                    <span>
+                        <strong>Datas:</strong>
+                        <span class="event-day-list">
+                            <?php foreach ($linhasDias as $linhaDia): ?>
+                                <span><?= e($linhaDia) ?></span>
+                            <?php endforeach; ?>
+                        </span>
+                    </span>
+                </div>
+            <?php else: ?>
+                <div class="event-detail">
+                    <span>
+                        <strong>Data:</strong>
+                        <?= e($formatarData($evento['data_inicio'] ?? null)) ?>
+                    </span>
+                </div>
+            <?php endif; ?>
 
             <?php if (!empty($evento['local'])): ?>
                 <div class="event-detail">
@@ -146,19 +158,10 @@ $podeEnviarComprovante = !$ehAdmin
             <?php endif; ?>
         </div>
 
-        <?php if ($linhasDias !== [] || !empty($evento['descricao'])): ?>
+        <?php if (!empty($evento['descricao'])): ?>
+            <div class="event-form-divider"></div>
             <div class="form-field">
-                <h2>Descrição</h2>
-                <?php if (count($linhasDias) > 1): ?>
-                    <p class="event-day-list">
-                        <?php foreach ($linhasDias as $linhaDia): ?>
-                            <span><?= e($linhaDia) ?></span>
-                        <?php endforeach; ?>
-                    </p>
-                <?php endif; ?>
-                <?php if (!empty($evento['descricao'])): ?>
-                    <p><?= nl2br(e($evento['descricao'])) ?></p>
-                <?php endif; ?>
+                <div class="event-description"><?= formatEventDescription((string) $evento['descricao']) ?></div>
             </div>
         <?php endif; ?>
 
@@ -176,7 +179,6 @@ $podeEnviarComprovante = !$ehAdmin
             </div>
         <?php endif; ?>
 
-        <?php if (!$ehAdmin): ?>
             <div class="event-form-divider"></div>
 
             <section class="event-registration-box">
@@ -252,7 +254,7 @@ $podeEnviarComprovante = !$ehAdmin
                             </form>
                         <?php endif; ?>
                     <?php elseif ($statusInscricao === 'pendente'): ?>
-                        <p>Aguarde a aprovação do administrador.</p>
+                        <p>Aguarde a aprovação.</p>
                     <?php endif; ?>
 
                     <?php if ($podeCancelar): ?>
@@ -296,7 +298,6 @@ $podeEnviarComprovante = !$ehAdmin
                     </form>
                 <?php endif; ?>
             </section>
-        <?php endif; ?>
 
         <?php
         $mostraPartidas = in_array($evento['tipo'], ['encontro', 'oficina'], true);
@@ -310,14 +311,14 @@ $podeEnviarComprovante = !$ehAdmin
             if ((int) ($inscrito['suplente'] ?? 0) !== 1) {
                 $totalInscritos++;
             }
-            if ($ehAdmin && ($inscrito['status'] ?? '') === 'pendente') {
+            if ($podeGerirEvento && ($inscrito['status'] ?? '') === 'pendente') {
                 $pendentes[] = $inscrito;
                 continue;
             }
             $demaisParticipantes[] = $inscrito;
         }
 
-        $renderInscrito = static function (array $participante) use ($eventoId, $ehAdmin, $statusLabels): void {
+        $renderInscrito = static function (array $participante) use ($eventoId, $podeGerirEvento, $statusLabels): void {
             $username = trim((string) ($participante['username'] ?? ''));
             $nickname = trim((string) ($participante['apelido'] ?? ''));
             if ($nickname === '') {
@@ -393,7 +394,7 @@ $podeEnviarComprovante = !$ehAdmin
                     </div>
                 </div>
 
-                <?php if ($ehAdmin): ?>
+                <?php if ($podeGerirEvento): ?>
                     <?php
                     $rotuloAcao = $displayName;
                     if ($nickname !== '' && $nickname !== $displayName) {
@@ -615,7 +616,7 @@ $podeEnviarComprovante = !$ehAdmin
             </section>
         <?php endif; ?>
 
-        <?php if ($ehAdmin && !empty($participantes)): ?>
+        <?php if ($podeGerirEvento && !empty($participantes)): ?>
             <div
                 id="participant-actions-menu"
                 class="user-actions-menu"
@@ -693,7 +694,7 @@ $podeEnviarComprovante = !$ehAdmin
             </div>
         <?php endif; ?>
 
-        <?php if ($ehAdmin): ?>
+        <?php if ($podeGerirEvento): ?>
             <div class="event-form-divider"></div>
 
             <div class="event-form-actions">

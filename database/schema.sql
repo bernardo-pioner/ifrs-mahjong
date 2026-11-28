@@ -41,7 +41,8 @@ CREATE INDEX IF NOT EXISTS idx_codigos_email_usuario
 -- Admin (especialização de Usuário)
 CREATE TABLE IF NOT EXISTS admins (
     usuario_id INTEGER PRIMARY KEY,
-    cargo TEXT NOT NULL DEFAULT 'administrador',
+    cargo TEXT NOT NULL DEFAULT 'administrador'
+        CHECK (cargo IN ('administrador', 'moderador')),
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 

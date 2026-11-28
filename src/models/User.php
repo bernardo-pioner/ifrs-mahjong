@@ -20,7 +20,7 @@ final class User
                     p.riichi_city,
                     p.discord,
                     p.foto AS photo,
-                    CASE WHEN a.usuario_id IS NOT NULL THEN \'admin\' ELSE \'member\' END AS role
+                    CASE a.cargo WHEN \'administrador\' THEN \'admin\' WHEN \'moderador\' THEN \'moderator\' ELSE \'member\' END AS role
              FROM usuarios u
              LEFT JOIN admins a ON a.usuario_id = u.id
              LEFT JOIN participantes p ON p.usuario_id = u.id
@@ -51,7 +51,7 @@ final class User
                     p.discord,
                     p.foto AS photo,
                     p.nivel AS level,
-                    CASE WHEN a.usuario_id IS NOT NULL THEN \'admin\' ELSE \'member\' END AS role
+                    CASE a.cargo WHEN \'administrador\' THEN \'admin\' WHEN \'moderador\' THEN \'moderator\' ELSE \'member\' END AS role
              FROM usuarios u
              LEFT JOIN admins a ON a.usuario_id = u.id
              LEFT JOIN participantes p ON p.usuario_id = u.id
@@ -78,7 +78,7 @@ final class User
                     p.discord,
                     p.foto AS photo,
                     p.nivel AS level,
-                    CASE WHEN a.usuario_id IS NOT NULL THEN \'admin\' ELSE \'member\' END AS role
+                    CASE a.cargo WHEN \'administrador\' THEN \'admin\' WHEN \'moderador\' THEN \'moderator\' ELSE \'member\' END AS role
              FROM usuarios u
              LEFT JOIN admins a ON a.usuario_id = u.id
              LEFT JOIN participantes p ON p.usuario_id = u.id
@@ -492,8 +492,7 @@ final class User
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare(
-                'SELECT u.id, u.ativo,
-                        CASE WHEN a.usuario_id IS NULL THEN 0 ELSE 1 END AS is_admin
+                'SELECT u.id, u.ativo, a.cargo
                 FROM usuarios u
                 LEFT JOIN admins a ON a.usuario_id = u.id
                 WHERE u.id = :id'
@@ -506,13 +505,21 @@ final class User
                 return ['Usuário não encontrado.'];
             }
 
-            $isAdmin = (int) $target['is_admin'] === 1;
+            $cargo = (string) ($target['cargo'] ?? '');
+            $isAdmin = $cargo === 'administrador';
+            $isModerator = $cargo === 'moderador';
             $isActive = (int) $target['ativo'] === 1;
 
-            $makeAdmin = match ($roleAction) {
+            if ($isAdmin && $roleAction !== 'keep') {
+                $pdo->rollBack();
+
+                return ['A permissão de administrador não pode ser alterada por esta tela.'];
+            }
+
+            $makeModerator = match ($roleAction) {
                 'promote' => true,
                 'demote' => false,
-                default => $isAdmin,
+                default => $isModerator,
             };
 
             $activate = match ($statusAction) {
@@ -521,24 +528,20 @@ final class User
                 default => $isActive,
             };
 
-            // Não permite que o último administrador ativo perca essa condição.
-            $removingActiveAdmin = $isAdmin
-                && $isActive
-                && (!$makeAdmin || !$activate);
-
-            if ($removingActiveAdmin) {
+            if ($isAdmin && $isActive && !$activate) {
                 $totalActiveAdmins = (int) $pdo->query(
-                    'SELECT COUNT(*)
+                    "SELECT COUNT(*)
                     FROM usuarios u
                     INNER JOIN admins a ON a.usuario_id = u.id
-                    WHERE u.ativo = 1'
+                    WHERE u.ativo = 1
+                      AND a.cargo = 'administrador'"
                 )->fetchColumn();
 
                 if ($totalActiveAdmins <= 1) {
                     $pdo->rollBack();
 
                     return [
-                        'Não é possível remover a permissão de administrador ou inativar o último administrador ativo.'
+                        'Não é possível inativar o último administrador ativo.'
                     ];
                 }
             }
@@ -557,17 +560,17 @@ final class User
                 'id' => $id,
             ]);
 
-            // Atualiza a permissão somente quando foi solicitada.
-            if ($makeAdmin !== $isAdmin) {
-                if ($makeAdmin) {
+            if (!$isAdmin && $makeModerator !== $isModerator) {
+                if ($makeModerator) {
                     $stmt = $pdo->prepare(
-                        'INSERT INTO admins (usuario_id)
-                        VALUES (:id)'
+                        "INSERT INTO admins (usuario_id, cargo)
+                        VALUES (:id, 'moderador')"
                     );
                 } else {
                     $stmt = $pdo->prepare(
-                        'DELETE FROM admins
-                        WHERE usuario_id = :id'
+                        "DELETE FROM admins
+                        WHERE usuario_id = :id
+                          AND cargo = 'moderador'"
                     );
                 }
 
@@ -641,9 +644,10 @@ final class User
 
             // Verifica se o usuário é administrador.
             $stmt = $pdo->prepare(
-                'SELECT usuario_id
+                "SELECT usuario_id
                 FROM admins
-                WHERE usuario_id = :id'
+                WHERE usuario_id = :id
+                  AND cargo = 'administrador'"
             );
             $stmt->execute(['id' => $id]);
             $isAdmin = (bool) $stmt->fetch();
@@ -651,10 +655,11 @@ final class User
             // Não permite inativar o último administrador ativo.
             if ($isAdmin && !$activate) {
                 $totalActiveAdmins = (int) $pdo->query(
-                    'SELECT COUNT(*)
+                    "SELECT COUNT(*)
                     FROM usuarios u
                     INNER JOIN admins a ON a.usuario_id = u.id
-                    WHERE u.ativo = 1'
+                    WHERE u.ativo = 1
+                      AND a.cargo = 'administrador'"
                 )->fetchColumn();
 
                 if ($totalActiveAdmins <= 1) {
@@ -692,7 +697,7 @@ final class User
     public static function changeRole(
         int $id,
         int $currentUserId,
-        bool $makeAdmin
+        bool $makeModerator
     ): string {
         $pdo = db();
 
@@ -700,7 +705,7 @@ final class User
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare(
-                'SELECT id, ativo
+                'SELECT id
                 FROM usuarios
                 WHERE id = :id'
             );
@@ -718,41 +723,35 @@ final class User
             }
 
             $stmt = $pdo->prepare(
-                'SELECT usuario_id
+                'SELECT cargo
                 FROM admins
                 WHERE usuario_id = :id'
             );
             $stmt->execute(['id' => $id]);
-            $isAdmin = (bool) $stmt->fetch();
+            $cargo = $stmt->fetchColumn();
+            $cargo = $cargo === false ? '' : (string) $cargo;
 
-            if ($isAdmin === $makeAdmin) {
+            if ($cargo === 'administrador') {
+                $pdo->rollBack();
+                return 'is_admin';
+            }
+
+            $isModerator = $cargo === 'moderador';
+            if ($isModerator === $makeModerator) {
                 $pdo->rollBack();
                 return 'unchanged';
             }
 
-            if ($isAdmin && !$makeAdmin && (int) $targetUser['ativo'] === 1) {
-                $totalActiveAdmins = (int) $pdo->query(
-                    'SELECT COUNT(*)
-                    FROM usuarios u
-                    INNER JOIN admins a ON a.usuario_id = u.id
-                    WHERE u.ativo = 1'
-                )->fetchColumn();
-
-                if ($totalActiveAdmins <= 1) {
-                    $pdo->rollBack();
-                    return 'last_admin';
-                }
-            }
-
-            if ($makeAdmin) {
+            if ($makeModerator) {
                 $stmt = $pdo->prepare(
-                    'INSERT INTO admins (usuario_id)
-                    VALUES (:id)'
+                    "INSERT INTO admins (usuario_id, cargo)
+                    VALUES (:id, 'moderador')"
                 );
             } else {
                 $stmt = $pdo->prepare(
-                    'DELETE FROM admins
-                    WHERE usuario_id = :id'
+                    "DELETE FROM admins
+                    WHERE usuario_id = :id
+                      AND cargo = 'moderador'"
                 );
             }
 
@@ -764,6 +763,10 @@ final class User
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
+            }
+
+            if (str_contains(strtolower($e->getMessage()), 'foreign key')) {
+                return 'has_events';
             }
 
             error_log('Erro ao alterar permissão do usuário: ' . $e->getMessage());
@@ -801,7 +804,8 @@ final class User
 
             // Verifica se o usuário é administrador.
             $stmt = $pdo->prepare(
-                'SELECT usuario_id FROM admins WHERE usuario_id = :id'
+                "SELECT usuario_id FROM admins
+                 WHERE usuario_id = :id AND cargo = 'administrador'"
             );
             $stmt->execute(['id' => $id]);
             $isAdmin = (bool) $stmt->fetch();
@@ -809,7 +813,7 @@ final class User
             // Impede excluir o último administrador.
             if ($isAdmin) {
                 $totalAdmins = (int) $pdo
-                    ->query('SELECT COUNT(*) FROM admins')
+                    ->query("SELECT COUNT(*) FROM admins WHERE cargo = 'administrador'")
                     ->fetchColumn();
 
                 if ($totalAdmins <= 1) {

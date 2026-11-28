@@ -108,7 +108,8 @@ foreach ($eventos as $evento) {
 
 $encerrados = array_reverse($encerrados);
 $mostrarTipo = ($tipoFiltro ?? '') === '';
-$ehAdmin = ($user['role'] ?? '') === 'admin';
+$ehAdmin = isAdmin($user);
+$podeCriarEvento = canOrganizeEvents($user);
 
 $renderLinha = static function (array $evento, bool $comTipo) use (
     $tiposEvento,
@@ -205,7 +206,7 @@ $temEventos = $temEventos || $encerrados !== [];
 <div class="events-browse">
     <section class="page-head events-list-head">
         <h1>Eventos</h1>
-        <?php if ($ehAdmin): ?>
+        <?php if ($podeCriarEvento): ?>
             <a class="button button-primary" href="/eventos/novo">
                 <span aria-hidden="true">＋</span>
                 Novo evento
@@ -272,7 +273,7 @@ $temEventos = $temEventos || $encerrados !== [];
     <?php if (!$temEventos && !empty($clubeSemEventos)): ?>
         <div class="events-empty">
             <h2 class="events-empty-title">Ainda não há nenhum evento do clube.</h2>
-            <?php if ($ehAdmin): ?>
+            <?php if ($podeCriarEvento): ?>
                 <p>Deseja criar um novo evento?</p>
                 <a class="button button-primary" href="/eventos/novo">Criar evento</a>
             <?php endif; ?>

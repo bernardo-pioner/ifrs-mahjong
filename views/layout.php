@@ -8,7 +8,7 @@
 $isGuest = $user === null;
 $isAdmin = isAdmin($user);
 $userName = is_array($user) ? userDisplayName($user) : 'Participante';
-$userRole = $isAdmin ? 'Admin' : 'Participante';
+$userRole = roleLabel($user);
 $userPhoto = is_array($user) ? userPhotoUrl($user) : null;
 $logoUrl = clubLogoUrl();
 $navItems = [

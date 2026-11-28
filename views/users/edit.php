@@ -3,7 +3,9 @@
 /** @var list<string> $errors */
 
 $isActive = (int) ($targetUser['active'] ?? 0) === 1;
-$isAdmin = ($targetUser['role'] ?? '') === 'admin';
+$role = userRole($targetUser);
+$isAdmin = $role === 'admin';
+$isModerator = $role === 'moderator';
 $levelLabels = levelLabels();
 $levelAtual = (string) ($targetUser['level'] ?? 'iniciante');
 if (!isset($levelLabels[$levelAtual])) {
@@ -13,8 +15,8 @@ if (!isset($levelLabels[$levelAtual])) {
 $pendingRole = $targetUser['pending_role'] ?? 'keep';
 $pendingStatus = $targetUser['pending_status'] ?? 'keep';
 
-$roleWillBeAdmin = $pendingRole === 'keep'
-    ? $isAdmin
+$roleWillBeModerator = $pendingRole === 'keep'
+    ? $isModerator
     : $pendingRole === 'promote';
 
 $statusWillBeActive = $pendingStatus === 'keep'
@@ -182,26 +184,28 @@ $statusWillBeActive = $pendingStatus === 'keep'
                     <div class="profile-management-item">
                         <div class="profile-management-info">
                             <strong>Permissão</strong>
-                            <span>
-                                <?= $roleWillBeAdmin
+                            <span id="role-display">
+                                <?= $isAdmin
                                     ? 'Administrador'
-                                    : 'Participante' ?>
+                                    : ($roleWillBeModerator ? 'Moderador' : 'Membro') ?>
                             </span>
                         </div>
 
+                        <?php if (!$isAdmin): ?>
                         <button
                             type="button"
                             id="role-toggle"
-                            class="button <?= $isAdmin
+                            class="button <?= $isModerator
                                 ? 'button-danger'
                                 : 'button-promote' ?>"
                         >
                             <?= $pendingRole !== 'keep'
                                 ? 'Desfazer'
-                                : ($isAdmin
-                                    ? 'Remover privilégios de administrador'
-                                    : 'Tornar administrador') ?>
+                                : ($isModerator
+                                    ? 'Remover moderação'
+                                    : 'Tornar moderador') ?>
                         </button>
+                        <?php endif; ?>
                     </div>
 
                     <div class="profile-management-item">
@@ -253,6 +257,7 @@ $statusWillBeActive = $pendingStatus === 'keep'
 <script>
 (function () {
     const isAdmin = <?= $isAdmin ? 'true' : 'false' ?>;
+    const isModerator = <?= $isModerator ? 'true' : 'false' ?>;
     const isActive = <?= $isActive ? 'true' : 'false' ?>;
 
     const roleAction = document.getElementById('role-action');
@@ -265,13 +270,21 @@ $statusWillBeActive = $pendingStatus === 'keep'
     const statusDisplay = document.getElementById('status-display');
 
     function updateRoleDisplay() {
-        const makeAdmin = roleAction.value === 'promote'
+        if (!roleDisplay) {
+            return;
+        }
+        if (isAdmin) {
+            roleDisplay.textContent = 'Administrador';
+            return;
+        }
+
+        const makeModerator = roleAction.value === 'promote'
             ? true
             : roleAction.value === 'demote'
                 ? false
-                : isAdmin;
+                : isModerator;
 
-        const roleText = makeAdmin ? 'Administrador' : 'Participante';
+        const roleText = makeModerator ? 'Moderador' : 'Membro';
 
         roleDisplay.textContent =
             roleText +
@@ -282,14 +295,14 @@ $statusWillBeActive = $pendingStatus === 'keep'
         if (roleButton) {
             roleButton.textContent = roleAction.value !== 'keep'
                 ? 'Desfazer'
-                : (isAdmin
-                    ? 'Remover privilégios de administrador'
-                    : 'Tornar administrador');
+                : (isModerator
+                    ? 'Remover moderação'
+                    : 'Tornar moderador');
 
             roleButton.className = 'button ' +
                 (roleAction.value !== 'keep'
                     ? 'button-undo'
-                    : (isAdmin ? 'button-danger' : 'button-promote'));
+                    : (isModerator ? 'button-danger' : 'button-promote'));
         }
     }
 
@@ -326,7 +339,7 @@ $statusWillBeActive = $pendingStatus === 'keep'
             if (roleAction.value !== 'keep') {
                 roleAction.value = 'keep';
             } else {
-                roleAction.value = isAdmin ? 'demote' : 'promote';
+                roleAction.value = isModerator ? 'demote' : 'promote';
             }
 
             updateRoleDisplay();

@@ -11,10 +11,12 @@
 /** @var list<string> $errors */
 $photoUrl = userPhotoUrl($user);
 ?>
-<section class="page-head">
-    <button type="button" class="page-back" id="bio-voltar">← Voltar</button>
+<section class="page-head bio-page-head">
     <p class="eyebrow">Perfil</p>
-    <h1>Configurações de Bio</h1>
+    <div class="page-title-row">
+        <button type="button" class="page-back" id="bio-voltar">← Voltar</button>
+        <h1>Configurações de Bio</h1>
+    </div>
 </section>
 
 <section class="profile-card">

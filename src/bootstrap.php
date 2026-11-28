@@ -137,9 +137,51 @@ function isActivePath(string $currentPath, string $path): bool
     return $currentPath === $path;
 }
 
+function userRole(?array $user): string
+{
+    $role = (string) ($user['role'] ?? 'member');
+
+    return in_array($role, ['admin', 'moderator', 'member'], true) ? $role : 'member';
+}
+
 function isAdmin(?array $user): bool
 {
-    return ($user['role'] ?? '') === 'admin';
+    return userRole($user) === 'admin';
+}
+
+function isModerator(?array $user): bool
+{
+    return userRole($user) === 'moderator';
+}
+
+function canOrganizeEvents(?array $user): bool
+{
+    $role = userRole($user);
+
+    return $role === 'admin' || $role === 'moderator';
+}
+
+/** @param array<string, mixed> $evento */
+function canManageEvent(?array $user, array $evento): bool
+{
+    if (isAdmin($user)) {
+        return true;
+    }
+
+    if (!isModerator($user)) {
+        return false;
+    }
+
+    return (int) ($evento['admin_id'] ?? 0) === (int) ($user['id'] ?? 0);
+}
+
+function roleLabel(?array $user): string
+{
+    return match (userRole($user)) {
+        'admin' => 'Admin',
+        'moderator' => 'Moderador',
+        default => 'Membro',
+    };
 }
 
 function clubLogoUrl(): string
@@ -236,6 +278,125 @@ function formatEventDayDate(?string $value): string
     }
 
     return $date->format('d/m/Y · H:i');
+}
+
+function formatEventDescription(?string $value): string
+{
+    $value = trim((string) $value);
+    if ($value === '') {
+        return '';
+    }
+
+    if (!preg_match('/<\s*\/?\s*[a-z]/i', $value)) {
+        return nl2br(e($value), false);
+    }
+
+    $document = new DOMDocument();
+    $previous = libxml_use_internal_errors(true);
+    $document->loadHTML(
+        '<?xml encoding="utf-8"><div>' . $value . '</div>',
+        LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+    );
+    libxml_clear_errors();
+    libxml_use_internal_errors($previous);
+
+    $root = $document->getElementsByTagName('div')->item(0);
+    if (!$root instanceof DOMElement) {
+        return nl2br(e(strip_tags($value)), false);
+    }
+
+    sanitizeEventDescriptionNode($root);
+    $html = '';
+    foreach ($root->childNodes as $child) {
+        $html .= $document->saveHTML($child);
+    }
+
+    return trim($html);
+}
+
+function eventDescriptionText(string $html): string
+{
+    $texto = preg_replace('/<\s*br\s*\/?\s*>/i', "\n", $html) ?? $html;
+    $texto = preg_replace('/<\/(?:p|h1|h2|h3|div)>/i', "\n", $texto) ?? $texto;
+    $texto = html_entity_decode(strip_tags($texto), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $texto = preg_replace("/[ \t]+/u", ' ', $texto) ?? $texto;
+    $texto = preg_replace("/\n{3,}/u", "\n\n", $texto) ?? $texto;
+
+    return trim($texto);
+}
+
+function sanitizeEventDescriptionNode(DOMNode $node): void
+{
+    $allowed = [
+        'p' => true,
+        'br' => true,
+        'strong' => true,
+        'b' => true,
+        'em' => true,
+        'i' => true,
+        'u' => true,
+        'h1' => true,
+        'h2' => true,
+        'h3' => true,
+    ];
+    $drop = [
+        'script' => true,
+        'style' => true,
+        'iframe' => true,
+        'object' => true,
+        'embed' => true,
+        'link' => true,
+        'meta' => true,
+    ];
+
+    $children = [];
+    foreach ($node->childNodes as $child) {
+        $children[] = $child;
+    }
+
+    foreach ($children as $child) {
+        if (!$child instanceof DOMElement) {
+            continue;
+        }
+
+        $tag = strtolower($child->nodeName);
+        if (isset($drop[$tag])) {
+            $node->removeChild($child);
+            continue;
+        }
+
+        if ($tag === 'div') {
+            $paragraph = $child->ownerDocument->createElement('p');
+            while ($child->firstChild) {
+                $paragraph->appendChild($child->firstChild);
+            }
+            $node->replaceChild($paragraph, $child);
+            $child = $paragraph;
+            $tag = 'p';
+        }
+
+        sanitizeEventDescriptionNode($child);
+
+        if (!isset($allowed[$tag])) {
+            while ($child->firstChild) {
+                $node->insertBefore($child->firstChild, $child);
+            }
+            $node->removeChild($child);
+            continue;
+        }
+
+        while ($child->attributes->length > 0) {
+            $attribute = $child->attributes->item(0);
+            if ($attribute !== null) {
+                $child->removeAttribute($attribute->name);
+            }
+        }
+
+        $texto = str_replace("\u{200b}", '', $child->textContent ?? '');
+        if ($tag !== 'br' && trim($texto) === '') {
+            $node->removeChild($child);
+        }
+    }
 }
 
 /** Modalidades de mesa usadas no registro de partida. @return array<string, string> */
