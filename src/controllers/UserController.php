@@ -203,12 +203,12 @@ final class UserController extends Controller
 
         if ($idText === '' || !ctype_digit($idText) || (int) $idText <= 0) {
             flash('error', 'ID de usuário inválido.');
-            redirect('/usuarios');
+            $this->redirectToUsers();
         }
 
         if (!in_array($action, ['activate', 'deactivate'], true)) {
             flash('error', 'Ação inválida.');
-            redirect('/usuarios');
+            $this->redirectToUsers();
         }
 
         $id = (int) $idText;
@@ -251,7 +251,7 @@ final class UserController extends Controller
                 break;
         }
 
-        redirect('/usuarios');
+        $this->redirectToUsers();
     }
 
     
@@ -266,12 +266,12 @@ final class UserController extends Controller
 
         if ($idText === '' || !ctype_digit($idText) || (int) $idText <= 0) {
             flash('error', 'ID de usuário inválido.');
-            redirect('/usuarios');
+            $this->redirectToUsers();
         }
 
         if (!in_array($action, ['promote', 'demote'], true)) {
             flash('error', 'Ação de permissão inválida.');
-            redirect('/usuarios');
+            $this->redirectToUsers();
         }
 
         $id = (int) $idText;
@@ -322,7 +322,39 @@ final class UserController extends Controller
                 break;
         }
 
-        redirect('/usuarios');
+        $this->redirectToUsers();
+    }
+
+    private function redirectToUsers(): void
+    {
+        $params = [];
+
+        $page = request('pagina');
+        if (ctype_digit($page) && (int) $page > 0) {
+            $params['pagina'] = (string) min((int) $page, 10000);
+        }
+
+        $pageSize = request('por_pagina');
+        if (in_array($pageSize, ['10', '20', '50'], true)) {
+            $params['por_pagina'] = $pageSize;
+        }
+
+        $search = mb_substr(request('busca'), 0, 100);
+        if ($search !== '') {
+            $params['busca'] = $search;
+        }
+
+        $status = request('lista_status');
+        if (in_array($status, ['ativo', 'pendente', 'inativo'], true)) {
+            $params['lista_status'] = $status;
+        }
+
+        $role = request('lista_permissao');
+        if (in_array($role, ['admin', 'moderator', 'member'], true)) {
+            $params['lista_permissao'] = $role;
+        }
+
+        redirect('/usuarios' . ($params === [] ? '' : '?' . http_build_query($params)));
     }
 
 

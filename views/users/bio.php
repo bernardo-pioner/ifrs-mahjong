@@ -274,6 +274,10 @@ $photoUrl = userPhotoUrl($user);
         let acaoSaida = '';
         let saindo = false;
 
+        form.addEventListener('submit', function () {
+            saindo = true;
+        });
+
         function estadoFormulario() {
             const data = new FormData(form);
             data.delete('_csrf');

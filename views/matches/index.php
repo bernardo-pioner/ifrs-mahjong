@@ -114,6 +114,15 @@ $detalhes = [];
         </table>
     </div>
 
+    <div class="user-list-footer">
+        <select id="matches-page-size" class="users-page-size" aria-label="Partidas por página">
+            <option value="10" selected>Partidas por página 10</option>
+            <option value="20">Partidas por página 20</option>
+            <option value="50">Partidas por página 50</option>
+        </select>
+        <nav class="notice-pager" id="matches-pager" aria-label="Paginação de partidas" hidden></nav>
+    </div>
+
     <div
         id="match-actions-menu"
         class="user-actions-menu"
@@ -130,6 +139,8 @@ $detalhes = [];
             id="match-validate-form"
         >
             <?= csrfField() ?>
+            <input type="hidden" name="pagina" value="1">
+            <input type="hidden" name="por_pagina" value="10">
             <button type="submit" class="user-actions-item" role="menuitem">
                 Validar participação
             </button>
@@ -187,15 +198,105 @@ $detalhes = [];
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const tableBody = document.getElementById('matches-table-body');
+            const pageSizeSelect = document.getElementById('matches-page-size');
+            const matchesPager = document.getElementById('matches-pager');
             const actionsMenu = document.getElementById('match-actions-menu');
             const validateForm = document.getElementById('match-validate-form');
             const detailsModal = document.getElementById('match-details-modal');
             const details = <?= json_encode($detalhes, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?>;
-            if (!tableBody || !actionsMenu || !validateForm || !detailsModal) {
+            if (!tableBody || !pageSizeSelect || !matchesPager || !actionsMenu || !validateForm || !detailsModal) {
                 return;
             }
 
+            const matchRows = Array.from(tableBody.querySelectorAll('tr'));
+            const listParams = new URLSearchParams(window.location.search);
             let activeTrigger = null;
+            let currentPage = 1;
+
+            const savedSize = listParams.get('por_pagina');
+            if (savedSize === '10' || savedSize === '20' || savedSize === '50') {
+                pageSizeSelect.value = savedSize;
+            }
+            const savedPage = Number(listParams.get('pagina'));
+            if (Number.isInteger(savedPage) && savedPage > 0) {
+                currentPage = savedPage;
+            }
+
+            function pageSize() {
+                const value = Number(pageSizeSelect.value);
+                return value === 20 || value === 50 ? value : 10;
+            }
+
+            function paintPager(page, pages) {
+                matchesPager.hidden = pages < 2;
+                matchesPager.replaceChildren();
+                if (pages < 2) {
+                    return;
+                }
+
+                function addStep(label, picked, disabled) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.textContent = label;
+                    button.disabled = disabled;
+                    if (!disabled) {
+                        button.addEventListener('click', function () {
+                            currentPage = picked;
+                            closeActionsMenu();
+                            showMatches(false);
+                        });
+                    }
+                    matchesPager.appendChild(button);
+                }
+
+                addStep('Anterior', page - 1, page <= 1);
+
+                const status = document.createElement('span');
+                status.className = 'notice-pager-status';
+                status.append('Página');
+
+                const select = document.createElement('select');
+                select.setAttribute('aria-label', 'Página');
+                for (let number = 1; number <= pages; number += 1) {
+                    const option = document.createElement('option');
+                    option.value = String(number);
+                    option.textContent = String(number);
+                    option.selected = number === page;
+                    select.appendChild(option);
+                }
+                select.addEventListener('change', function () {
+                    currentPage = Number(select.value);
+                    closeActionsMenu();
+                    showMatches(false);
+                });
+                status.appendChild(select);
+                status.append('de ' + pages);
+                matchesPager.appendChild(status);
+
+                addStep('Próxima', page + 1, page >= pages);
+            }
+
+            function showMatches(resetPage) {
+                if (resetPage) {
+                    currentPage = 1;
+                }
+
+                const size = pageSize();
+                const pages = Math.max(1, Math.ceil(matchRows.length / size));
+                if (currentPage > pages) {
+                    currentPage = pages;
+                }
+                if (currentPage < 1) {
+                    currentPage = 1;
+                }
+                const start = (currentPage - 1) * size;
+
+                matchRows.forEach(function (row, index) {
+                    row.hidden = index < start || index >= start + size;
+                });
+
+                paintPager(currentPage, pages);
+            }
 
             function closeActionsMenu() {
                 actionsMenu.hidden = true;
@@ -370,6 +471,16 @@ $detalhes = [];
 
             window.addEventListener('resize', closeActionsMenu);
             window.addEventListener('scroll', closeActionsMenu, true);
+
+            pageSizeSelect.addEventListener('change', function () {
+                closeActionsMenu();
+                showMatches(true);
+            });
+            validateForm.addEventListener('submit', function () {
+                validateForm.querySelector('[name="pagina"]').value = String(currentPage);
+                validateForm.querySelector('[name="por_pagina"]').value = String(pageSize());
+            });
+            showMatches(false);
         });
     </script>
 <?php endif; ?>

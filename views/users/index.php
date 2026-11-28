@@ -166,6 +166,15 @@ $levelLabels = levelLabels();
         </table>
     </div>
 
+    <div class="user-list-footer">
+        <select id="users-page-size" class="users-page-size" aria-label="Usuários por página">
+            <option value="10" selected>Usuários por página 10</option>
+            <option value="20">Usuários por página 20</option>
+            <option value="50">Usuários por página 50</option>
+        </select>
+        <nav class="notice-pager" id="users-pager" aria-label="Paginação de usuários" hidden></nav>
+    </div>
+
     <div
         id="user-actions-menu"
         class="user-actions-menu"
@@ -193,6 +202,11 @@ $levelLabels = levelLabels();
             <?= csrfField() ?>
             <input type="hidden" name="id" id="user-role-id" value="">
             <input type="hidden" name="action" id="user-role-action" value="">
+            <input type="hidden" name="pagina" value="1">
+            <input type="hidden" name="por_pagina" value="10">
+            <input type="hidden" name="busca" value="">
+            <input type="hidden" name="lista_status" value="todos">
+            <input type="hidden" name="lista_permissao" value="todos">
             <button type="submit" class="user-actions-item" role="menuitem" id="user-role-button">
                 Tornar moderador
             </button>
@@ -206,6 +220,11 @@ $levelLabels = levelLabels();
             <?= csrfField() ?>
             <input type="hidden" name="id" id="user-status-id" value="">
             <input type="hidden" name="action" id="user-status-action" value="">
+            <input type="hidden" name="pagina" value="1">
+            <input type="hidden" name="por_pagina" value="10">
+            <input type="hidden" name="busca" value="">
+            <input type="hidden" name="lista_status" value="todos">
+            <input type="hidden" name="lista_permissao" value="todos">
             <button type="submit" class="user-actions-item" role="menuitem" id="user-status-button">
                 Desativar usuário
             </button>
@@ -299,6 +318,8 @@ $levelLabels = levelLabels();
             const searchInput = document.getElementById('user-search-input');
             const statusSelect = document.getElementById('user-status-select');
             const roleSelect = document.getElementById('user-role-select');
+            const pageSizeSelect = document.getElementById('users-page-size');
+            const usersPager = document.getElementById('users-pager');
             const tableBody = document.getElementById('users-table-body');
             const noResults = document.getElementById('users-no-results');
             const actionsMenu = document.getElementById('user-actions-menu');
@@ -311,18 +332,99 @@ $levelLabels = levelLabels();
             const statusButton = document.getElementById('user-status-button');
             const editLink = document.getElementById('user-edit-link');
 
-            if (!searchInput || !statusSelect || !roleSelect || !tableBody || !noResults || !actionsMenu || !detailsModal) {
+            if (!searchInput || !statusSelect || !roleSelect || !pageSizeSelect || !usersPager || !tableBody || !noResults || !actionsMenu || !detailsModal) {
                 return;
             }
 
             const userRows = Array.from(tableBody.querySelectorAll('tr[data-name]'));
+            const listParams = new URLSearchParams(window.location.search);
             let activeTrigger = null;
+            let currentPage = 1;
 
-            function filterUsers() {
+            const savedSize = listParams.get('por_pagina');
+            if (savedSize === '10' || savedSize === '20' || savedSize === '50') {
+                pageSizeSelect.value = savedSize;
+            }
+            const savedStatus = listParams.get('lista_status');
+            if (savedStatus === 'ativo' || savedStatus === 'pendente' || savedStatus === 'inativo') {
+                statusSelect.value = savedStatus;
+            }
+            const savedRole = listParams.get('lista_permissao');
+            if (savedRole === 'admin' || savedRole === 'moderator' || savedRole === 'member') {
+                roleSelect.value = savedRole;
+            }
+            const savedSearch = listParams.get('busca');
+            if (savedSearch) {
+                searchInput.value = savedSearch;
+            }
+            const savedPage = Number(listParams.get('pagina'));
+            if (Number.isInteger(savedPage) && savedPage > 0) {
+                currentPage = savedPage;
+            }
+
+            function pageSize() {
+                const value = Number(pageSizeSelect.value);
+                return value === 20 || value === 50 ? value : 10;
+            }
+
+            function paintPager(page, pages) {
+                usersPager.hidden = pages < 2;
+                usersPager.replaceChildren();
+                if (pages < 2) {
+                    return;
+                }
+
+                function addStep(label, picked, disabled) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.textContent = label;
+                    button.disabled = disabled;
+                    if (!disabled) {
+                        button.addEventListener('click', function () {
+                            currentPage = picked;
+                            closeActionsMenu();
+                            filterUsers(false);
+                        });
+                    }
+                    usersPager.appendChild(button);
+                }
+
+                addStep('Anterior', page - 1, page <= 1);
+
+                const status = document.createElement('span');
+                status.className = 'notice-pager-status';
+                status.append('Página');
+
+                const select = document.createElement('select');
+                select.setAttribute('aria-label', 'Página');
+                for (let number = 1; number <= pages; number += 1) {
+                    const option = document.createElement('option');
+                    option.value = String(number);
+                    option.textContent = String(number);
+                    option.selected = number === page;
+                    select.appendChild(option);
+                }
+                select.addEventListener('change', function () {
+                    currentPage = Number(select.value);
+                    closeActionsMenu();
+                    filterUsers(false);
+                });
+                status.appendChild(select);
+                status.append('de ' + pages);
+                usersPager.appendChild(status);
+
+                addStep('Próxima', page + 1, page >= pages);
+            }
+
+            function filterUsers(resetPage) {
+                if (resetPage) {
+                    currentPage = 1;
+                }
+
                 const search = searchInput.value.trim().toLocaleLowerCase('pt-BR');
                 const selectedStatus = statusSelect.value;
                 const selectedRole = roleSelect.value;
-                let visibleCount = 0;
+                const matched = [];
 
                 userRows.forEach(function (row) {
                     const name = (row.dataset.name || '').toLocaleLowerCase('pt-BR');
@@ -333,15 +435,28 @@ $levelLabels = levelLabels();
                     const matchesSearch = name.includes(search) || email.includes(search);
                     const matchesStatus = selectedStatus === 'todos' || status === selectedStatus;
                     const matchesRole = selectedRole === 'todos' || role === selectedRole;
-                    const visible = matchesSearch && matchesStatus && matchesRole;
-
-                    row.hidden = !visible;
-                    if (visible) {
-                        visibleCount++;
+                    if (matchesSearch && matchesStatus && matchesRole) {
+                        matched.push(row);
                     }
                 });
 
-                noResults.hidden = visibleCount > 0;
+                const size = pageSize();
+                const pages = Math.max(1, Math.ceil(matched.length / size));
+                if (currentPage > pages) {
+                    currentPage = pages;
+                }
+                if (currentPage < 1) {
+                    currentPage = 1;
+                }
+                const start = (currentPage - 1) * size;
+
+                userRows.forEach(function (row) {
+                    const index = matched.indexOf(row);
+                    row.hidden = index < 0 || index < start || index >= start + size;
+                });
+
+                noResults.hidden = matched.length > 0;
+                paintPager(currentPage, matched.length === 0 ? 1 : pages);
             }
 
             function closeActionsMenu() {
@@ -571,9 +686,42 @@ $levelLabels = levelLabels();
             window.addEventListener('resize', closeActionsMenu);
             window.addEventListener('scroll', closeActionsMenu, true);
 
-            searchInput.addEventListener('input', filterUsers);
-            statusSelect.addEventListener('change', filterUsers);
-            roleSelect.addEventListener('change', filterUsers);
+            searchInput.addEventListener('input', function () {
+                filterUsers(true);
+            });
+            statusSelect.addEventListener('change', function () {
+                filterUsers(true);
+            });
+            roleSelect.addEventListener('change', function () {
+                filterUsers(true);
+            });
+            pageSizeSelect.addEventListener('change', function () {
+                closeActionsMenu();
+                filterUsers(true);
+            });
+
+            function rememberListState(form) {
+                form.querySelector('[name="pagina"]').value = String(currentPage);
+                form.querySelector('[name="por_pagina"]').value = String(pageSize());
+                form.querySelector('[name="busca"]').value = searchInput.value;
+                form.querySelector('[name="lista_status"]').value = statusSelect.value;
+                form.querySelector('[name="lista_permissao"]').value = roleSelect.value;
+            }
+
+            const roleForm = document.getElementById('user-role-form');
+            const statusForm = document.getElementById('user-status-form');
+            if (roleForm) {
+                roleForm.addEventListener('submit', function () {
+                    rememberListState(roleForm);
+                });
+            }
+            if (statusForm) {
+                statusForm.addEventListener('submit', function () {
+                    rememberListState(statusForm);
+                });
+            }
+
+            filterUsers(false);
         });
     </script>
 

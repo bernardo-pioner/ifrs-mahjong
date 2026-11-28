@@ -152,7 +152,7 @@ final class MatchController extends Controller
         $user = $this->requireAuth();
         if (!ctype_digit($id) || (int) $id <= 0) {
             flash('error', 'Partida não encontrada.');
-            redirect('/partidas');
+            $this->redirectToMatches();
         }
 
         $confirmed = GameMatch::confirmParticipation((int) $id, (int) $user['id']);
@@ -162,7 +162,24 @@ final class MatchController extends Controller
             flash('error', 'Não foi possível validar esta partida.');
         }
 
-        redirect('/partidas');
+        $this->redirectToMatches();
+    }
+
+    private function redirectToMatches(): void
+    {
+        $params = [];
+
+        $page = request('pagina');
+        if (ctype_digit($page) && (int) $page > 0) {
+            $params['pagina'] = (string) min((int) $page, 10000);
+        }
+
+        $pageSize = request('por_pagina');
+        if (in_array($pageSize, ['10', '20', '50'], true)) {
+            $params['por_pagina'] = $pageSize;
+        }
+
+        redirect('/partidas' . ($params === [] ? '' : '?' . http_build_query($params)));
     }
 
     public function discard(string $eventoId): void
