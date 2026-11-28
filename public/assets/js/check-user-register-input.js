@@ -32,6 +32,7 @@ async function checkUserRegisterInput() {
   const username = document.getElementById("usernameInput").value;
   const email = document.getElementById("emailInput").value;
   const password = document.getElementById("passwordInput").value;
+  const passwordConfirm = document.getElementById("passwordConfirmInput").value;
 
   const usernameAvailabilityMessage = document.getElementById(
     "usernameAvailabilityMessage",
@@ -46,10 +47,15 @@ async function checkUserRegisterInput() {
   const emailInputErrorDiv = document.getElementById("emailErrorMessage");
   const passwordInputErrorTxt = document.getElementById("passwordErrorTxt");
   const passwordInputErrorDiv = document.getElementById("passwordErrorMessage");
+  const passwordConfirmErrorTxt = document.getElementById("passwordConfirmErrorTxt");
+  const passwordConfirmErrorDiv = document.getElementById(
+    "passwordConfirmErrorMessage",
+  );
 
   const isUsernameValid = checkUsernameInput(username);
   const isEmailValid = checkEmailInput(email);
   const isPasswordValid = checkPasswordInput(password);
+  const passwordsMatch = password === passwordConfirm;
 
   const isUsernameAvailable = isUsernameValid
     ? await checkUsernameAvailability(username)
@@ -84,10 +90,18 @@ async function checkUserRegisterInput() {
     setElementHidden(passwordInputErrorDiv, true);
   }
 
+  if (!passwordsMatch) {
+    passwordConfirmErrorTxt.textContent = "As senhas não combinam.";
+    setElementHidden(passwordConfirmErrorDiv, false);
+  } else {
+    setElementHidden(passwordConfirmErrorDiv, true);
+  }
+
   if (
     !isUsernameValid ||
     !isEmailValid ||
     !isPasswordValid ||
+    !passwordsMatch ||
     isUsernameAvailable !== true ||
     isEmailAvailable !== true
   ) {

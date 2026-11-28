@@ -39,7 +39,7 @@ body.is-guest .auth-card .auth-switch {
     color: var(--login-texto-suave);
 }
 
-body.is-guest .auth-card .form input {
+body.is-guest .auth-card .form input:not([type="checkbox"]) {
     background: var(--login-campo-fundo);
     border-color: var(--login-campo-borda);
     color: var(--login-texto);

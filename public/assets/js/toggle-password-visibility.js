@@ -1,6 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const passwordInput = document.getElementById("passwordInput");
-  const passwordToggler = document.getElementById("password-visibility-icon");
+  bindPasswordToggle("passwordInput", "password-visibility-icon");
+  bindPasswordToggle("passwordConfirmInput", "password-confirm-visibility-icon");
+});
+
+function bindPasswordToggle(inputId, iconId) {
+  const passwordInput = document.getElementById(inputId);
+  const passwordToggler = document.getElementById(iconId);
 
   if (!passwordInput || !passwordToggler) return;
 
@@ -37,4 +42,4 @@ document.addEventListener("DOMContentLoaded", () => {
       togglePasswordVisibility();
     }
   });
-});
+}

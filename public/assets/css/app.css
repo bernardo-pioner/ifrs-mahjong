@@ -574,6 +574,11 @@ body.is-guest .auth-card {
     margin: 0;
 }
 
+body.is-guest .auth-card.auth-card--register {
+    width: min(36.5rem, calc(100% - 2rem));
+    max-width: 36.5rem;
+}
+
 .page-head {
     text-align: center;
     margin-bottom: 1.75rem;
@@ -1329,15 +1334,15 @@ body.is-guest .lede {
     min-height: 7rem;
 }
 
-.mail-opt {
+.form label.mail-opt {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.65rem;
     margin: 0;
-    padding: 0.65rem 0.75rem;
-    background: rgba(246, 243, 235, 0.55);
-    border: 1px solid var(--line);
-    border-radius: 0.5rem;
+    padding: 0.15rem 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
     cursor: pointer;
 }
 
@@ -1353,6 +1358,16 @@ body.is-guest .lede {
 
 .mail-opt span {
     line-height: 1.35;
+}
+
+.auth-card--register .mail-opt span {
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .auth-card--register .mail-opt span {
+        white-space: normal;
+    }
 }
 
 .form input:not([type="checkbox"]):focus,
@@ -2195,16 +2210,19 @@ button.btn-delete-user svg {
     background-color: #f8dcdc;
 }
 
-#passwordInputDiv {
+#passwordInputDiv,
+.password-field {
     display: flex;
     position: relative;
 }
 
-#passwordInputDiv #passwordInput {
+#passwordInputDiv #passwordInput,
+.password-field input {
     padding-right: 2.5rem;
 }
 
-#password-visibility-icon {
+#password-visibility-icon,
+.password-visibility-icon {
     width: auto;
     height: 18px;
     right: 12px;
@@ -2217,7 +2235,9 @@ button.btn-delete-user svg {
 }
 
 #password-visibility-icon:hover,
-#password-visibility-icon:focus-visible {
+#password-visibility-icon:focus-visible,
+.password-visibility-icon:hover,
+.password-visibility-icon:focus-visible {
     opacity: 1;
 }
 

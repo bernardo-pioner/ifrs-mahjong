@@ -2,10 +2,11 @@
 /** @var string $username */
 /** @var string $email */
 /** @var bool $notifyEmails */
-/** @var bool $registerResponse */
+/** @var bool $passwordMismatch */
+/** @var bool|null $registerResponse */
 ?>
 
-<section class="auth-card">
+<section class="auth-card auth-card--register">
     <p class="eyebrow">Novo usuário</p>
     <h1>Criar cadastro</h1>
     <p class="lede">O cadastro libera o acesso ao painel do clube. O perfil de membro pode ser completado depois.
@@ -54,6 +55,17 @@
             <div id="passwordErrorMessage" class="hidden">
                 <img class="message-icon-img" src="/assets/img/yellow_attention_icon.png" alt="">
                 <span class="hint register-input-msg register-input-error" id="passwordErrorTxt"></span>
+            </div>
+        </label>
+        <label>
+            Confirmar senha
+            <div id="passwordConfirmInputDiv" class="password-field">
+                <input id="passwordConfirmInput" type="password" name="password_confirmation" minlength="8" maxlength="128" autocomplete="new-password" required>
+                <img id="password-confirm-visibility-icon" class="password-visibility-icon" src="/assets/img/login-eye-open.png" alt="Mostrar senha">
+            </div>
+            <div id="passwordConfirmErrorMessage" class="<?= $passwordMismatch ? '' : 'hidden' ?>">
+                <img class="message-icon-img" src="/assets/img/yellow_attention_icon.png" alt="">
+                <span class="hint register-input-msg register-input-error" id="passwordConfirmErrorTxt">As senhas não combinam.</span>
             </div>
         </label>
         <label class="mail-opt">

@@ -60,6 +60,7 @@ final class AuthController extends Controller
             'username' => '',
             'email' => '',
             'notifyEmails' => true,
+            'passwordMismatch' => false,
             'registerResponse' => null,
         ]);
     }
@@ -73,8 +74,24 @@ final class AuthController extends Controller
         $email = request('email');
         $password = $_POST['password'] ?? '';
         $password = is_string($password) ? $password : '';
-
+        $passwordConfirm = $_POST['password_confirmation'] ?? '';
+        $passwordConfirm = is_string($passwordConfirm) ? $passwordConfirm : '';
         $notifyEmails = isset($_POST['emails_notificacao']);
+
+        if (!hash_equals($password, $passwordConfirm)) {
+            $this->view('auth/register', [
+                'title' => 'Cadastro',
+                'user' => null,
+                'currentPath' => '/cadastro',
+                'username' => $username,
+                'email' => $email,
+                'notifyEmails' => $notifyEmails,
+                'passwordMismatch' => true,
+                'registerResponse' => null,
+            ]);
+            return;
+        }
+
         $registerResponse = User::register($username, $email, $password, $notifyEmails);
         if ($registerResponse === 'mail') {
             flash('error', 'Não foi possível enviar o e-mail de confirmação. Tente novamente.');
@@ -85,6 +102,7 @@ final class AuthController extends Controller
                 'username' => $username,
                 'email' => $email,
                 'notifyEmails' => $notifyEmails,
+                'passwordMismatch' => false,
                 'registerResponse' => null,
             ]);
             return;
@@ -98,6 +116,7 @@ final class AuthController extends Controller
                 'username' => $username,
                 'email' => $email,
                 'notifyEmails' => $notifyEmails,
+                'passwordMismatch' => false,
                 'registerResponse' => false,
             ]);
             return;
