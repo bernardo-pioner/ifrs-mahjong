@@ -131,6 +131,7 @@ final class User
         return count($rows) === 1 ? $rows[0] : null;
     }
 
+    public static function create(string $name, string $email, string $password, string $role = 'member'): int
     public static function emailExists(string $email): bool
     {
         $stmt = db()->prepare('SELECT id FROM usuarios WHERE email = :email LIMIT 1');
@@ -256,6 +257,21 @@ final class User
         $riichiCity = trim($riichiCity);
         $discord = trim($discord);
 
+        $name = trim($name);
+        $email = strtolower(trim($email));
+    
+        if ($name === '' || mb_strlen($name) < 2) {
+            $errors[] = 'Informe um nome com pelo menos 2 caracteres';
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { // Valida apenas formato de e-mail
+            $errors[] = 'Informe um e-mail válido';
+        }
+        
+        if (mb_strlen($password) < 8 || // mínimo de 8 caracteres
+            !preg_match('/[^a-zA-Z0-9]/', $password) || // verifica se NÃO tem caractere especial
+            !preg_match('/(?=.*\p{Ll})(?=.*\p{Lu})/u', $password)) { // verifica se tem pelo menos UMA maiúscula e UMA minúscula
+                $errors[] = 'A senha deve ter pelo menos 8 caracteres, incluindo um caractere especial, letras maiúsculas e minúsculas';
         if (!preg_match('/^[a-zA-Z0-9]{3,12}$/', $nickname)) {
             $errors[] = 'O apelido deve ter de 3 a 12 caracteres, apenas letras e números.';
         } elseif (
@@ -417,6 +433,13 @@ final class User
             return $errors;
         }
 
+        if (EmailService::emailExists($email)) {
+            return ['Este e-mail já está cadastrado. Faça login para acessar nossa plataforma!'];
+        }
+
+        $id = self::create($name, $email, $password);
+        EmailService::sendEmailConfirmationLink($email, $name);
+        AuthService::login($id);
         if (self::emailExistsForOtherUser($email, $id)) {
             return ['Este e-mail já está cadastrado para outro usuário.'];
         }
