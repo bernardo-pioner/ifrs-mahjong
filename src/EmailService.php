@@ -2,57 +2,101 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../vendor/autoload.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
-
-// Pressupõe que o Composer já foi carregado
-// pelo bootstrap da aplicação.
+use PHPMailer\PHPMailer\PHPMailer;
 
 final class EmailService
 {
     public static function emailExists(string $email): bool
     {
-        $stmt = db()->prepare(
-            'SELECT id FROM usuarios WHERE email = :email LIMIT 1'
-        );
-
-        $stmt->execute(['email' => $email]);
-
-        return (bool) $stmt->fetch();
+        return User::emailExists($email);
     }
 
-    public static function sendEmailConfirmationLink(
-        string $email,
-        string $name
-    ): bool {
+    public static function sendEmailConfirmationLink(string $email, string $name, string $link): bool
+    {
+        $safeName = htmlspecialchars($name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        return self::send(
+            $email,
+            $name,
+            'Confirme seu e-mail',
+            '<p>Olá, ' . $safeName . '.</p>'
+                . '<p>Confirme seu e-mail para entrar no clube. O link vale por 24 horas.</p>'
+                . '<p><a href="' . $safeLink . '">Confirmar e-mail</a></p>'
+                . '<p>Se você não criou esta conta, ignore esta mensagem.</p>',
+            "Olá, {$name}.\n\nConfirme seu e-mail para entrar no clube. O link vale por 24 horas.\n\n{$link}\n\nSe você não criou esta conta, ignore esta mensagem."
+        );
+    }
+
+    public static function sendNotification(string $email, string $name, string $text, string $link): bool
+    {
+        $text = trim($text);
+        $subject = $text;
+        if (mb_strlen($subject) > 120) {
+            $subject = mb_substr($subject, 0, 117) . '...';
+        }
+
+        $safeName = htmlspecialchars($name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $safeText = htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        return self::send(
+            $email,
+            $name,
+            $subject,
+            '<p>Olá, ' . $safeName . '.</p><p>' . $safeText . '</p><p><a href="' . $safeLink . '">Abrir na plataforma</a></p>',
+            "Olá, {$name}.\n\n{$text}\n\nAbrir na plataforma: {$link}"
+        );
+    }
+
+    private static function send(string $email, string $name, string $subject, string $html, string $plain): bool
+    {
+        if (!class_exists(PHPMailer::class)) {
+            error_log('Falha no envio de e-mail: PHPMailer não está instalado.');
+
+            return false;
+        }
+
+        $fromAddress = self::env('MAIL_FROM_ADDRESS');
+        $fromName = self::env('MAIL_FROM_NAME');
+        $username = self::env('SMTP_USERNAME');
+        $password = self::env('SMTP_PASSWORD');
+        $host = self::env('SMTP_HOST');
+        $port = (int) self::env('SMTP_PORT');
+        $encryption = strtolower(self::env('SMTP_ENCRYPTION'));
+
+        if ($fromAddress === '') {
+            $fromAddress = $username;
+        }
+        if ($fromName === '') {
+            $fromName = 'Clube de Mahjong POA';
+        }
+        if ($host === '' || $username === '' || $password === '' || $fromAddress === '' || $port <= 0) {
+            error_log('Falha no envio de e-mail: preencha o remetente do clube no arquivo .env.');
+
+            return false;
+        }
+
         $mail = new PHPMailer(true);
 
         try {
             $mail->isSMTP();
-            $mail->Host = 'smtp.gmail.com';
+            $mail->Host = $host;
             $mail->SMTPAuth = true;
-
-            $mail->Username = getenv('SMTP_USERNAME');
-            $mail->Password = getenv('SMTP_PASSWORD');
-
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-            $mail->Port = 465;
-
-            // Use o endereço autenticado como remetente.
-            $mail->setFrom(
-                getenv('SMTP_USERNAME'),
-                'Clube de Mahjong POA'
-            );
-
+            $mail->Username = $username;
+            $mail->Password = $password;
+            $mail->SMTPSecure = $encryption === 'tls'
+                ? PHPMailer::ENCRYPTION_STARTTLS
+                : PHPMailer::ENCRYPTION_SMTPS;
+            $mail->Port = $port;
+            $mail->CharSet = 'UTF-8';
+            $mail->setFrom($fromAddress, $fromName);
             $mail->addAddress($email, $name);
-
             $mail->isHTML(true);
-            $mail->Subject = 'Verifique seu e-mail';
-            $mail->Body = '<p>Olá, seja bem-vindo(a) ao clube!</p> <p>Estamos muito felizes com a sua inscrição. Clique no link abaixo para confirmar seu cadastro</p> <p>Link:</p>';
-            $mail->AltBody = 'Olá, seja bem-vindo(a) ao clube! Estamos muito felizes com a sua inscrição. Clique no link abaixo para confirmar seu cadastro Link:';
-
+            $mail->Subject = $subject;
+            $mail->Body = $html;
+            $mail->AltBody = $plain;
             $mail->send();
 
             return true;
@@ -61,5 +105,12 @@ final class EmailService
 
             return false;
         }
+    }
+
+    private static function env(string $name): string
+    {
+        $value = getenv($name);
+
+        return is_string($value) ? trim($value) : '';
     }
 }

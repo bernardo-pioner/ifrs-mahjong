@@ -1284,6 +1284,13 @@ body.is-guest .lede {
     color: var(--lacquer-dark);
 }
 
+.user-details-note {
+    margin: 0.85rem 0 0;
+    color: var(--gold);
+    font-size: 0.92rem;
+    overflow-wrap: normal;
+}
+
 .auth-card {
     max-width: 26rem;
     margin: 2rem auto 0;
@@ -1305,7 +1312,7 @@ body.is-guest .lede {
     font-size: 0.92rem;
 }
 
-.form input,
+.form input:not([type="checkbox"]),
 .form textarea,
 .form select {
     width: 100%;
@@ -1322,7 +1329,33 @@ body.is-guest .lede {
     min-height: 7rem;
 }
 
-.form input:focus,
+.mail-opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 0.65rem 0.75rem;
+    background: rgba(246, 243, 235, 0.55);
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
+
+.mail-opt input[type="checkbox"] {
+    width: 1.05rem;
+    height: 1.05rem;
+    min-width: 1.05rem;
+    margin: 0.15rem 0 0;
+    padding: 0;
+    accent-color: var(--brand-m);
+    box-shadow: none;
+}
+
+.mail-opt span {
+    line-height: 1.35;
+}
+
+.form input:not([type="checkbox"]):focus,
 .form textarea:focus,
 .form select:focus {
     outline: 2px solid var(--brand-m);

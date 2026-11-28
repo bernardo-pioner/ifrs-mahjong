@@ -1,0 +1,6 @@
+Para: mailcheck143956@example.com
+Assunto: Inscrição registrada
+
+Sua inscrição no torneio ghi foi registrada e aguarda aprovação.
+
+Ver evento: http://localhost:8081/eventos/7

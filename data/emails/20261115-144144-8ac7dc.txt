@@ -1,0 +1,10 @@
+Para: mailui15@example.com
+Assunto: Código para criar uma nova senha
+
+Olá, MailUi15.
+
+Use este código para criar uma nova senha. Ele vale por 30 minutos:
+
+880886
+
+Se você não pediu esta troca, ignore esta mensagem.

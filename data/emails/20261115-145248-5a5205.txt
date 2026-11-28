@@ -1,0 +1,10 @@
+Para: gbnunes2000@gmail.com
+Assunto: Confirme seu e-mail
+
+Olá, GabrielNunes.
+
+Confirme seu e-mail para entrar no clube. O link vale por 24 horas.
+
+Se você não criou esta conta, ignore esta mensagem.
+
+Confirmar e-mail: http://localhost/confirmar-email?token=b425c33d5613bb8f88d39e34d6e7c2bef9e77004efd75ea3c5208b78a2e7a7a8

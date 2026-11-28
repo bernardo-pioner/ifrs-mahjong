@@ -62,6 +62,7 @@ final class UserController extends Controller
             'mahjongSoul' => (string) ($user['mahjong_soul'] ?? ''),
             'riichiCity' => (string) ($user['riichi_city'] ?? ''),
             'discord' => (string) ($user['discord'] ?? ''),
+            'notifyEmails' => (int) ($user['notify_emails'] ?? 1) === 1,
             'memberSince' => formatMemberSince($user['created_at'] ?? null),
             'errors' => [],
         ]);
@@ -328,6 +329,7 @@ final class UserController extends Controller
         $mahjongSoul = request('mahjong_soul');
         $riichiCity = request('riichi_city');
         $discord = request('discord');
+        $notifyEmails = isset($_POST['emails_notificacao']);
         $errors = User::bioErrors(
             $nickname,
             $realName,
@@ -357,7 +359,8 @@ final class UserController extends Controller
                 $photo,
                 $mahjongSoul,
                 $riichiCity,
-                $discord
+                $discord,
+                $notifyEmails
             );
         }
 
@@ -372,6 +375,7 @@ final class UserController extends Controller
                 'mahjongSoul' => $mahjongSoul,
                 'riichiCity' => $riichiCity,
                 'discord' => $discord,
+                'notifyEmails' => $notifyEmails,
                 'memberSince' => formatMemberSince($user['created_at'] ?? null),
                 'errors' => $errors,
             ]);

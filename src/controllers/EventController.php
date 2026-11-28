@@ -171,6 +171,8 @@ final class EventController extends Controller
             flash('success', 'Evento criado com sucesso.');
         }
 
+        Notification::publishActive();
+
         redirect('/eventos');
     }
 

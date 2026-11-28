@@ -6,6 +6,14 @@ date_default_timezone_set('America/Sao_Paulo');
 
 const ROOT_PATH = __DIR__ . '/..';
 
+$autoload = ROOT_PATH . '/vendor/autoload.php';
+if (is_file($autoload)) {
+    require $autoload;
+    if (class_exists(Dotenv\Dotenv::class)) {
+        Dotenv\Dotenv::createUnsafeImmutable(ROOT_PATH)->safeLoad();
+    }
+}
+
 $config = require ROOT_PATH . '/config.php';
 
 function config(?string $key = null): mixed
@@ -163,7 +171,21 @@ function userDisplayName(?array $user): string
 
     $name = trim((string) ($user['name'] ?? ''));
 
-    return $name !== '' ? $name : 'Participante';
+        return $name !== '' ? $name : 'Participante';
+}
+
+function appBaseUrl(): string
+{
+    $configured = getenv('APP_URL');
+    if (is_string($configured) && trim($configured) !== '') {
+        return rtrim(trim($configured), '/');
+    }
+
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    $host = trim((string) ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+
+    return ($https ? 'https' : 'http') . '://' . $host;
 }
 
 function userPhotoUrl(?array $user): ?string

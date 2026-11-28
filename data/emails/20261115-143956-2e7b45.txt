@@ -1,0 +1,10 @@
+Para: mailcheck143956@example.com
+Assunto: Confirme seu e-mail
+
+Olá, mc3956.
+
+Confirme seu e-mail para entrar no clube. O link vale por 24 horas.
+
+Se você não criou esta conta, ignore esta mensagem.
+
+Confirmar e-mail: http://localhost:8081/confirmar-email?token=6faad2a1efc8179762619352a7b8d2c5b2b74508c4b30e7abcac1780ab401383

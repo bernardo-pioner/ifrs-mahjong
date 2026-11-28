@@ -31,6 +31,7 @@ $levelLabels = levelLabels();
             <select id="user-status-select">
                 <option value="todos">Todos</option>
                 <option value="ativo">Ativos</option>
+                <option value="pendente">Pendentes</option>
                 <option value="inativo">Inativos</option>
             </select>
         </div>
@@ -62,6 +63,18 @@ $levelLabels = levelLabels();
                     <?php
                     $isAdmin = ($row['role'] ?? '') === 'admin';
                     $isActive = (int) ($row['active'] ?? 0) === 1;
+                    $emailVerified = (int) ($row['email_verified'] ?? 0) === 1;
+                    $statusKey = $emailVerified ? ($isActive ? 'ativo' : 'inativo') : 'pendente';
+                    $statusLabel = match ($statusKey) {
+                        'pendente' => 'Pendente',
+                        'ativo' => 'Ativo',
+                        default => 'Inativo',
+                    };
+                    $statusClass = match ($statusKey) {
+                        'pendente' => 'is-pending',
+                        'ativo' => 'is-on',
+                        default => 'is-off',
+                    };
                     $username = (string) ($row['username'] ?? '');
                     $email = (string) ($row['email'] ?? '');
                     $name = trim((string) ($row['name'] ?? ''));
@@ -84,7 +97,7 @@ $levelLabels = levelLabels();
                     <tr
                         data-name="<?= e($username) ?>"
                         data-email="<?= e($email) ?>"
-                        data-status="<?= $isActive ? 'ativo' : 'inativo' ?>"
+                        data-status="<?= e($statusKey) ?>"
                         data-role="<?= $isAdmin ? 'admin' : 'participante' ?>"
                     >
                         <td>
@@ -104,8 +117,8 @@ $levelLabels = levelLabels();
                         <td><?= e($email) ?></td>
                         <td><?= $isAdmin ? 'Administrador' : 'Participante' ?></td>
                         <td>
-                            <span class="status <?= $isActive ? 'is-on' : 'is-off' ?>">
-                                <?= $isActive ? 'Ativo' : 'Inativo' ?>
+                            <span class="status <?= e($statusClass) ?>">
+                                <?= e($statusLabel) ?>
                             </span>
                         </td>
                         <td class="actions-column">
@@ -129,6 +142,7 @@ $levelLabels = levelLabels();
                                 data-photo="<?= e($photoUrl ?? '') ?>"
                                 data-role="<?= $isAdmin ? 'admin' : 'participante' ?>"
                                 data-status="<?= $isActive ? 'ativo' : 'inativo' ?>"
+                                data-email-verified="<?= $emailVerified ? '1' : '0' ?>"
                                 data-self="<?= $isSelf ? '1' : '0' ?>"
                             >
                                 <span class="user-actions-dots" aria-hidden="true"></span>
@@ -262,6 +276,10 @@ $levelLabels = levelLabels();
                     <p id="user-details-discord"></p>
                 </div>
             </div>
+
+            <p id="user-details-email-note" class="user-details-note" hidden>
+                Usuário ainda não confirmou o email.
+            </p>
 
             <div class="user-details-bio">
                 <span class="profile-label">Bio</span>
@@ -405,9 +423,11 @@ $levelLabels = levelLabels();
                 const realName = (trigger.dataset.realName || '').trim();
                 const photo = trigger.dataset.photo || '';
                 const isActive = trigger.dataset.status === 'ativo';
+                const emailPending = trigger.dataset.emailVerified === '0';
                 const photoImg = document.getElementById('user-details-photo');
                 const photoFallback = document.getElementById('user-details-photo-fallback');
                 const statusEl = document.getElementById('user-details-status');
+                const emailNote = document.getElementById('user-details-email-note');
                 const memberSinceEl = document.getElementById('user-details-member-since');
 
                 fillText('user-details-title', realName !== '' ? realName : nickname, 'Usuário');
@@ -432,8 +452,17 @@ $levelLabels = levelLabels();
                 );
 
                 if (statusEl) {
-                    statusEl.textContent = isActive ? 'Ativo' : 'Inativo';
-                    statusEl.className = 'status ' + (isActive ? 'is-on' : 'is-off');
+                    if (emailPending) {
+                        statusEl.textContent = 'Pendente';
+                        statusEl.className = 'status is-pending';
+                    } else {
+                        statusEl.textContent = isActive ? 'Ativo' : 'Inativo';
+                        statusEl.className = 'status ' + (isActive ? 'is-on' : 'is-off');
+                    }
+                }
+
+                if (emailNote) {
+                    emailNote.hidden = !emailPending;
                 }
 
                 fillText('user-details-level', trigger.dataset.level, 'Não informado');

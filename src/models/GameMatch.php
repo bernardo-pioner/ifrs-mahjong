@@ -198,16 +198,18 @@ final class GameMatch
                 }
             }
 
-            $titulo = $pdo->prepare('SELECT titulo FROM eventos WHERE id = :id');
-            $titulo->execute([':id' => $eventoId]);
+            $tituloStmt = $pdo->prepare('SELECT titulo FROM eventos WHERE id = :id');
+            $tituloStmt->execute([':id' => $eventoId]);
+            $titulo = (string) ($tituloStmt->fetchColumn() ?: '');
+
+            $pdo->commit();
+
             Notification::notifyMatchValidation(
                 $partidaId,
                 $selecionados,
-                (string) ($titulo->fetchColumn() ?: ''),
+                $titulo,
                 $now
             );
-
-            $pdo->commit();
         } catch (Throwable $exception) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();

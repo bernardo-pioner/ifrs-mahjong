@@ -22,8 +22,21 @@ final class AuthController extends Controller
 
         $email = request('email');
         $password = $_POST['password'] ?? '';
+        $password = is_string($password) ? $password : '';
+        $resultado = AuthService::attempt($email, $password);
 
-        if (!is_string($password) || !AuthService::attempt($email, $password)) {
+        if ($resultado === 'unverified') {
+            flash('error', 'Confirme seu e-mail para entrar. O link foi enviado no cadastro.');
+            $this->view('auth/login', [
+                'title' => 'Entrar',
+                'user' => null,
+                'currentPath' => '/login',
+                'email' => $email,
+            ]);
+            return;
+        }
+
+        if ($resultado !== 'ok') {
             flash('error', 'E-mail ou senha inválidos.');
             $this->view('auth/login', [
                 'title' => 'Entrar',
@@ -46,6 +59,7 @@ final class AuthController extends Controller
             'currentPath' => '/cadastro',
             'username' => '',
             'email' => '',
+            'notifyEmails' => true,
             'registerResponse' => null,
         ]);
     }
@@ -60,21 +74,51 @@ final class AuthController extends Controller
         $password = $_POST['password'] ?? '';
         $password = is_string($password) ? $password : '';
 
-        $registerResponse = User::register($username, $email, $password);
-        if (!$registerResponse) {
+        $notifyEmails = isset($_POST['emails_notificacao']);
+        $registerResponse = User::register($username, $email, $password, $notifyEmails);
+        if ($registerResponse === 'mail') {
+            flash('error', 'Não foi possível enviar o e-mail de confirmação. Tente novamente.');
             $this->view('auth/register', [
                 'title' => 'Cadastro',
                 'user' => null,
                 'currentPath' => '/cadastro',
-                'username' => '',
-                'email' => '',
-                'registerResponse' => $registerResponse,
+                'username' => $username,
+                'email' => $email,
+                'notifyEmails' => $notifyEmails,
+                'registerResponse' => null,
             ]);
             return;
         }
 
-        flash('success', 'Cadastro concluído. Bem-vindo ao clube.');
-        redirect('/');
+        if ($registerResponse !== true) {
+            $this->view('auth/register', [
+                'title' => 'Cadastro',
+                'user' => null,
+                'currentPath' => '/cadastro',
+                'username' => $username,
+                'email' => $email,
+                'notifyEmails' => $notifyEmails,
+                'registerResponse' => false,
+            ]);
+            return;
+        }
+
+        flash('success', 'Cadastro feito. Enviamos um link de confirmação para o seu e-mail. Confirme para entrar.');
+        redirect('/login');
+    }
+
+    public function confirmEmail(): void
+    {
+        $resultado = EmailCode::consumeVerificationToken(request('token'));
+        if ($resultado === 'ok') {
+            flash('success', 'E-mail confirmado. Agora você pode entrar.');
+        } elseif ($resultado === 'already') {
+            flash('success', 'Este e-mail já estava confirmado. Você pode entrar.');
+        } else {
+            flash('error', 'O link de confirmação é inválido ou expirou.');
+        }
+
+        redirect('/login');
     }
 
     public function logout(): void

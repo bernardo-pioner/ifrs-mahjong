@@ -192,6 +192,48 @@ function applyCompatibleSchemaUpdates(PDO $pdo): bool
     }
 
     $usuarios = tableColumns($pdo, 'usuarios');
+    if ($usuarios !== null && !isset($usuarios['email_verificado'])) {
+        $pdo->exec(
+            'ALTER TABLE usuarios
+             ADD COLUMN email_verificado INTEGER NOT NULL DEFAULT 0
+             CHECK (email_verificado IN (0, 1))'
+        );
+        $usuarios['email_verificado'] = true;
+        $changed = true;
+    }
+
+    if ($usuarios !== null && !isset($usuarios['emails_notificacao'])) {
+        $pdo->exec(
+            'ALTER TABLE usuarios
+             ADD COLUMN emails_notificacao INTEGER NOT NULL DEFAULT 1
+             CHECK (emails_notificacao IN (0, 1))'
+        );
+        $usuarios['emails_notificacao'] = true;
+        $changed = true;
+    }
+
+    if (tableColumns($pdo, 'codigos_email') === null) {
+        $pdo->exec(
+            "CREATE TABLE codigos_email (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL,
+                finalidade TEXT NOT NULL CHECK (finalidade IN ('verificar_email', 'redefinir_senha')),
+                codigo_hash TEXT NOT NULL,
+                tentativas INTEGER NOT NULL DEFAULT 0,
+                expira_em TEXT NOT NULL,
+                usado_em TEXT,
+                criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+            )"
+        );
+        $pdo->exec(
+            'CREATE INDEX IF NOT EXISTS idx_codigos_email_usuario
+             ON codigos_email(usuario_id, finalidade)'
+        );
+        $pdo->exec('UPDATE usuarios SET email_verificado = 1');
+        $changed = true;
+    }
+
     if ($usuarios !== null && !isset($usuarios['apelido'])) {
         $pdo->exec('ALTER TABLE usuarios ADD COLUMN apelido TEXT');
         backfillUsuarioApelidos($pdo);

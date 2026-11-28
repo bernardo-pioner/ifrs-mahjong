@@ -6,6 +6,7 @@
 /** @var string $mahjongSoul */
 /** @var string $riichiCity */
 /** @var string $discord */
+/** @var bool $notifyEmails */
 /** @var string $memberSince */
 /** @var list<string> $errors */
 $photoUrl = userPhotoUrl($user);
@@ -123,6 +124,10 @@ $photoUrl = userPhotoUrl($user);
                 maxlength="40"
                 autocomplete="off"
             >
+        </label>
+        <label class="mail-opt">
+            <input type="checkbox" name="emails_notificacao" value="1" <?= $notifyEmails ? 'checked' : '' ?>>
+            <span>Quero receber por e-mail as notificações da plataforma.</span>
         </label>
         <button type="submit" class="button">Salvar perfil</button>
         <button type="button" class="button button-secondary" id="bio-cancelar">Cancelar</button>

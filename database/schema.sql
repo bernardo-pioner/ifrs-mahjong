@@ -18,9 +18,25 @@ CREATE TABLE IF NOT EXISTS usuarios (
     senha_hash TEXT NOT NULL,
     ativo INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
     email_verificado INTEGER NOT NULL DEFAULT 0 CHECK (email_verificado IN (0, 1)),
+    emails_notificacao INTEGER NOT NULL DEFAULT 1 CHECK (emails_notificacao IN (0, 1)),
     criado_em TEXT NOT NULL DEFAULT (datetime('now')),
     atualizado_em TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS codigos_email (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    finalidade TEXT NOT NULL CHECK (finalidade IN ('verificar_email', 'redefinir_senha')),
+    codigo_hash TEXT NOT NULL,
+    tentativas INTEGER NOT NULL DEFAULT 0,
+    expira_em TEXT NOT NULL,
+    usado_em TEXT,
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_codigos_email_usuario
+    ON codigos_email(usuario_id, finalidade);
 
 -- Admin (especialização de Usuário)
 CREATE TABLE IF NOT EXISTS admins (

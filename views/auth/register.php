@@ -1,6 +1,7 @@
 <?php
 /** @var string $username */
 /** @var string $email */
+/** @var bool $notifyEmails */
 /** @var bool $registerResponse */
 ?>
 
@@ -54,6 +55,10 @@
                 <img class="message-icon-img" src="/assets/img/yellow_attention_icon.png" alt="">
                 <span class="hint register-input-msg register-input-error" id="passwordErrorTxt"></span>
             </div>
+        </label>
+        <label class="mail-opt">
+            <input type="checkbox" name="emails_notificacao" value="1" <?= $notifyEmails ? 'checked' : '' ?>>
+            <span>Quero receber por e-mail as notificações da plataforma.</span>
         </label>
         <button id="submitRegisterButton" type="button" class="button">Cadastrar</button>
     </form>

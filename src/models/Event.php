@@ -610,6 +610,10 @@ final class Event
 
             $pdo->commit();
 
+            if ($status === 'pendente') {
+                Notification::publishAdmins();
+            }
+
             return ['ok' => true, 'error' => null];
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
@@ -834,6 +838,10 @@ public static function upsertPaymentProof(
             }
 
             $pdo->commit();
+
+            if (in_array($status, ['aprovado', 'cancelado'], true) && ($participation['status'] ?? '') !== $status) {
+                Notification::notifyRegistrationStatus($eventoId, $participanteId, $status);
+            }
 
             return ['ok' => true, 'error' => null];
         } catch (Throwable $e) {

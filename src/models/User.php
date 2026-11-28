@@ -12,6 +12,7 @@ final class User
                     u.nome AS name,
                     u.email,
                     u.ativo AS active,
+                    u.emails_notificacao AS notify_emails,
                     u.criado_em AS created_at,
                     p.apelido AS nickname,
                     p.bio,
@@ -41,6 +42,7 @@ final class User
                     u.nome AS name,
                     u.email,
                     u.ativo AS active,
+                    u.email_verificado AS email_verified,
                     u.criado_em AS created_at,
                     p.apelido AS nickname,
                     p.bio,
@@ -67,6 +69,7 @@ final class User
                     u.nome AS name,
                     u.email,
                     u.ativo AS active,
+                    u.emails_notificacao AS notify_emails,
                     u.criado_em AS created_at,
                     p.apelido AS nickname,
                     p.bio,
@@ -96,7 +99,8 @@ final class User
         }
 
         $stmt = db()->prepare(
-            'SELECT id, senha_hash AS password_hash, ativo AS active
+            'SELECT id, senha_hash AS password_hash, ativo AS active,
+                    email_verificado AS email_verified
              FROM usuarios
              WHERE email = :email
              LIMIT 1'
@@ -120,7 +124,8 @@ final class User
         }
 
         $stmt = db()->prepare(
-            'SELECT id, senha_hash AS password_hash, ativo AS active
+            'SELECT id, senha_hash AS password_hash, ativo AS active,
+                    email_verificado AS email_verified
              FROM usuarios
              WHERE apelido = :apelido COLLATE NOCASE
              LIMIT 2'
@@ -131,7 +136,6 @@ final class User
         return count($rows) === 1 ? $rows[0] : null;
     }
 
-    public static function create(string $name, string $email, string $password, string $role = 'member'): int
     public static function emailExists(string $email): bool
     {
         $stmt = db()->prepare('SELECT id FROM usuarios WHERE email = :email LIMIT 1');
@@ -167,20 +171,27 @@ final class User
         return (bool) $stmt->fetch();
     }
 
-    public static function create(string $username, string $email, string $password, string $role = 'member'): int
+    public static function create(
+        string $username,
+        string $email,
+        string $password,
+        string $role = 'member',
+        bool $notifyEmails = true
+    ): int
     {
         $pdo = db();
         $pdo->beginTransaction();
 
         try {
             $stmt = $pdo->prepare(
-                'INSERT INTO usuarios (apelido, email, senha_hash, ativo)
-                 VALUES (:apelido, :email, :senha_hash, 1)'
+                'INSERT INTO usuarios (apelido, email, senha_hash, ativo, email_verificado, emails_notificacao)
+                 VALUES (:apelido, :email, :senha_hash, 1, 0, :emails)'
             );
             $stmt->execute([
                 'apelido' => $username,
                 'email' => $email,
                 'senha_hash' => password_hash($password, PASSWORD_DEFAULT),
+                'emails' => $notifyEmails ? 1 : 0,
             ]);
 
             $id = (int) $pdo->lastInsertId();
@@ -206,7 +217,13 @@ final class User
         }
     }
 
-    public static function register(string $username, string $email, string $password): bool
+    /** @return true|'mail'|false */
+    public static function register(
+        string $username,
+        string $email,
+        string $password,
+        bool $notifyEmails = true
+    ): bool|string
     {
         $username = trim($username);
         $email = strtolower(trim($email));
@@ -231,10 +248,35 @@ final class User
             return false;
         }
 
-        $id = self::create($username, $email, $password);
-        AuthService::login($id);
+        $id = self::create($username, $email, $password, 'member', $notifyEmails);
+        $token = EmailCode::issue($id, 'verificar_email');
+        $link = appBaseUrl() . '/confirmar-email?token=' . rawurlencode($token);
+        if (!EmailService::sendEmailConfirmationLink($email, $username, $link)) {
+            EmailCode::invalidate($id, 'verificar_email');
+            self::deleteAccount($id);
+
+            return 'mail';
+        }
+
+        Notification::publishAdmins();
 
         return true;
+    }
+
+    public static function markEmailVerified(int $id): void
+    {
+        $stmt = db()->prepare(
+            "UPDATE usuarios
+             SET email_verificado = 1, atualizado_em = datetime('now')
+             WHERE id = :id"
+        );
+        $stmt->execute(['id' => $id]);
+    }
+
+    private static function deleteAccount(int $id): void
+    {
+        $stmt = db()->prepare('DELETE FROM usuarios WHERE id = :id');
+        $stmt->execute(['id' => $id]);
     }
 
     /**
@@ -257,21 +299,6 @@ final class User
         $riichiCity = trim($riichiCity);
         $discord = trim($discord);
 
-        $name = trim($name);
-        $email = strtolower(trim($email));
-    
-        if ($name === '' || mb_strlen($name) < 2) {
-            $errors[] = 'Informe um nome com pelo menos 2 caracteres';
-        }
-
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { // Valida apenas formato de e-mail
-            $errors[] = 'Informe um e-mail válido';
-        }
-        
-        if (mb_strlen($password) < 8 || // mínimo de 8 caracteres
-            !preg_match('/[^a-zA-Z0-9]/', $password) || // verifica se NÃO tem caractere especial
-            !preg_match('/(?=.*\p{Ll})(?=.*\p{Lu})/u', $password)) { // verifica se tem pelo menos UMA maiúscula e UMA minúscula
-                $errors[] = 'A senha deve ter pelo menos 8 caracteres, incluindo um caractere especial, letras maiúsculas e minúsculas';
         if (!preg_match('/^[a-zA-Z0-9]{3,12}$/', $nickname)) {
             $errors[] = 'O apelido deve ter de 3 a 12 caracteres, apenas letras e números.';
         } elseif (
@@ -316,7 +343,8 @@ final class User
         ?string $photo,
         string $mahjongSoul,
         string $riichiCity,
-        string $discord
+        string $discord,
+        bool $notifyEmails
     ): array {
         $nickname = trim($nickname);
         $realName = trim($realName);
@@ -338,12 +366,14 @@ final class User
                 'UPDATE usuarios
                  SET apelido = :apelido,
                      nome = :nome,
+                     emails_notificacao = :emails,
                      atualizado_em = datetime(\'now\')
                  WHERE id = :id'
             );
             $userStmt->execute([
                 'apelido' => $nickname,
                 'nome' => $realName !== '' ? $realName : null,
+                'emails' => $notifyEmails ? 1 : 0,
                 'id' => $id,
             ]);
 
@@ -433,13 +463,6 @@ final class User
             return $errors;
         }
 
-        if (EmailService::emailExists($email)) {
-            return ['Este e-mail já está cadastrado. Faça login para acessar nossa plataforma!'];
-        }
-
-        $id = self::create($name, $email, $password);
-        EmailService::sendEmailConfirmationLink($email, $name);
-        AuthService::login($id);
         if (self::emailExistsForOtherUser($email, $id)) {
             return ['Este e-mail já está cadastrado para outro usuário.'];
         }

@@ -201,18 +201,113 @@ final class Notification
         );
 
         foreach ($items as $item) {
-            if ($item['at'] === '' || $item['chave'] === '') {
-                continue;
-            }
-            $stmt->execute([
-                ':usuario_id' => $userId,
-                ':chave' => $item['chave'],
-                ':tipo' => $item['tipo'],
-                ':texto' => $item['text'],
-                ':href' => $item['href'],
-                ':ocorrido_em' => $item['at'],
-            ]);
+            self::deliver($userId, $item, $stmt);
         }
+    }
+
+    public static function publish(int $userId): void
+    {
+        $user = User::findById($userId);
+        if ($user === null || (int) ($user['active'] ?? 0) !== 1) {
+            return;
+        }
+
+        self::sync($userId, self::sources($user), isAdmin($user));
+    }
+
+    public static function publishActive(): void
+    {
+        $ids = db()->query('SELECT id FROM usuarios WHERE ativo = 1')->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($ids as $id) {
+            self::publish((int) $id);
+        }
+    }
+
+    public static function publishAdmins(): void
+    {
+        $ids = db()->query(
+            'SELECT a.usuario_id
+             FROM admins a
+             INNER JOIN usuarios u ON u.id = a.usuario_id
+             WHERE u.ativo = 1'
+        )->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($ids as $id) {
+            self::publish((int) $id);
+        }
+    }
+
+    /**
+     * @param array{chave: string, tipo: string, text: string, href: string, at: string} $item
+     */
+    private static function deliver(int $userId, array $item, ?PDOStatement $stmt = null): void
+    {
+        if ($item['at'] === '' || $item['chave'] === '') {
+            return;
+        }
+
+        $stmt ??= db()->prepare(
+            'INSERT OR IGNORE INTO notificacoes (usuario_id, chave, tipo, texto, href, ocorrido_em)
+             VALUES (:usuario_id, :chave, :tipo, :texto, :href, :ocorrido_em)'
+        );
+        $stmt->execute([
+            ':usuario_id' => $userId,
+            ':chave' => $item['chave'],
+            ':tipo' => $item['tipo'],
+            ':texto' => $item['text'],
+            ':href' => $item['href'],
+            ':ocorrido_em' => $item['at'],
+        ]);
+        if ($stmt->rowCount() > 0) {
+            self::email($userId, $item);
+        }
+    }
+
+    /** @param array{chave: string, tipo: string, text: string, href: string, at: string} $item */
+    private static function email(int $userId, array $item): void
+    {
+        if (!self::recente((string) $item['at'])) {
+            return;
+        }
+
+        $user = User::findById($userId);
+        if ($user === null || (int) ($user['active'] ?? 0) !== 1) {
+            return;
+        }
+
+        $email = trim((string) ($user['email'] ?? ''));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        if ((int) ($user['notify_emails'] ?? 1) !== 1) {
+            return;
+        }
+
+        $href = (string) $item['href'];
+        if (!str_starts_with($href, '/')) {
+            $href = '/' . ltrim($href, '/');
+        }
+
+        EmailService::sendNotification(
+            $email,
+            userDisplayName($user),
+            (string) $item['text'],
+            appBaseUrl() . $href
+        );
+    }
+
+    private static function recente(string $at): bool
+    {
+        $quando = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', substr($at, 0, 19));
+        if ($quando === false) {
+            try {
+                $quando = new DateTimeImmutable($at);
+            } catch (Exception) {
+                return false;
+            }
+        }
+
+        return $quando >= new DateTimeImmutable('-12 hours');
     }
 
     /** @return list<array{chave: string, tipo: string, text: string, href: string, at: string}> */
@@ -365,22 +460,40 @@ final class Notification
             return;
         }
 
-        $stmt = db()->prepare(
-            "INSERT OR IGNORE INTO notificacoes
-                (usuario_id, chave, tipo, texto, href, ocorrido_em)
-             VALUES
-                (:usuario_id, :chave, 'partida', :texto, '/partidas', :ocorrido_em)"
-        );
         $texto = self::textoValidacaoPartida($evento);
-        $chave = 'validar-partida:' . $partidaId;
+        $item = [
+            'chave' => 'validar-partida:' . $partidaId,
+            'tipo' => 'partida',
+            'text' => $texto,
+            'href' => '/partidas',
+            'at' => $at,
+        ];
         foreach ($userIds as $userId) {
-            $stmt->execute([
-                ':usuario_id' => $userId,
-                ':chave' => $chave,
-                ':texto' => $texto,
-                ':ocorrido_em' => $at,
-            ]);
+            self::deliver($userId, $item);
         }
+    }
+
+    public static function notifyRegistrationStatus(int $eventoId, int $participanteId, string $status): void
+    {
+        if (!in_array($status, ['aprovado', 'cancelado'], true) || $eventoId <= 0 || $participanteId <= 0) {
+            return;
+        }
+
+        $stmt = db()->prepare('SELECT titulo, tipo FROM eventos WHERE id = :id');
+        $stmt->execute([':id' => $eventoId]);
+        $evento = $stmt->fetch();
+        if (!$evento) {
+            return;
+        }
+
+        $resultado = $status === 'aprovado' ? 'aprovada' : 'reprovada';
+        self::deliver($participanteId, [
+            'chave' => 'inscricao:' . $eventoId . ':' . $status,
+            'tipo' => 'inscricao',
+            'text' => 'Sua inscrição ' . self::comArtigo((string) $evento['tipo']) . ' ' . (string) $evento['titulo'] . ' foi ' . $resultado . '.',
+            'href' => '/eventos/' . $eventoId,
+            'at' => date('Y-m-d H:i:s'),
+        ]);
     }
 
     /** @return list<array{chave: string, tipo: string, text: string, href: string, at: string}> */

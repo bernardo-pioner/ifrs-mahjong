@@ -1,0 +1,10 @@
+Para: mailcheck143956@example.com
+Assunto: Código para criar uma nova senha
+
+Olá, mc3956.
+
+Use este código para criar uma nova senha. Ele vale por 30 minutos:
+
+372385
+
+Se você não pediu esta troca, ignore esta mensagem.

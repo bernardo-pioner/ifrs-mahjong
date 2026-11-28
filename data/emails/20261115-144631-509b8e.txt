@@ -1,0 +1,10 @@
+Para: mailui16@example.com
+Assunto: Confirme seu e-mail
+
+Olá, MailUi16.
+
+Confirme seu e-mail para entrar no clube. O link vale por 24 horas.
+
+Se você não criou esta conta, ignore esta mensagem.
+
+Confirmar e-mail: http://localhost:8081/confirmar-email?token=f70bd10cb185e5f5466913eb7ffb86e5151b433dc073d863692bd273f1132f1f

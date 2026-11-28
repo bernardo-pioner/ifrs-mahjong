@@ -31,16 +31,21 @@ final class AuthService
         }
     }
 
-    public static function attempt(string $email, string $password): bool
+    /** @return 'ok'|'invalid'|'unverified' */
+    public static function attempt(string $email, string $password): string
     {
         $user = User::findByLogin($email);
         if ($user === null || !(int) $user['active'] || !password_verify($password, $user['password_hash'])) {
-            return false;
+            return 'invalid';
+        }
+
+        if (!(int) ($user['email_verified'] ?? 0)) {
+            return 'unverified';
         }
 
         self::login((int) $user['id']);
 
-        return true;
+        return 'ok';
     }
 
     public static function login(int $userId): void

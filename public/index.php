@@ -2,21 +2,14 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/src/bootstrap.php';
-require dirname(__DIR__) . '/vendor/autoload.php';
-
-// Configuração para uso da função "getenv()" para ler variáveis de arquivos .env
-
-// Use createUnsafeImmutable to force loading into getenv() and putenv()
-$dotenv = Dotenv\Dotenv::createUnsafeImmutable(dirname(__DIR__));
-$dotenv->load();
-
 if (php_sapi_name() === 'cli-server') {
     $file = __DIR__ . parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
     if (is_file($file)) {
         return false;
     }
 }
+
+require dirname(__DIR__) . '/src/bootstrap.php';
 
 $auth = new AuthController();
 $dashboard = new DashboardController();
@@ -32,6 +25,7 @@ $router->get('/login', [$auth, 'showLogin']);
 $router->post('/login', [$auth, 'login']);
 $router->get('/cadastro', [$auth, 'showRegister']);
 $router->post('/cadastro', [$auth, 'register']);
+$router->get('/confirmar-email', [$auth, 'confirmEmail']);
 $router->post('/logout', [$auth, 'logout']);
 $router->get('/username-disponivel', [$auth, 'checkUsernameAvailability']);
 $router->get('/email-disponivel', [$auth, 'checkEmailAvailability']);
