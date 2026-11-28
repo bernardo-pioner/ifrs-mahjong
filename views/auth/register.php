@@ -79,4 +79,4 @@
 </section>
 
 <script type="module" src="/assets/js/check-user-register-input.js"></script>
-<script type="module" src="/assets/js/toggle-password-visibility.js"></script>
+<script type="module" src="/assets/js/toggle-password-visibility.js?v=<?= (int) @filemtime(ROOT_PATH . '/public/assets/js/toggle-password-visibility.js') ?>"></script>

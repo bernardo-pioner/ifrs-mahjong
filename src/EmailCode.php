@@ -11,21 +11,33 @@ final class EmailCode
 
     public static function tooSoon(int $userId, string $finalidade): bool
     {
+        return self::secondsUntilRetry($userId, $finalidade) > 0;
+    }
+
+    public static function secondsUntilRetry(int $userId, string $finalidade): int
+    {
         $stmt = db()->prepare(
-            "SELECT 1
+            "SELECT CAST(
+                    (julianday(criado_em, '+60 seconds') - julianday('now')) * 86400 + 0.999
+                AS INTEGER)
              FROM codigos_email
              WHERE usuario_id = :usuario_id
                AND finalidade = :finalidade
                AND usado_em IS NULL
                AND criado_em >= datetime('now', '-60 seconds')
+             ORDER BY id DESC
              LIMIT 1"
         );
         $stmt->execute([
             'usuario_id' => $userId,
             'finalidade' => $finalidade,
         ]);
+        $remaining = $stmt->fetchColumn();
+        if ($remaining === false || $remaining === null) {
+            return 0;
+        }
 
-        return (bool) $stmt->fetchColumn();
+        return max(0, (int) $remaining);
     }
 
     public static function issue(int $userId, string $finalidade): string
@@ -77,7 +89,7 @@ final class EmailCode
         ]);
     }
 
-    /** @return 'ok'|'invalid' */
+    /** @return 'ok'|'invalid'|'locked' */
     public static function consumePasswordCode(int $userId, string $code): string
     {
         $code = preg_replace('/\s+/', '', $code) ?? '';
@@ -111,7 +123,7 @@ final class EmailCode
                 'id' => (int) $row['id'],
             ]);
 
-            return 'invalid';
+            return $tentativas >= self::MAX_TENTATIVAS ? 'locked' : 'invalid';
         }
 
         self::markUsed((int) $row['id']);

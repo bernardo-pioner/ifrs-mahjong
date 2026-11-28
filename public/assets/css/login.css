@@ -55,6 +55,27 @@ body.is-guest .auth-card .button {
     color: var(--login-botao-texto);
 }
 
+body.is-guest .auth-card .button.button-resend {
+    background: #fff;
+    color: var(--login-texto);
+    border: 1px solid var(--login-campo-borda);
+    box-shadow: none;
+}
+
+body.is-guest .auth-card .button.button-resend:hover:not(:disabled) {
+    background: var(--paper);
+}
+
+body.is-guest .auth-card .button.button-resend:disabled,
+body.is-guest .auth-card .button.button-resend:disabled:hover {
+    background: #fff;
+    color: var(--login-texto);
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 body.is-guest .auth-card .button:hover {
     background: linear-gradient(180deg, var(--login-botao-hover-topo) 0%, var(--login-botao-hover) 100%);
 }

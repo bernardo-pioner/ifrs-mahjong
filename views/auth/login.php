@@ -22,7 +22,8 @@
         <button type="submit" class="button">Entrar</button>
     </form>
 
+    <p class="auth-switch"><a href="/esqueci-senha">Esqueci minha senha</a></p>
     <p class="auth-switch">Ainda não tem conta? <a href="/cadastro">Cadastre-se</a></p>
 </section>
 
-<script type="module" src="/assets/js/toggle-password-visibility.js"></script>
+<script type="module" src="/assets/js/toggle-password-visibility.js?v=<?= (int) @filemtime(ROOT_PATH . '/public/assets/js/toggle-password-visibility.js') ?>"></script>

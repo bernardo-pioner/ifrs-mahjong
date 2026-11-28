@@ -26,6 +26,8 @@ $router->post('/login', [$auth, 'login']);
 $router->get('/cadastro', [$auth, 'showRegister']);
 $router->post('/cadastro', [$auth, 'register']);
 $router->get('/confirmar-email', [$auth, 'confirmEmail']);
+$router->get('/esqueci-senha', [$auth, 'showForgotPassword']);
+$router->post('/esqueci-senha', [$auth, 'forgotPassword']);
 $router->post('/logout', [$auth, 'logout']);
 $router->get('/username-disponivel', [$auth, 'checkUsernameAvailability']);
 $router->get('/email-disponivel', [$auth, 'checkEmailAvailability']);

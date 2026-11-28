@@ -579,6 +579,11 @@ body.is-guest .auth-card.auth-card--register {
     max-width: 36.5rem;
 }
 
+body.is-guest .auth-card.auth-card--forgot {
+    width: min(32rem, calc(100% - 2rem));
+    max-width: 32rem;
+}
+
 .page-head {
     text-align: center;
     margin-bottom: 1.75rem;
@@ -1519,6 +1524,57 @@ body.is-guest .lede {
     color: var(--ink-soft);
 }
 
+.auth-switch + .auth-switch {
+    margin-top: 0.45rem;
+}
+
+.pin-boxes {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.45rem;
+}
+
+.pin-boxes input {
+    width: 100%;
+    min-width: 0;
+    padding: 0.7rem 0;
+    text-align: center;
+    font-size: 1.35rem;
+    font-weight: 650;
+}
+
+.auth-card .button.button-resend {
+    background: #fff;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    box-shadow: none;
+}
+
+.auth-card .button.button-resend:hover:not(:disabled) {
+    background: var(--paper);
+}
+
+.auth-card .button.button-resend:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.link-button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--brand-m);
+    font: inherit;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.link-button:hover {
+    text-decoration: underline;
+}
+
 .auth-switch a,
 .page-head a {
     color: var(--brand-m);
@@ -2218,17 +2274,27 @@ button.btn-delete-user svg {
 
 #passwordInputDiv #passwordInput,
 .password-field input {
-    padding-right: 2.5rem;
+    padding-right: 2.75rem;
+}
+
+#passwordInputDiv input::-ms-reveal,
+#passwordInputDiv input::-ms-clear,
+.password-field input::-ms-reveal,
+.password-field input::-ms-clear {
+    display: none;
 }
 
 #password-visibility-icon,
 .password-visibility-icon {
-    width: auto;
-    height: 18px;
-    right: 12px;
+    z-index: 2;
+    width: 2.75rem;
+    height: 100%;
+    right: 0;
     position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 0;
+    padding: 0.7rem;
+    box-sizing: border-box;
+    object-fit: contain;
     cursor: pointer;
     opacity: 0.7;
     transition: opacity 0.15s ease;

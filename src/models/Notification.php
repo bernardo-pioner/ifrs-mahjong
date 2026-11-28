@@ -191,6 +191,8 @@ final class Notification
             self::dismissApprovedPending();
         }
 
+        self::collapseSeriesNotices();
+
         if ($items === []) {
             return;
         }
@@ -370,19 +372,8 @@ final class Notification
             ];
         }
 
-        $eventos = db()->query(
-            'SELECT id, titulo, tipo, criado_em
-             FROM eventos
-             ORDER BY criado_em DESC, id DESC'
-        );
-        foreach ($eventos->fetchAll() as $row) {
-            $items[] = [
-                'chave' => 'evento:' . (int) $row['id'],
-                'tipo' => 'evento',
-                'text' => self::rotuloNovo((string) $row['tipo']) . ': ' . (string) $row['titulo'] . '.',
-                'href' => '/eventos/' . (int) $row['id'],
-                'at' => (string) ($row['criado_em'] ?? ''),
-            ];
+        foreach (self::avisosDeEventos(false) as $item) {
+            $items[] = $item;
         }
 
         return $items;
@@ -429,19 +420,8 @@ final class Notification
             ];
         }
 
-        $eventos = db()->query(
-            'SELECT id, titulo, criado_em
-             FROM eventos
-             ORDER BY criado_em DESC, id DESC'
-        );
-        foreach ($eventos->fetchAll() as $row) {
-            $items[] = [
-                'chave' => 'evento:' . (int) $row['id'],
-                'tipo' => 'evento',
-                'text' => 'Evento criado: ' . (string) $row['titulo'] . '.',
-                'href' => '/eventos/' . (int) $row['id'],
-                'at' => (string) ($row['criado_em'] ?? ''),
-            ];
+        foreach (self::avisosDeEventos(true) as $item) {
+            $items[] = $item;
         }
 
         return $items;
@@ -555,6 +535,86 @@ final class Notification
             'encontro' => 'no encontro',
             default => 'no evento',
         };
+    }
+
+    /**
+     * Uma série recorrente vira um único aviso, no primeiro encontro.
+     * @return list<array{chave: string, tipo: string, text: string, href: string, at: string}>
+     */
+    private static function avisosDeEventos(bool $admin): array
+    {
+        $eventos = db()->query(
+            'SELECT id, titulo, tipo, criado_em, serie_id
+             FROM eventos
+             WHERE serie_id IS NULL OR id = serie_id
+             ORDER BY criado_em DESC, id DESC'
+        );
+
+        $items = [];
+        foreach ($eventos->fetchAll() as $row) {
+            $recorrente = $row['serie_id'] !== null && (int) $row['serie_id'] > 0;
+            $titulo = (string) $row['titulo'];
+            $items[] = [
+                'chave' => 'evento:' . (int) $row['id'],
+                'tipo' => 'evento',
+                'text' => self::textoNovoEvento((string) $row['tipo'], $titulo, $recorrente, $admin),
+                'href' => '/eventos/' . (int) $row['id'],
+                'at' => (string) ($row['criado_em'] ?? ''),
+            ];
+        }
+
+        return $items;
+    }
+
+    private static function textoNovoEvento(string $tipo, string $titulo, bool $recorrente, bool $admin): string
+    {
+        if ($admin) {
+            return $recorrente
+                ? 'Evento com recorrência criado: ' . $titulo . '.'
+                : 'Evento criado: ' . $titulo . '.';
+        }
+
+        $rotulo = self::rotuloNovo($tipo);
+
+        return $recorrente
+            ? $rotulo . ' com recorrência: ' . $titulo . '.'
+            : $rotulo . ': ' . $titulo . '.';
+    }
+
+    /** Remove avisos das datas seguintes e ajusta o texto do primeiro encontro. */
+    private static function collapseSeriesNotices(): void
+    {
+        db()->exec(
+            "DELETE FROM notificacoes
+             WHERE chave IN (
+                 SELECT 'evento:' || e.id
+                 FROM eventos e
+                 WHERE e.serie_id IS NOT NULL
+                   AND e.id <> e.serie_id
+             )"
+        );
+
+        $stmt = db()->query(
+            "SELECT n.id, n.texto, e.titulo, e.tipo
+             FROM notificacoes n
+             INNER JOIN eventos e ON n.chave = 'evento:' || e.id
+             WHERE e.serie_id IS NOT NULL
+               AND e.id = e.serie_id
+               AND n.texto NOT LIKE '%recorrência%'"
+        );
+        $update = db()->prepare('UPDATE notificacoes SET texto = :texto WHERE id = :id');
+        foreach ($stmt->fetchAll() as $row) {
+            $admin = str_starts_with((string) $row['texto'], 'Evento criado:');
+            $update->execute([
+                ':texto' => self::textoNovoEvento(
+                    (string) $row['tipo'],
+                    (string) $row['titulo'],
+                    true,
+                    $admin
+                ),
+                ':id' => (int) $row['id'],
+            ]);
+        }
     }
 
     private static function rotuloNovo(string $tipo): string

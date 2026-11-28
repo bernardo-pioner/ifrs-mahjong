@@ -195,4 +195,250 @@ final class AuthController extends Controller
         echo json_encode($resposta);
         exit; 
     }
+
+    public function showForgotPassword(): void
+    {
+        $this->guestOnly();
+        $this->view('auth/forgot-password', $this->forgotPasswordViewData());
+    }
+
+    public function forgotPassword(): void
+    {
+        $this->guestOnly();
+        verifyCsrf();
+
+        $action = request('acao');
+        if ($action === 'reenviar') {
+            $this->resendPasswordPin();
+            return;
+        }
+        if ($action === 'verificar') {
+            $this->verifyPasswordPin();
+            return;
+        }
+        if ($action === 'salvar') {
+            $this->saveNewPassword();
+            return;
+        }
+        if ($action === 'reiniciar') {
+            unset($_SESSION['password_reset']);
+            redirect('/esqueci-senha');
+        }
+
+        $this->requestPasswordPin();
+    }
+
+    private function requestPasswordPin(): void
+    {
+        $email = strtolower(request('email'));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->view('auth/forgot-password', $this->forgotPasswordViewData([
+                'step' => 'email',
+                'email' => $email,
+                'error' => 'O e-mail informado deve estar em um formato válido.',
+            ]));
+            return;
+        }
+
+        $account = User::findByEmail($email);
+        $user = $account !== null ? User::findById((int) $account['id']) : null;
+        if ($user === null || !(int) $user['active']) {
+            $this->view('auth/forgot-password', $this->forgotPasswordViewData([
+                'step' => 'email',
+                'email' => $email,
+                'error' => 'Não encontramos uma conta com esse e-mail.',
+            ]));
+            return;
+        }
+
+        $userId = (int) $user['id'];
+        $storedEmail = (string) $user['email'];
+        if (EmailCode::secondsUntilRetry($userId, 'redefinir_senha') === 0) {
+            $sent = ClubMail::codigoNovaSenha($userId);
+            if (!$sent) {
+                $this->view('auth/forgot-password', $this->forgotPasswordViewData([
+                    'step' => 'email',
+                    'email' => $email,
+                    'error' => 'Não foi possível enviar o e-mail. Tente novamente.',
+                ]));
+                return;
+            }
+        }
+
+        $this->rememberPasswordReset($userId, $storedEmail, 'pin');
+        redirect('/esqueci-senha');
+    }
+
+    private function resendPasswordPin(): void
+    {
+        $state = $this->passwordResetState();
+        if ($state === null || $state['step'] !== 'pin') {
+            redirect('/esqueci-senha');
+        }
+
+        $userId = (int) $state['user_id'];
+        $wait = EmailCode::secondsUntilRetry($userId, 'redefinir_senha');
+        if ($wait > 0) {
+            $this->view('auth/forgot-password', $this->forgotPasswordViewData([
+                'error' => 'Aguarde ' . $wait . ' segundos para reenviar o e-mail.',
+            ]));
+            return;
+        }
+
+        if (!ClubMail::codigoNovaSenha($userId)) {
+            $this->view('auth/forgot-password', $this->forgotPasswordViewData([
+                'error' => 'Não foi possível reenviar o e-mail. Tente novamente.',
+            ]));
+            return;
+        }
+
+        redirect('/esqueci-senha');
+    }
+
+    private function verifyPasswordPin(): void
+    {
+        $state = $this->passwordResetState();
+        if ($state === null || $state['step'] !== 'pin') {
+            redirect('/esqueci-senha');
+        }
+
+        $digits = $_POST['pin'] ?? [];
+        $code = '';
+        if (is_array($digits)) {
+            foreach ($digits as $digit) {
+                if (is_string($digit)) {
+                    $code .= $digit;
+                }
+            }
+        }
+        $code = preg_replace('/\D/', '', $code) ?? '';
+        if (!preg_match('/^\d{6}$/', $code)) {
+            $this->view('auth/forgot-password', $this->forgotPasswordViewData([
+                'error' => 'Digite os 6 números do PIN.',
+            ]));
+            return;
+        }
+
+        $result = EmailCode::consumePasswordCode((int) $state['user_id'], $code);
+        if ($result === 'locked') {
+            $this->view('auth/forgot-password', $this->forgotPasswordViewData([
+                'error' => 'Muitas tentativas. Reenvie o e-mail para receber outro PIN.',
+            ]));
+            return;
+        }
+        if ($result !== 'ok') {
+            $this->view('auth/forgot-password', $this->forgotPasswordViewData([
+                'error' => 'PIN incorreto ou expirado.',
+            ]));
+            return;
+        }
+
+        $this->rememberPasswordReset((int) $state['user_id'], (string) $state['email'], 'password');
+        redirect('/esqueci-senha');
+    }
+
+    private function saveNewPassword(): void
+    {
+        $state = $this->passwordResetState();
+        if ($state === null || $state['step'] !== 'password') {
+            redirect('/esqueci-senha');
+        }
+
+        $password = $_POST['password'] ?? '';
+        $password = is_string($password) ? $password : '';
+        $passwordConfirm = $_POST['password_confirmation'] ?? '';
+        $passwordConfirm = is_string($passwordConfirm) ? $passwordConfirm : '';
+
+        $passwordError = '';
+        $passwordConfirmError = '';
+        if (mb_strlen($password) < 8 || mb_strlen($password) > 128 || preg_match('/\d/', $password) !== 1) {
+            $passwordError = 'A senha deve ter no mínimo 8 caracteres e conter pelo menos um número';
+        }
+        if (!hash_equals($password, $passwordConfirm)) {
+            $passwordConfirmError = 'As senhas não combinam.';
+        }
+        if ($passwordError !== '' || $passwordConfirmError !== '') {
+            $this->view('auth/forgot-password', $this->forgotPasswordViewData([
+                'passwordError' => $passwordError,
+                'passwordConfirmError' => $passwordConfirmError,
+            ]));
+            return;
+        }
+
+        if (!User::updatePassword((int) $state['user_id'], $password)) {
+            $this->view('auth/forgot-password', $this->forgotPasswordViewData([
+                'error' => 'Não foi possível salvar a senha. Tente novamente.',
+            ]));
+            return;
+        }
+
+        unset($_SESSION['password_reset']);
+        session_regenerate_id(true);
+        flash('success', 'Senha atualizada. Entre com a nova senha.');
+        redirect('/login');
+    }
+
+    /** @param array<string, mixed> $overrides */
+    private function forgotPasswordViewData(array $overrides = []): array
+    {
+        $state = $this->passwordResetState();
+        $step = $state['step'] ?? 'email';
+        $email = (string) ($state['email'] ?? '');
+        $resendWait = 0;
+        if ($state !== null && $step === 'pin') {
+            $resendWait = EmailCode::secondsUntilRetry((int) $state['user_id'], 'redefinir_senha');
+        }
+
+        $data = [
+            'title' => 'Esqueci minha senha',
+            'user' => null,
+            'currentPath' => '/esqueci-senha',
+            'step' => $step,
+            'email' => $email,
+            'error' => '',
+            'resendWait' => $resendWait,
+            'passwordError' => '',
+            'passwordConfirmError' => '',
+        ];
+
+        return array_merge($data, $overrides);
+    }
+
+    /** @return array{user_id: int, email: string, step: string}|null */
+    private function passwordResetState(): ?array
+    {
+        $state = $_SESSION['password_reset'] ?? null;
+        if (!is_array($state)) {
+            return null;
+        }
+
+        $userId = (int) ($state['user_id'] ?? 0);
+        $email = (string) ($state['email'] ?? '');
+        $step = (string) ($state['step'] ?? '');
+        if ($userId <= 0 || !in_array($step, ['pin', 'password'], true) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            unset($_SESSION['password_reset']);
+            return null;
+        }
+
+        $user = User::findById($userId);
+        if ($user === null || !(int) $user['active'] || strcasecmp((string) $user['email'], $email) !== 0) {
+            unset($_SESSION['password_reset']);
+            return null;
+        }
+
+        return [
+            'user_id' => $userId,
+            'email' => (string) $user['email'],
+            'step' => $step,
+        ];
+    }
+
+    private function rememberPasswordReset(int $userId, string $email, string $step): void
+    {
+        $_SESSION['password_reset'] = [
+            'user_id' => $userId,
+            'email' => $email,
+            'step' => $step,
+        ];
+    }
 }

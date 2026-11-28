@@ -35,7 +35,16 @@ function bindPasswordToggle(inputId, iconId) {
     }
   };
 
-  passwordToggler.addEventListener("click", togglePasswordVisibility);
+  // O ícone fica dentro do <label>. Sem impedir o mousedown, o navegador
+  // foca o campo e engole o clique — sobretudo na confirmação da senha.
+  passwordToggler.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+  });
+  passwordToggler.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    togglePasswordVisibility();
+  });
   passwordToggler.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();

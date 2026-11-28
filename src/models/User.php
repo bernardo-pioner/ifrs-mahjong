@@ -263,6 +263,25 @@ final class User
         return true;
     }
 
+    public static function updatePassword(int $id, string $password): bool
+    {
+        if (mb_strlen($password) < 8 || mb_strlen($password) > 128 || preg_match('/\d/', $password) !== 1) {
+            return false;
+        }
+
+        $stmt = db()->prepare(
+            "UPDATE usuarios
+             SET senha_hash = :senha_hash, atualizado_em = datetime('now')
+             WHERE id = :id AND ativo = 1"
+        );
+        $stmt->execute([
+            'senha_hash' => password_hash($password, PASSWORD_DEFAULT),
+            'id' => $id,
+        ]);
+
+        return $stmt->rowCount() === 1;
+    }
+
     public static function markEmailVerified(int $id): void
     {
         $stmt = db()->prepare(

@@ -29,6 +29,23 @@ final class EmailService
         );
     }
 
+    public static function sendPasswordResetPin(string $email, string $name, string $pin): bool
+    {
+        $safeName = htmlspecialchars($name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $safePin = htmlspecialchars($pin, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        return self::send(
+            $email,
+            $name,
+            'PIN para criar uma nova senha',
+            '<p>Olá, ' . $safeName . '.</p>'
+                . '<p>Seu PIN para criar uma nova senha é:</p>'
+                . '<p style="font-size:24px;letter-spacing:0.28em;font-weight:700;">' . $safePin . '</p>'
+                . '<p>Ele vale por 30 minutos. Se você não pediu esta troca, ignore esta mensagem.</p>',
+            "Olá, {$name}.\n\nSeu PIN para criar uma nova senha é: {$pin}\n\nEle vale por 30 minutos. Se você não pediu esta troca, ignore esta mensagem."
+        );
+    }
+
     public static function sendNotification(string $email, string $name, string $text, string $link): bool
     {
         $text = trim($text);

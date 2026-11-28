@@ -61,15 +61,7 @@ final class ClubMail
 
         $codigo = EmailCode::issue($userId, 'redefinir_senha');
         $nome = userDisplayName($user);
-        $ok = Mailer::send(
-            $email,
-            'Código para criar uma nova senha',
-            "Olá, {$nome}.\n\nUse este código para criar uma nova senha. Ele vale por 30 minutos:\n\n{$codigo}\n\nSe você não pediu esta troca, ignore esta mensagem.",
-            null,
-            null,
-            'redefinir_senha',
-            $userId
-        );
+        $ok = EmailService::sendPasswordResetPin($email, $nome, $codigo);
         if (!$ok) {
             EmailCode::invalidate($userId, 'redefinir_senha');
         }
