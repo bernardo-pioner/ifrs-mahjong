@@ -38,6 +38,8 @@ $router->post('/notificacoes/ok', [$dashboard, 'dismiss']);
 $router->get('/eventos', [$events, 'index']);
 $router->get('/eventos/novo', [$events, 'create']);
 $router->post('/eventos/novo', [$events, 'store']);
+$router->post('/eventos/avisos', [$events, 'publishNotices']);
+$router->post('/eventos/avisos-email', [$events, 'sendNoticeEmails']);
 $router->get('/eventos/{id}/editar', [$events, 'edit']);
 $router->post('/eventos/{id}/editar', [$events, 'update']);
 $router->get('/eventos/{id}', [$events, 'show']);

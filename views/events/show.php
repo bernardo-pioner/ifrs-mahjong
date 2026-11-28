@@ -69,16 +69,25 @@ $podeEnviarComprovante = !$ehAdmin
             </span>
         </div>
 
+        <?php
+        $diasEvento = is_array($evento['dias'] ?? null) ? $evento['dias'] : [];
+        $linhasDias = [];
+        foreach ($diasEvento as $indice => $dia) {
+            if (!is_array($dia)) {
+                continue;
+            }
+            $dataDia = formatEventDayDate(isset($dia['data_inicio']) ? (string) $dia['data_inicio'] : null);
+            if ($dataDia === '') {
+                continue;
+            }
+            $linhasDias[] = 'Dia ' . ($indice + 1) . ': ' . $dataDia;
+        }
+        ?>
         <div class="event-details">
             <div class="event-detail">
                 <span>
-                    <strong>Início:</strong>
-                    <?= e($formatarData($evento['data_inicio'])) ?>
-
-                    <br>
-
-                    <strong>Término:</strong>
-                    <?= e(!empty($evento['data_fim']) ? $formatarData($evento['data_fim']) : 'Não informado') ?>
+                    <strong>Data:</strong>
+                    <?= e($formatarData($evento['data_inicio'] ?? null)) ?>
                 </span>
             </div>
 
@@ -137,10 +146,19 @@ $podeEnviarComprovante = !$ehAdmin
             <?php endif; ?>
         </div>
 
-        <?php if (!empty($evento['descricao'])): ?>
+        <?php if ($linhasDias !== [] || !empty($evento['descricao'])): ?>
             <div class="form-field">
                 <h2>Descrição</h2>
-                <p><?= nl2br(e($evento['descricao'])) ?></p>
+                <?php if (count($linhasDias) > 1): ?>
+                    <p class="event-day-list">
+                        <?php foreach ($linhasDias as $linhaDia): ?>
+                            <span><?= e($linhaDia) ?></span>
+                        <?php endforeach; ?>
+                    </p>
+                <?php endif; ?>
+                <?php if (!empty($evento['descricao'])): ?>
+                    <p><?= nl2br(e($evento['descricao'])) ?></p>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
 

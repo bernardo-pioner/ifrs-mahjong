@@ -222,6 +222,22 @@ function eventModalidadeLabel(?string $value): string
     return $options[$key] ?? $options['livre'];
 }
 
+function formatEventDayDate(?string $value): string
+{
+    $value = trim((string) $value);
+    if ($value === '') {
+        return '';
+    }
+
+    try {
+        $date = new DateTimeImmutable($value);
+    } catch (Exception) {
+        return '';
+    }
+
+    return $date->format('d/m/Y · H:i');
+}
+
 /** Modalidades de mesa usadas no registro de partida. @return array<string, string> */
 function matchFormatOptions(): array
 {

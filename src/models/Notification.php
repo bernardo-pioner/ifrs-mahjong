@@ -198,8 +198,8 @@ final class Notification
         }
 
         $stmt = db()->prepare(
-            'INSERT OR IGNORE INTO notificacoes (usuario_id, chave, tipo, texto, href, ocorrido_em)
-             VALUES (:usuario_id, :chave, :tipo, :texto, :href, :ocorrido_em)'
+            'INSERT OR IGNORE INTO notificacoes (usuario_id, chave, tipo, texto, href, ocorrido_em, email_enviado)
+             VALUES (:usuario_id, :chave, :tipo, :texto, :href, :ocorrido_em, 0)'
         );
 
         foreach ($items as $item) {
@@ -222,6 +222,50 @@ final class Notification
         $ids = db()->query('SELECT id FROM usuarios WHERE ativo = 1')->fetchAll(PDO::FETCH_COLUMN);
         foreach ($ids as $id) {
             self::publish((int) $id);
+        }
+    }
+
+    public static function hasPendingEmails(): bool
+    {
+        $found = db()->query(
+            'SELECT 1 FROM notificacoes WHERE email_enviado = 0 LIMIT 1'
+        )->fetchColumn();
+
+        return $found !== false;
+    }
+
+    public static function sendPendingEmails(): void
+    {
+        $rows = db()->query(
+            'SELECT id, usuario_id, texto, href, ocorrido_em
+             FROM notificacoes
+             WHERE email_enviado = 0
+             ORDER BY id ASC'
+        )->fetchAll();
+
+        $claim = db()->prepare(
+            'UPDATE notificacoes SET email_enviado = 1 WHERE id = :id AND email_enviado = 0'
+        );
+        $release = db()->prepare(
+            'UPDATE notificacoes SET email_enviado = 0 WHERE id = :id'
+        );
+
+        foreach ($rows as $row) {
+            $claim->execute([':id' => (int) $row['id']]);
+            if ($claim->rowCount() !== 1) {
+                continue;
+            }
+
+            $sent = self::email((int) $row['usuario_id'], [
+                'chave' => '',
+                'tipo' => '',
+                'text' => (string) $row['texto'],
+                'href' => (string) $row['href'],
+                'at' => (string) $row['ocorrido_em'],
+            ]);
+            if (!$sent) {
+                $release->execute([':id' => (int) $row['id']]);
+            }
         }
     }
 
@@ -248,8 +292,8 @@ final class Notification
         }
 
         $stmt ??= db()->prepare(
-            'INSERT OR IGNORE INTO notificacoes (usuario_id, chave, tipo, texto, href, ocorrido_em)
-             VALUES (:usuario_id, :chave, :tipo, :texto, :href, :ocorrido_em)'
+            'INSERT OR IGNORE INTO notificacoes (usuario_id, chave, tipo, texto, href, ocorrido_em, email_enviado)
+             VALUES (:usuario_id, :chave, :tipo, :texto, :href, :ocorrido_em, 0)'
         );
         $stmt->execute([
             ':usuario_id' => $userId,
@@ -259,30 +303,30 @@ final class Notification
             ':href' => $item['href'],
             ':ocorrido_em' => $item['at'],
         ]);
-        if ($stmt->rowCount() > 0) {
-            self::email($userId, $item);
-        }
     }
 
-    /** @param array{chave: string, tipo: string, text: string, href: string, at: string} $item */
-    private static function email(int $userId, array $item): void
+    /**
+     * @param array{chave: string, tipo: string, text: string, href: string, at: string} $item
+     * @return bool true quando não precisa tentar de novo (enviado ou dispensado)
+     */
+    private static function email(int $userId, array $item): bool
     {
         if (!self::recente((string) $item['at'])) {
-            return;
+            return true;
         }
 
         $user = User::findById($userId);
         if ($user === null || (int) ($user['active'] ?? 0) !== 1) {
-            return;
+            return true;
         }
 
         $email = trim((string) ($user['email'] ?? ''));
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return;
+            return true;
         }
 
         if ((int) ($user['notify_emails'] ?? 1) !== 1) {
-            return;
+            return true;
         }
 
         $href = (string) $item['href'];
@@ -290,7 +334,7 @@ final class Notification
             $href = '/' . ltrim($href, '/');
         }
 
-        EmailService::sendNotification(
+        return EmailService::sendNotification(
             $email,
             userDisplayName($user),
             (string) $item['text'],

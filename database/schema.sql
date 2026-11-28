@@ -87,6 +87,21 @@ CREATE TABLE IF NOT EXISTS eventos (
     FOREIGN KEY (admin_id) REFERENCES admins(usuario_id)
 );
 
+-- Cada linha é um dia do evento. data_inicio e data_fim do evento
+-- guardam só o intervalo usado nas listagens.
+CREATE TABLE IF NOT EXISTS evento_dias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    evento_id INTEGER NOT NULL,
+    ordem INTEGER NOT NULL,
+    data_inicio TEXT NOT NULL,
+    data_fim TEXT,
+    FOREIGN KEY (evento_id) REFERENCES eventos(id) ON DELETE CASCADE,
+    UNIQUE (evento_id, ordem)
+);
+
+CREATE INDEX IF NOT EXISTS idx_evento_dias_evento
+    ON evento_dias(evento_id, data_inicio);
+
 -- ListaParticipantes / Participa (N:N Evento ↔ Participante)
 CREATE TABLE IF NOT EXISTS evento_participantes (
     evento_id INTEGER NOT NULL,
@@ -272,6 +287,7 @@ CREATE TABLE IF NOT EXISTS notificacoes (
     href TEXT NOT NULL,
     ocorrido_em TEXT NOT NULL,
     dispensada_em TEXT,
+    email_enviado INTEGER NOT NULL DEFAULT 0 CHECK (email_enviado IN (0, 1)),
     UNIQUE (usuario_id, chave),
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );

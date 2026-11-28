@@ -38,7 +38,25 @@ final class Event
 
     public static function isEmAndamento(array $evento): bool
     {
-        $data = trim((string) ($evento['data_fim'] ?? ''));
+        $data = '';
+        $dias = $evento['dias'] ?? null;
+        if (is_array($dias)) {
+            foreach ($dias as $dia) {
+                if (!is_array($dia)) {
+                    continue;
+                }
+                $fim = trim((string) ($dia['data_fim'] ?? ''));
+                $inicio = trim((string) ($dia['data_inicio'] ?? ''));
+                $candidato = $fim !== '' ? $fim : $inicio;
+                if ($candidato > $data) {
+                    $data = $candidato;
+                }
+            }
+        }
+
+        if ($data === '') {
+            $data = trim((string) ($evento['data_fim'] ?? ''));
+        }
         if ($data === '') {
             $data = trim((string) ($evento['data_inicio'] ?? ''));
         }
@@ -369,6 +387,119 @@ final class Event
         return null;
     }
 
+    /** @return list<array<string, mixed>> */
+    public static function daysFor(int $eventoId): array
+    {
+        $map = self::daysForMany([$eventoId]);
+
+        return $map[$eventoId] ?? [];
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return array<int, list<array<string, mixed>>>
+     */
+    public static function daysForMany(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map(static fn ($id): int => (int) $id, $ids),
+            static fn (int $id): bool => $id > 0
+        )));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = db()->prepare(
+            "SELECT evento_id, ordem, data_inicio, data_fim
+             FROM evento_dias
+             WHERE evento_id IN ($placeholders)
+             ORDER BY evento_id ASC, ordem ASC, id ASC"
+        );
+        $stmt->execute($ids);
+
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $map[(int) $row['evento_id']][] = $row;
+        }
+
+        return $map;
+    }
+
+    /** @param list<array<string, mixed>> $eventos */
+    public static function attachDays(array &$eventos): void
+    {
+        if ($eventos === []) {
+            return;
+        }
+
+        $ids = [];
+        foreach ($eventos as $evento) {
+            $ids[] = (int) ($evento['id'] ?? 0);
+        }
+        $map = self::daysForMany($ids);
+        foreach ($eventos as &$evento) {
+            $evento['dias'] = $map[(int) ($evento['id'] ?? 0)] ?? [];
+        }
+        unset($evento);
+    }
+
+    public static function dataMaisProxima(array $evento): ?string
+    {
+        $dias = $evento['dias'] ?? null;
+        if (!is_array($dias) || $dias === []) {
+            $inicio = trim((string) ($evento['data_inicio'] ?? ''));
+
+            return $inicio !== '' ? $inicio : null;
+        }
+
+        $hoje = (new DateTimeImmutable('today'))->format('Y-m-d');
+        $futura = null;
+        $passada = null;
+        foreach ($dias as $dia) {
+            if (!is_array($dia)) {
+                continue;
+            }
+            $inicio = trim((string) ($dia['data_inicio'] ?? ''));
+            if ($inicio === '') {
+                continue;
+            }
+            $data = substr($inicio, 0, 10);
+            if ($data >= $hoje) {
+                if ($futura === null || $inicio < $futura) {
+                    $futura = $inicio;
+                }
+            } elseif ($passada === null || $inicio > $passada) {
+                $passada = $inicio;
+            }
+        }
+
+        return $futura ?? $passada;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $dias
+     */
+    public static function replaceDays(int $eventoId, array $dias): void
+    {
+        $rows = self::normalizeDayRows($dias);
+        $pdo = db();
+        $pdo->prepare('DELETE FROM evento_dias WHERE evento_id = :id')->execute([':id' => $eventoId]);
+        self::insertDayRows($eventoId, $rows);
+        $bounds = self::boundsFromRows($rows);
+        $pdo->prepare(
+            'UPDATE eventos
+             SET data_inicio = :inicio,
+                 data_fim = :fim,
+                 atualizado_em = datetime(\'now\')
+             WHERE id = :id'
+        )->execute([
+            ':inicio' => $bounds['data_inicio'],
+            ':fim' => $bounds['data_fim'],
+            ':id' => $eventoId,
+        ]);
+    }
+
     /**
      * @param array{
      *   admin_id: int,
@@ -381,12 +512,20 @@ final class Event
      *   local: ?string,
      *   limite: ?int,
      *   taxa: float,
-     *   premiacao: list<string>
+     *   premiacao: list<string>,
+     *   dias?: list<array<string, mixed>>
      * } $data
      */
     public static function createOne(array $data): int
     {
         $pdo = db();
+        $rows = self::normalizeDayRows($data['dias'] ?? [[
+            'data_inicio' => $data['data_inicio'],
+            'data_fim' => $data['data_fim'] ?? null,
+        ]]);
+        $bounds = self::boundsFromRows($rows);
+        $dataInicio = $bounds['data_inicio'] ?? $data['data_inicio'];
+        $dataFim = $bounds['data_fim'] ?? ($data['data_fim'] ?? null);
 
         $stmt = $pdo->prepare(
             'INSERT INTO eventos
@@ -400,13 +539,14 @@ final class Event
             ':modalidade' => $data['modalidade'],
             ':titulo' => $data['titulo'],
             ':descricao' => $data['descricao'],
-            ':data_inicio' => $data['data_inicio'],
-            ':data_fim' => $data['data_fim'],
+            ':data_inicio' => $dataInicio,
+            ':data_fim' => $dataFim,
             ':local' => $data['local'],
             ':serie_id' => $data['serie_id'] ?? null,
         ]);
 
         $eventoId = (int) $pdo->lastInsertId();
+        self::insertDayRows($eventoId, $rows);
         self::insertTypeRow(
             $eventoId,
             $data['tipo'],
@@ -416,6 +556,105 @@ final class Event
         );
 
         return $eventoId;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $dias
+     * @return list<array{data_inicio: string, data_fim: ?string}>
+     */
+    private static function normalizeDayRows(array $dias): array
+    {
+        $rows = [];
+        foreach ($dias as $dia) {
+            if (!is_array($dia)) {
+                continue;
+            }
+            $inicio = $dia['inicio'] ?? $dia['data_inicio'] ?? null;
+            $fim = array_key_exists('fim', $dia) ? $dia['fim'] : ($dia['data_fim'] ?? null);
+            if ($inicio instanceof DateTimeImmutable) {
+                $inicioTexto = $inicio->format('Y-m-d H:i:s');
+            } else {
+                $inicioTexto = trim((string) $inicio);
+            }
+            if ($inicioTexto === '') {
+                continue;
+            }
+            if ($fim instanceof DateTimeImmutable) {
+                $fimTexto = $fim->format('Y-m-d H:i:s');
+            } else {
+                $fimTexto = trim((string) $fim);
+                $fimTexto = $fimTexto !== '' ? $fimTexto : null;
+            }
+            $rows[] = [
+                'data_inicio' => $inicioTexto,
+                'data_fim' => $fimTexto,
+            ];
+        }
+
+        usort(
+            $rows,
+            static fn (array $a, array $b): int => $a['data_inicio'] <=> $b['data_inicio']
+        );
+
+        return $rows;
+    }
+
+    /**
+     * @param list<array{data_inicio: string, data_fim: ?string}> $rows
+     * @return array{data_inicio: ?string, data_fim: ?string}
+     */
+    private static function boundsFromRows(array $rows): array
+    {
+        if ($rows === []) {
+            return ['data_inicio' => null, 'data_fim' => null];
+        }
+
+        $hoje = (new DateTimeImmutable('today'))->format('Y-m-d');
+        $proxima = null;
+        $ultima = $rows[0];
+        foreach ($rows as $row) {
+            if ($row['data_inicio'] >= $ultima['data_inicio']) {
+                $ultima = $row;
+            }
+            $data = substr($row['data_inicio'], 0, 10);
+            if ($data >= $hoje && ($proxima === null || $row['data_inicio'] < $proxima['data_inicio'])) {
+                $proxima = $row;
+            }
+        }
+
+        $referencia = $proxima ?? $ultima;
+        $fimUltimo = $ultima['data_fim'] ?: $ultima['data_inicio'];
+
+        return [
+            'data_inicio' => $referencia['data_inicio'],
+            'data_fim' => $fimUltimo,
+        ];
+    }
+
+    /** @param list<array{data_inicio: string, data_fim: ?string}> $rows */
+    private static function insertDayRows(int $eventoId, array $rows): void
+    {
+        if ($rows === []) {
+            return;
+        }
+
+        $values = [];
+        $params = [];
+        foreach ($rows as $indice => $row) {
+            $values[] = '(?, ?, ?, ?)';
+            array_push(
+                $params,
+                $eventoId,
+                $indice + 1,
+                $row['data_inicio'],
+                $row['data_fim']
+            );
+        }
+
+        db()->prepare(
+            'INSERT INTO evento_dias (evento_id, ordem, data_inicio, data_fim) VALUES '
+            . implode(', ', $values)
+        )->execute($params);
     }
 
     /** @param list<string> $premiacao */
@@ -482,6 +721,60 @@ final class Event
      * } $base
      * @return list<int>
      */
+    /**
+     * @param list<array{
+     *   admin_id: int,
+     *   tipo: string,
+     *   modalidade: string,
+     *   titulo: string,
+     *   descricao: ?string,
+     *   data_inicio: string,
+     *   data_fim: ?string,
+     *   local: ?string,
+     *   limite: ?int,
+     *   taxa: float,
+     *   premiacao: list<string>
+     * }> $bases
+     * @return list<int>
+     */
+    public static function createMany(array $bases): array
+    {
+        if ($bases === []) {
+            return [];
+        }
+
+        $pdo = db();
+        $pdo->beginTransaction();
+
+        try {
+            $ids = [];
+            $serieId = null;
+            $agrupar = count($bases) > 1;
+
+            foreach ($bases as $base) {
+                $base['serie_id'] = $agrupar ? $serieId : null;
+                $eventoId = self::createOne($base);
+                if ($agrupar && $serieId === null) {
+                    $serieId = $eventoId;
+                    $pdo->prepare('UPDATE eventos SET serie_id = :serie WHERE id = :id')->execute([
+                        ':serie' => $serieId,
+                        ':id' => $eventoId,
+                    ]);
+                }
+                $ids[] = $eventoId;
+            }
+
+            $pdo->commit();
+
+            return $ids;
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
     public static function createWithRecurrence(
         array $base,
         int $intervaloDias,

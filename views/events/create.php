@@ -2,7 +2,6 @@
 $old = $old ?? [];
 $tipoAtual = $old['tipo'] ?? 'encontro';
 $modalidadeAtual = $old['modalidade'] ?? 'livre';
-$temTermino = ($old['tem_termino'] ?? '0') === '1';
 $temLimite = ($old['tem_limite'] ?? '0') === '1';
 $temPagamento = ($old['tem_pagamento'] ?? '0') === '1';
 $temPremiacao = ($old['tem_premiacao'] ?? '0') === '1';
@@ -12,6 +11,14 @@ if ($premiacaoQtd < 1 || $premiacaoQtd > 10) {
     $premiacaoQtd = 3;
 }
 $recorrente = ($old['recorrente'] ?? '0') === '1';
+$diasEvento = is_array($old['dias'] ?? null) ? array_values($old['dias']) : [];
+if ($diasEvento === []) {
+    $diasEvento = [[
+        'data' => isset($old['data']) && is_string($old['data']) ? $old['data'] : '',
+        'inicio' => isset($old['horario']) && is_string($old['horario']) ? $old['horario'] : '14:00',
+        'fim' => '',
+    ]];
+}
 $isEdit = isset($evento);
 $dataMinima = (new DateTimeImmutable('today'))->format('Y-m-d');
 $tituloPagina = $tituloPagina ?? 'Criar evento';
@@ -21,6 +28,13 @@ $modalidades = eventModalidadeOptions();
 function eventFormValue(array $old, string $key, string $default = ''): string
 {
     return e(isset($old[$key]) && is_string($old[$key]) ? $old[$key] : $default);
+}
+
+function eventDayValue(array $dia, string $key, string $default = ''): string
+{
+    $value = $dia[$key] ?? $default;
+
+    return e(is_string($value) ? $value : $default);
 }
 ?>
 
@@ -113,72 +127,87 @@ function eventFormValue(array $old, string $key, string $default = ''): string
 
         
 
-        <div class="event-datetime-grid">
-            <div class="event-datetime-field">
-                <label for="data">Data de início</label>
-                <input
-                    id="data"
-                    name="data"
-                    type="date"
-                    required
-                    <?= $dataMinima !== '' ? 'min="' . e($dataMinima) . '"' : '' ?>
-                    value="<?= eventFormValue($old, 'data') ?>"
-                >
-            </div>
-
-            <div class="event-datetime-field">
-                <label for="horario">Horário de início</label>
-                <input
-                    id="horario"
-                    name="horario"
-                    type="time"
-                    required
-                    value="<?= eventFormValue($old, 'horario', '14:00') ?>"
-                >
-            </div>
+        <div id="evento-dias" class="event-days" data-min="<?= e($dataMinima) ?>">
+            <?php foreach ($diasEvento as $indice => $dia): ?>
+                <?php $dia = is_array($dia) ? $dia : []; ?>
+                <div class="event-day-row" data-day-row>
+                    <div class="event-datetime-grid event-day-grid">
+                        <div class="event-datetime-field">
+                            <label for="dia_data_<?= (int) $indice ?>">Data</label>
+                            <input
+                                id="dia_data_<?= (int) $indice ?>"
+                                name="dias[<?= (int) $indice ?>][data]"
+                                type="date"
+                                required
+                                <?= $dataMinima !== '' ? 'min="' . e($dataMinima) . '"' : '' ?>
+                                value="<?= eventDayValue($dia, 'data') ?>"
+                            >
+                        </div>
+                        <div class="event-datetime-field">
+                            <label for="dia_inicio_<?= (int) $indice ?>">Hora de início</label>
+                            <input
+                                id="dia_inicio_<?= (int) $indice ?>"
+                                name="dias[<?= (int) $indice ?>][inicio]"
+                                type="time"
+                                required
+                                value="<?= eventDayValue($dia, 'inicio', '14:00') ?>"
+                            >
+                        </div>
+                        <div class="event-datetime-field">
+                            <label for="dia_fim_<?= (int) $indice ?>">Hora de fim <span class="event-optional">(opcional)</span></label>
+                            <input
+                                id="dia_fim_<?= (int) $indice ?>"
+                                name="dias[<?= (int) $indice ?>][fim]"
+                                type="time"
+                                value="<?= eventDayValue($dia, 'fim') ?>"
+                            >
+                        </div>
+                    </div>
+                    <button type="button" class="event-match-delete event-day-remove" aria-label="Remover dia">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.2 5V3.4a1 1 0 0 1 1-1h3.6a1 1 0 0 1 1 1V5"></path>
+                            <path d="M4.2 6.2h15.6"></path>
+                            <path d="M6.4 6.2l.9 12.4a1.4 1.4 0 0 0 1.4 1.3h6.6a1.4 1.4 0 0 0 1.4-1.3l.9-12.4"></path>
+                            <path d="M10 9.2v7.4"></path>
+                            <path d="M12 9.2v7.4"></path>
+                            <path d="M14 9.2v7.4"></path>
+                        </svg>
+                    </button>
+                </div>
+            <?php endforeach; ?>
         </div>
 
-        <label class="event-registration-option">
-            <input
-                type="checkbox"
-                id="tem_termino"
-                name="tem_termino"
-                value="1"
-                <?= $temTermino ? 'checked' : '' ?>
-            >
-            <span>
-                <strong>Informar data de término</strong>
-            </span>
-        </label>
-
-        <div
-            class="event-datetime-grid"
-            id="campo-termino"
-            <?= $temTermino ? '' : 'hidden' ?>
-        >
-            <div class="event-datetime-field">
-                <label for="data_fim">Data de término</label>
-                <input
-                    id="data_fim"
-                    name="data_fim"
-                    type="date"
-                    <?= $dataMinima !== '' ? 'min="' . e($dataMinima) . '"' : '' ?>
-                    value="<?= eventFormValue($old, 'data_fim') ?>"
-                    <?= $temTermino ? '' : 'disabled' ?>
-                >
-            </div>
-
-            <div class="event-datetime-field">
-                <label for="horario_fim">Horário de término</label>
-                <input
-                    id="horario_fim"
-                    name="horario_fim"
-                    type="time"
-                    value="<?= eventFormValue($old, 'horario_fim', '16:00') ?>"
-                    <?= $temTermino ? '' : 'disabled' ?>
-                >
-            </div>
+        <div class="event-day-actions">
+            <button type="button" class="button button-secondary" id="adicionar-dia">Adicionar dia</button>
         </div>
+        <template id="event-day-template">
+                <div class="event-day-row" data-day-row>
+                    <div class="event-datetime-grid event-day-grid">
+                        <div class="event-datetime-field">
+                            <label>Data</label>
+                            <input type="date" data-day-part="data" required <?= $dataMinima !== '' ? 'min="' . e($dataMinima) . '"' : '' ?>>
+                        </div>
+                        <div class="event-datetime-field">
+                            <label>Hora de início</label>
+                            <input type="time" data-day-part="inicio" value="14:00" required>
+                        </div>
+                        <div class="event-datetime-field">
+                            <label>Hora de fim <span class="event-optional">(opcional)</span></label>
+                            <input type="time" data-day-part="fim">
+                        </div>
+                    </div>
+                    <button type="button" class="event-match-delete event-day-remove" aria-label="Remover dia">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.2 5V3.4a1 1 0 0 1 1-1h3.6a1 1 0 0 1 1 1V5"></path>
+                            <path d="M4.2 6.2h15.6"></path>
+                            <path d="M6.4 6.2l.9 12.4a1.4 1.4 0 0 0 1.4 1.3h6.6a1.4 1.4 0 0 0 1.4-1.3l.9-12.4"></path>
+                            <path d="M10 9.2v7.4"></path>
+                            <path d="M12 9.2v7.4"></path>
+                            <path d="M14 9.2v7.4"></path>
+                        </svg>
+                    </button>
+                </div>
+        </template>
 
         <?php if (!$isEdit): ?>
 
@@ -453,11 +482,9 @@ function eventFormValue(array $old, string $key, string $default = ''): string
         const campoPremiacaoDetalhes = document.getElementById('campo-premiacao-detalhes');
         const selectPremiacaoQtd = document.getElementById('premiacao_qtd');
         const campoPremiacaoItens = document.getElementById('campo-premiacao-itens');
-        const temTermino = document.getElementById('tem_termino');
-        const campoTermino = document.getElementById('campo-termino');
-        const dataInicio = document.getElementById('data');
-        const dataFim = document.getElementById('data_fim');
-        const horarioFim = document.getElementById('horario_fim');
+        const listaDias = document.getElementById('evento-dias');
+        const botaoAdicionarDia = document.getElementById('adicionar-dia');
+        const modeloDia = document.getElementById('event-day-template');
         const recorrente = document.getElementById('recorrente');
         const campoRecorrencia = document.getElementById('campo-recorrencia');
         const recorrenciaDias = document.getElementById('recorrencia_dias');
@@ -564,23 +591,66 @@ function eventFormValue(array $old, string $key, string $default = ''): string
             campoPremiacaoItens.innerHTML = html;
         }
 
-        function atualizarCampoTermino() {
-            const mostrar = temTermino.checked;
-            campoTermino.hidden = !mostrar;
-            dataFim.disabled = !mostrar;
-            horarioFim.disabled = !mostrar;
-            atualizarDataMinimaTermino();
-        }
-
-        function atualizarDataMinimaTermino() {
-            if (!dataInicio || !dataFim || !dataInicio.min) {
+        function atualizarDias() {
+            if (!listaDias) {
                 return;
             }
 
-            const minima = dataInicio.value !== '' && dataInicio.value > dataInicio.min
-                ? dataInicio.value
-                : dataInicio.min;
-            dataFim.min = minima;
+            const linhas = listaDias.querySelectorAll('[data-day-row]');
+            linhas.forEach(function (linha, indice) {
+                linha.querySelectorAll('[data-day-part], input[name^="dias["]').forEach(function (campo) {
+                    const parte = campo.getAttribute('data-day-part')
+                        || (campo.name.match(/\[(data|inicio|fim)\]$/) || [])[1];
+                    if (!parte) {
+                        return;
+                    }
+                    campo.name = 'dias[' + indice + '][' + parte + ']';
+                    campo.id = 'dia_' + parte + '_' + indice;
+                    const campoDia = campo.closest('.event-datetime-field');
+                    const rotulo = campoDia ? campoDia.querySelector('label') : null;
+                    if (rotulo) {
+                        rotulo.setAttribute('for', campo.id);
+                    }
+                });
+            });
+
+            const unico = linhas.length <= 1;
+            listaDias.querySelectorAll('.event-day-remove').forEach(function (botao) {
+                botao.disabled = unico;
+            });
+
+            if (botaoAdicionarDia) {
+                botaoAdicionarDia.disabled = linhas.length >= 31;
+            }
+
+            let minimo = listaDias.getAttribute('data-min') || '';
+            linhas.forEach(function (linha) {
+                const campoData = linha.querySelector('input[type="date"]');
+                if (!campoData) {
+                    return;
+                }
+                if (minimo) {
+                    campoData.min = minimo;
+                    if (campoData.value && campoData.value < minimo) {
+                        campoData.value = '';
+                    }
+                } else {
+                    campoData.removeAttribute('min');
+                }
+                minimo = campoData.value ? somarUmDia(campoData.value) : minimo;
+            });
+        }
+
+        function somarUmDia(valor) {
+            const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor);
+            if (!partes) {
+                return '';
+            }
+            const data = new Date(Date.UTC(Number(partes[1]), Number(partes[2]) - 1, Number(partes[3])));
+            data.setUTCDate(data.getUTCDate() + 1);
+            const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
+            const dia = String(data.getUTCDate()).padStart(2, '0');
+            return data.getUTCFullYear() + '-' + mes + '-' + dia;
         }
 
         function atualizarCampoRecorrencia() {
@@ -609,17 +679,39 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                 atualizarItensPremiacao(tipoComExtras() && temPremiacao && temPremiacao.checked);
             });
         }
-        temTermino.addEventListener('change', atualizarCampoTermino);
-        if (dataInicio) {
-            dataInicio.addEventListener('change', atualizarDataMinimaTermino);
-        }
         if (recorrente) {
             recorrente.addEventListener('change', atualizarCampoRecorrencia);
+        }
+        if (botaoAdicionarDia && modeloDia && listaDias) {
+            botaoAdicionarDia.addEventListener('click', function () {
+                if (listaDias.querySelectorAll('[data-day-row]').length >= 31) {
+                    return;
+                }
+                listaDias.appendChild(modeloDia.content.cloneNode(true));
+                atualizarDias();
+            });
+            listaDias.addEventListener('change', function (event) {
+                const campo = event.target;
+                if (campo && campo.matches && campo.matches('input[type="date"]')) {
+                    atualizarDias();
+                }
+            });
+            listaDias.addEventListener('click', function (event) {
+                const remover = event.target.closest('.event-day-remove');
+                if (!remover) {
+                    return;
+                }
+                const linha = remover.closest('[data-day-row]');
+                if (linha && listaDias.querySelectorAll('[data-day-row]').length > 1) {
+                    linha.remove();
+                    atualizarDias();
+                }
+            });
         }
 
         atualizarCamposTipo();
         atualizarCampoModalidade();
-        atualizarCampoTermino();
+        atualizarDias();
         atualizarCampoRecorrencia();
 
         const formEvento = document.querySelector('.event-form-card');
@@ -681,6 +773,26 @@ function eventFormValue(array $old, string $key, string $default = ''): string
                     event.stopPropagation();
                 });
             }
+        }
+
+        if (formEvento) {
+            let enviando = false;
+            formEvento.addEventListener('submit', function (event) {
+                if (event.defaultPrevented) {
+                    return;
+                }
+                if (enviando) {
+                    event.preventDefault();
+                    return;
+                }
+                enviando = true;
+                const botao = formEvento.querySelector('button[type="submit"]');
+                window.setTimeout(function () {
+                    if (botao) {
+                        botao.disabled = true;
+                    }
+                }, 0);
+            });
         }
     });
 </script>

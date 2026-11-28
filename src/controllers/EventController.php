@@ -84,19 +84,71 @@ final class EventController extends Controller
 
         $stmt = db()->prepare($sql);
         $stmt->execute($params);
+        $eventos = $stmt->fetchAll();
+        Event::attachDays($eventos);
+        foreach ($eventos as &$evento) {
+            $proxima = Event::dataMaisProxima($evento);
+            if ($proxima !== null) {
+                $evento['data_inicio'] = $proxima;
+            }
+        }
+        unset($evento);
+        usort($eventos, static function (array $a, array $b): int {
+            $aData = (string) ($a['data_inicio'] ?? '');
+            $bData = (string) ($b['data_inicio'] ?? '');
+            if ($aData === $bData) {
+                return (int) ($b['id'] ?? 0) <=> (int) ($a['id'] ?? 0);
+            }
+            if ($aData === '') {
+                return 1;
+            }
+            if ($bData === '') {
+                return -1;
+            }
+
+            return $aData <=> $bData;
+        });
         $totalEventos = (int) db()->query('SELECT COUNT(*) FROM eventos')->fetchColumn();
 
         $this->view('events/index', [
             'title' => 'Eventos',
             'user' => $user,
             'currentPath' => '/eventos',
-            'eventos' => $stmt->fetchAll(),
+            'eventos' => $eventos,
             'busca' => $busca,
             'tipoFiltro' => $tipo,
             'inscricaoFiltro' => $inscricao,
             'situacaoFiltro' => $situacao,
             'clubeSemEventos' => $totalEventos === 0,
+            'publicarAvisos' => !empty($_SESSION['eventos_avisar']),
+            'enviarEmailsAvisos' => Notification::hasPendingEmails(),
         ]);
+    }
+
+    public function publishNotices(): void
+    {
+        $this->requireAuth();
+        verifyCsrf();
+        unset($_SESSION['eventos_avisar']);
+        session_write_close();
+        Notification::publishActive();
+        $this->json(['ok' => true]);
+    }
+
+    public function sendNoticeEmails(): void
+    {
+        $this->requireAuth();
+        verifyCsrf();
+        session_write_close();
+        Notification::sendPendingEmails();
+        $this->json(['ok' => true]);
+    }
+
+    private function json(array $payload): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+        exit;
     }
 
     public function create(): void
@@ -132,46 +184,16 @@ final class EventController extends Controller
             return;
         }
 
-        $base = [
-            'admin_id' => (int) $user['id'],
-            'tipo' => $parsed['tipo'],
-            'modalidade' => $parsed['modalidade'],
-            'titulo' => $parsed['titulo'],
-            'descricao' => $parsed['descricao'],
-            'data_inicio' => $parsed['inicio']->format('Y-m-d H:i:s'),
-            'data_fim' => $parsed['fim']?->format('Y-m-d H:i:s'),
-            'local' => $parsed['local'],
-            'limite' => $parsed['limite'],
-            'taxa' => $parsed['taxa'],
-            'premiacao' => $parsed['premiacao'],
-        ];
+        $bases = $this->basesDoFormulario($user, $parsed);
+        Event::createMany($bases);
 
         if ($parsed['recorrente']) {
-            Event::createWithRecurrence(
-                $base,
-                $parsed['recorrencia_dias'],
-                $parsed['recorrencia_ocorrencias']
-            );
-            flash(
-                'success',
-                'Série de ' . $parsed['recorrencia_ocorrencias'] . ' eventos criada com sucesso.'
-            );
+            flash('success', 'Série de ' . count($bases) . ' eventos criada com sucesso.');
         } else {
-            $pdo = db();
-            $pdo->beginTransaction();
-            try {
-                Event::createOne($base);
-                $pdo->commit();
-            } catch (Throwable $exception) {
-                if ($pdo->inTransaction()) {
-                    $pdo->rollBack();
-                }
-                throw $exception;
-            }
             flash('success', 'Evento criado com sucesso.');
         }
 
-        Notification::publishActive();
+        $_SESSION['eventos_avisar'] = 1;
 
         redirect('/eventos');
     }
@@ -196,11 +218,22 @@ final class EventController extends Controller
         $inicio = !empty($evento['data_inicio'])
             ? new DateTimeImmutable($evento['data_inicio'])
             : null;
-        $fim = !empty($evento['data_fim'])
-            ? new DateTimeImmutable($evento['data_fim'])
-            : null;
 
         $details = Event::typeDetails($evento);
+        $dias = $this->diasParaFormulario($evento);
+        if ($dias === []) {
+            $fim = !empty($evento['data_fim'])
+                ? new DateTimeImmutable($evento['data_fim'])
+                : null;
+            $dias = [[
+                'data' => $inicio?->format('Y-m-d') ?? '',
+                'inicio' => $inicio?->format('H:i') ?? '14:00',
+                'fim' => $fim !== null && $inicio !== null && $fim->format('Y-m-d') === $inicio->format('Y-m-d')
+                    && $fim->format('H:i') > $inicio->format('H:i')
+                    ? $fim->format('H:i')
+                    : '',
+            ]];
+        }
 
         $old = [
             'titulo' => $evento['titulo'],
@@ -208,9 +241,7 @@ final class EventController extends Controller
             'modalidade' => (string) ($evento['modalidade'] ?? 'livre'),
             'data' => $inicio?->format('Y-m-d') ?? '',
             'horario' => $inicio?->format('H:i') ?? '14:00',
-            'tem_termino' => $fim !== null ? '1' : '0',
-            'data_fim' => $fim?->format('Y-m-d') ?? '',
-            'horario_fim' => $fim?->format('H:i') ?? '16:00',
+            'dias' => $dias,
             'local' => $evento['local'] ?? '',
             'descricao' => $evento['descricao'] ?? '',
             'tem_limite' => $details['limite'] !== null ? '1' : '0',
@@ -295,23 +326,22 @@ final class EventController extends Controller
 
         try {
             if ($salvarAtual) {
-                $this->saveEventEdits($evento, $parsed, $parsed['inicio'], $parsed['fim']);
+                $this->saveEventEdits($evento, $parsed, $parsed['dias']);
             }
 
             foreach ($alvos as $alvo) {
                 if ((int) $alvo['id'] === (int) $evento['id'] || Event::isEncerrado($alvo)) {
                     continue;
                 }
-                $deslocado = $this->shiftOccurrence(
+                $delta = $this->deltaDias(
                     (string) $evento['data_inicio'],
-                    (string) ($alvo['data_inicio'] ?? ''),
-                    $parsed['inicio'],
-                    $parsed['fim']
+                    (string) ($alvo['data_inicio'] ?? '')
                 );
-                if ($deslocado === null) {
+                $dias = $this->deslocarDias($parsed['dias'], $delta);
+                if ($dias === []) {
                     continue;
                 }
-                $this->saveEventEdits($alvo, $parsed, $deslocado[0], $deslocado[1]);
+                $this->saveEventEdits($alvo, $parsed, $dias);
             }
 
             $pdo->commit();
@@ -343,6 +373,12 @@ final class EventController extends Controller
             http_response_code(404);
             echo 'Evento não encontrado.';
             return;
+        }
+
+        $evento['dias'] = Event::daysFor((int) $evento['id']);
+        $proxima = Event::dataMaisProxima($evento);
+        if ($proxima !== null) {
+            $evento['data_inicio'] = $proxima;
         }
 
         $details = Event::typeDetails($evento);
@@ -707,12 +743,11 @@ final class EventController extends Controller
      * @param array<string, mixed> $evento
      * @param array<string, mixed> $parsed
      */
-    private function saveEventEdits(
-        array $evento,
-        array $parsed,
-        DateTimeImmutable $inicio,
-        ?DateTimeImmutable $fim
-    ): void {
+    /**
+     * @param list<array{inicio: DateTimeImmutable, fim: ?DateTimeImmutable}> $dias
+     */
+    private function saveEventEdits(array $evento, array $parsed, array $dias): void
+    {
         $pdo = db();
         $eventoId = (int) $evento['id'];
         $stmt = $pdo->prepare(
@@ -721,8 +756,6 @@ final class EventController extends Controller
                  tipo = :tipo,
                  modalidade = :modalidade,
                  descricao = :descricao,
-                 data_inicio = :data_inicio,
-                 data_fim = :data_fim,
                  local = :local,
                  atualizado_em = datetime(\'now\')
              WHERE id = :id'
@@ -732,11 +765,10 @@ final class EventController extends Controller
             ':tipo' => $parsed['tipo'],
             ':modalidade' => $parsed['modalidade'],
             ':descricao' => $parsed['descricao'],
-            ':data_inicio' => $inicio->format('Y-m-d H:i:s'),
-            ':data_fim' => $fim?->format('Y-m-d H:i:s'),
             ':local' => $parsed['local'],
             ':id' => $eventoId,
         ]);
+        Event::replaceDays($eventoId, $dias);
 
         $tabelas = [
             'torneio' => 'torneios',
@@ -796,29 +828,76 @@ final class EventController extends Controller
         }
     }
 
-    /** @return array{0: DateTimeImmutable, 1: ?DateTimeImmutable}|null */
-    private function shiftOccurrence(
-        string $inicioOriginal,
-        string $inicioOcorrencia,
-        DateTimeImmutable $novoInicio,
-        ?DateTimeImmutable $novoFim
-    ): ?array {
+    private function deltaDias(string $inicioOriginal, string $inicioOcorrencia): int
+    {
         if ($inicioOriginal === '' || $inicioOcorrencia === '') {
-            return null;
+            return 0;
         }
 
         try {
             $diaOriginal = (new DateTimeImmutable($inicioOriginal))->setTime(0, 0);
             $diaOcorrencia = (new DateTimeImmutable($inicioOcorrencia))->setTime(0, 0);
         } catch (Exception) {
-            return null;
+            return 0;
         }
 
-        $dias = (int) $diaOriginal->diff($diaOcorrencia)->format('%r%a');
-        $inicio = $novoInicio->modify(sprintf('%+d days', $dias));
-        $fim = $novoFim === null ? null : $inicio->add($novoInicio->diff($novoFim));
+        return (int) $diaOriginal->diff($diaOcorrencia)->format('%r%a');
+    }
 
-        return [$inicio, $fim];
+    /**
+     * @param list<array{inicio?: mixed, fim?: mixed}> $dias
+     * @return list<array{inicio: DateTimeImmutable, fim: ?DateTimeImmutable}>
+     */
+    private function deslocarDias(array $dias, int $delta): array
+    {
+        $resultado = [];
+        foreach ($dias as $dia) {
+            if (!is_array($dia) || !$dia['inicio'] instanceof DateTimeImmutable) {
+                continue;
+            }
+            $inicio = $delta === 0 ? $dia['inicio'] : $dia['inicio']->modify(sprintf('%+d days', $delta));
+            $fim = $dia['fim'] instanceof DateTimeImmutable ? $dia['fim'] : null;
+            if ($fim !== null && $delta !== 0) {
+                $fim = $fim->modify(sprintf('%+d days', $delta));
+            }
+            $resultado[] = [
+                'inicio' => $inicio,
+                'fim' => $fim,
+            ];
+        }
+
+        return $resultado;
+    }
+
+    /** @return list<array{data: string, inicio: string, fim: string}> */
+    private function diasParaFormulario(array $evento): array
+    {
+        $dias = [];
+        foreach (Event::daysFor((int) $evento['id']) as $dia) {
+            try {
+                $inicio = new DateTimeImmutable((string) $dia['data_inicio']);
+            } catch (Exception) {
+                continue;
+            }
+            $fimTexto = '';
+            if (!empty($dia['data_fim'])) {
+                try {
+                    $fim = new DateTimeImmutable((string) $dia['data_fim']);
+                    if ($fim->format('Y-m-d') === $inicio->format('Y-m-d') && $fim > $inicio) {
+                        $fimTexto = $fim->format('H:i');
+                    }
+                } catch (Exception) {
+                    $fimTexto = '';
+                }
+            }
+            $dias[] = [
+                'data' => $inicio->format('Y-m-d'),
+                'inicio' => $inicio->format('H:i'),
+                'fim' => $fimTexto,
+            ];
+        }
+
+        return $dias;
     }
 
     private function mensagemExclusao(string $escopo, int $excluidas, int $mantidas, bool $excluiuAtual): string
@@ -860,18 +939,19 @@ final class EventController extends Controller
         return $mensagem;
     }
 
-    /** @return array<string, string> */
+    /** @return array<string, mixed> */
     private function collectFormInput(): array
     {
+        $dias = $this->collectDiasInput();
+        $primeiro = $dias[0];
+
         return [
             'titulo' => request('titulo'),
             'tipo' => request('tipo', 'encontro'),
             'modalidade' => request('modalidade', 'livre'),
-            'data' => request('data'),
-            'horario' => request('horario'),
-            'tem_termino' => isset($_POST['tem_termino']) ? '1' : '0',
-            'data_fim' => request('data_fim'),
-            'horario_fim' => request('horario_fim'),
+            'data' => $primeiro['data'],
+            'horario' => $primeiro['inicio'],
+            'dias' => $dias,
             'local' => request('local'),
             'tem_limite' => isset($_POST['tem_limite']) ? '1' : '0',
             'limite' => request('limite'),
@@ -885,6 +965,35 @@ final class EventController extends Controller
             'recorrencia_dias' => request('recorrencia_dias', '7'),
             'recorrencia_ocorrencias' => request('recorrencia_ocorrencias', '4'),
         ];
+    }
+
+    /** @return list<array{data: string, inicio: string, fim: string}> */
+    private function collectDiasInput(): array
+    {
+        $raw = $_POST['dias'] ?? null;
+        $dias = [];
+        if (is_array($raw)) {
+            foreach ($raw as $dia) {
+                if (!is_array($dia)) {
+                    continue;
+                }
+                $dias[] = [
+                    'data' => trim((string) ($dia['data'] ?? '')),
+                    'inicio' => trim((string) ($dia['inicio'] ?? '')),
+                    'fim' => trim((string) ($dia['fim'] ?? '')),
+                ];
+            }
+        }
+
+        if ($dias === []) {
+            $dias[] = [
+                'data' => request('data'),
+                'inicio' => request('horario', '14:00'),
+                'fim' => '',
+            ];
+        }
+
+        return array_slice($dias, 0, 31);
     }
 
     /** @return list<string> */
@@ -907,7 +1016,7 @@ final class EventController extends Controller
     }
 
     /**
-     * @param array<string, string> $old
+     * @param array<string, mixed> $old
      * @return array{0: list<string>, 1: array<string, mixed>}
      */
     private function validateEventForm(array $old, bool $allowRecurrence, bool $bloquearDataPassada = false): array
@@ -937,55 +1046,95 @@ final class EventController extends Controller
             $modalidade = 'livre';
         }
 
-        $inicioTexto = $old['data'] . ' ' . $old['horario'];
-        $inicio = false;
-        if ($old['data'] !== '' && $old['horario'] !== '') {
-            $inicio = DateTimeImmutable::createFromFormat('!Y-m-d H:i', $inicioTexto);
-            $dateErrors = DateTimeImmutable::getLastErrors();
-            if (
-                !$inicio ||
-                ($dateErrors !== false &&
-                    ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0)) ||
-                $inicio->format('Y-m-d H:i') !== $inicioTexto
-            ) {
-                $inicio = false;
+        $diasInformados = $old['dias'] ?? null;
+        if (!is_array($diasInformados) || $diasInformados === []) {
+            $diasInformados = [[
+                'data' => (string) ($old['data'] ?? ''),
+                'inicio' => (string) ($old['horario'] ?? ''),
+                'fim' => '',
+            ]];
+        }
+        if (count($diasInformados) > 31) {
+            $errors[] = 'É possível informar no máximo 31 dias.';
+            $diasInformados = array_slice($diasInformados, 0, 31);
+        }
+
+        $dias = [];
+        $iniciosUsados = [];
+        $dataAnterior = null;
+        foreach (array_values($diasInformados) as $indice => $dia) {
+            if (!is_array($dia)) {
+                continue;
             }
-        }
+            $numero = $indice + 1;
+            $rotulo = $numero === 1 ? 'do primeiro dia' : 'do ' . $numero . 'º dia';
+            $data = trim((string) ($dia['data'] ?? ''));
+            $horaInicio = $this->horarioValido((string) ($dia['inicio'] ?? ''));
+            $horaFimBruta = trim((string) ($dia['fim'] ?? ''));
+            $horaFim = $horaFimBruta === '' ? null : $this->horarioValido($horaFimBruta);
 
-        if ($inicio === false) {
-            $errors[] = 'Informe uma data e um horário de início válidos.';
-        } elseif ($bloquearDataPassada && $inicio->format('Y-m-d') < (new DateTimeImmutable('today'))->format('Y-m-d')) {
-            $errors[] = 'A data de início não pode ser anterior a hoje.';
-        }
-
-        $fim = null;
-        if ($old['tem_termino'] === '1') {
-            $fimTexto = $old['data_fim'] . ' ' . $old['horario_fim'];
-            $fimParsed = false;
-            if ($old['data_fim'] !== '' && $old['horario_fim'] !== '') {
-                $fimParsed = DateTimeImmutable::createFromFormat('!Y-m-d H:i', $fimTexto);
-                $dateErrorsFim = DateTimeImmutable::getLastErrors();
+            $diaData = false;
+            if ($data !== '') {
+                $diaData = DateTimeImmutable::createFromFormat('!Y-m-d', $data);
+                $errosData = DateTimeImmutable::getLastErrors();
                 if (
-                    !$fimParsed ||
-                    ($dateErrorsFim !== false &&
-                        ($dateErrorsFim['warning_count'] > 0 || $dateErrorsFim['error_count'] > 0)) ||
-                    $fimParsed->format('Y-m-d H:i') !== $fimTexto
+                    !$diaData ||
+                    ($errosData !== false && ($errosData['warning_count'] > 0 || $errosData['error_count'] > 0)) ||
+                    $diaData->format('Y-m-d') !== $data
                 ) {
-                    $fimParsed = false;
+                    $diaData = false;
                 }
             }
 
-            if ($fimParsed === false) {
-                $errors[] = 'Informe uma data e um horário de término válidos.';
-            } else {
-                $fim = $fimParsed;
-                if ($bloquearDataPassada && $fim->format('Y-m-d') < (new DateTimeImmutable('today'))->format('Y-m-d')) {
-                    $errors[] = 'A data de término não pode ser anterior a hoje.';
-                }
-                if ($inicio !== false && $fim <= $inicio) {
-                    $errors[] = 'O término deve ser posterior ao início do evento.';
+            if ($diaData === false || $horaInicio === null) {
+                $errors[] = 'Informe uma data e uma hora de início válidas ' . $rotulo . '.';
+                continue;
+            }
+
+            if ($bloquearDataPassada && $data < (new DateTimeImmutable('today'))->format('Y-m-d')) {
+                $errors[] = 'A data ' . $rotulo . ' não pode ser anterior a hoje.';
+            }
+
+            $inicioDia = DateTimeImmutable::createFromFormat('!Y-m-d H:i', $data . ' ' . $horaInicio);
+            if (!$inicioDia) {
+                $errors[] = 'Informe uma data e uma hora de início válidas ' . $rotulo . '.';
+                continue;
+            }
+
+            $fimDia = null;
+            if ($horaFimBruta !== '' && $horaFim === null) {
+                $errors[] = 'Informe uma hora de fim válida ' . $rotulo . '.';
+            } elseif ($horaFim !== null) {
+                $fimDia = DateTimeImmutable::createFromFormat('!Y-m-d H:i', $data . ' ' . $horaFim);
+                if (!$fimDia || $fimDia <= $inicioDia) {
+                    $errors[] = 'A hora de fim deve ser posterior à hora de início ' . $rotulo . '.';
+                    $fimDia = null;
                 }
             }
+
+            if ($dataAnterior !== null && $data <= $dataAnterior) {
+                $errors[] = 'A data ' . $rotulo . ' deve ser pelo menos um dia depois do dia anterior.';
+            }
+            $dataAnterior = $data;
+
+            $chaveInicio = $inicioDia->format('Y-m-d H:i');
+            if (isset($iniciosUsados[$chaveInicio])) {
+                $errors[] = 'Não repita a mesma data e hora de início.';
+            }
+            $iniciosUsados[$chaveInicio] = true;
+
+            $dias[] = [
+                'inicio' => $inicioDia,
+                'fim' => $fimDia,
+            ];
+        }
+
+        if ($dias === []) {
+            $inicio = null;
+            $fim = null;
+        } else {
+            $inicio = $dias[0]['inicio'];
+            $fim = $dias[0]['fim'];
         }
 
         if (mb_strlen($local) > 200) {
@@ -1069,6 +1218,7 @@ final class EventController extends Controller
             'modalidade' => $modalidade,
             'inicio' => $inicio instanceof DateTimeImmutable ? $inicio : null,
             'fim' => $fim,
+            'dias' => $dias,
             'local' => $local !== '' ? $local : null,
             'descricao' => $descricao !== '' ? $descricao : null,
             'limite' => $limite,
@@ -1080,6 +1230,68 @@ final class EventController extends Controller
         ];
 
         return [$errors, $parsed];
+    }
+
+    /** @param array<string, mixed> $user */
+    /** @param array<string, mixed> $parsed */
+    /** @return list<array<string, mixed>> */
+    private function basesDoFormulario(array $user, array $parsed): array
+    {
+        $dias = $parsed['dias'];
+        if (!is_array($dias) || $dias === []) {
+            return [];
+        }
+
+        $ocorrencias = [$dias];
+        if ($parsed['recorrente']) {
+            $ocorrencias = [];
+            $intervalo = (int) $parsed['recorrencia_dias'];
+            for ($i = 0; $i < (int) $parsed['recorrencia_ocorrencias']; $i++) {
+                $deslocados = $this->deslocarDias($dias, $intervalo * $i);
+                if ($deslocados !== []) {
+                    $ocorrencias[] = $deslocados;
+                }
+            }
+        }
+
+        $bases = [];
+        foreach ($ocorrencias as $diasOcorrencia) {
+            $primeiro = $diasOcorrencia[0]['inicio'] ?? null;
+            if (!$primeiro instanceof DateTimeImmutable) {
+                continue;
+            }
+            $bases[] = [
+                'admin_id' => (int) $user['id'],
+                'tipo' => $parsed['tipo'],
+                'modalidade' => $parsed['modalidade'],
+                'titulo' => $parsed['titulo'],
+                'descricao' => $parsed['descricao'],
+                'data_inicio' => $primeiro->format('Y-m-d H:i:s'),
+                'data_fim' => null,
+                'local' => $parsed['local'],
+                'limite' => $parsed['limite'],
+                'taxa' => $parsed['taxa'],
+                'premiacao' => $parsed['premiacao'],
+                'dias' => $diasOcorrencia,
+            ];
+        }
+
+        return $bases;
+    }
+
+    private function horarioValido(string $valor): ?string
+    {
+        if (preg_match('/^(\d{2}):(\d{2})(?::\d{2})?$/', trim($valor), $partes) !== 1) {
+            return null;
+        }
+
+        $hora = (int) $partes[1];
+        $minuto = (int) $partes[2];
+        if ($hora > 23 || $minuto > 59) {
+            return null;
+        }
+
+        return sprintf('%02d:%02d', $hora, $minuto);
     }
 
     /** @return array{path: ?string, error: ?string} */

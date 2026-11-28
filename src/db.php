@@ -158,6 +158,48 @@ function applyCompatibleSchemaUpdates(PDO $pdo): bool
         $changed = true;
     }
 
+    if (tableColumns($pdo, 'evento_dias') === null) {
+        $pdo->exec(
+            'CREATE TABLE evento_dias (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                evento_id INTEGER NOT NULL,
+                ordem INTEGER NOT NULL,
+                data_inicio TEXT NOT NULL,
+                data_fim TEXT,
+                FOREIGN KEY (evento_id) REFERENCES eventos(id) ON DELETE CASCADE,
+                UNIQUE (evento_id, ordem)
+            )'
+        );
+        $pdo->exec(
+            'CREATE INDEX IF NOT EXISTS idx_evento_dias_evento
+             ON evento_dias(evento_id, data_inicio)'
+        );
+        $changed = true;
+    }
+
+    $diasFaltando = (int) $pdo->query(
+        "SELECT COUNT(*)
+         FROM eventos e
+         WHERE e.data_inicio IS NOT NULL
+           AND trim(e.data_inicio) <> ''
+           AND NOT EXISTS (
+               SELECT 1 FROM evento_dias d WHERE d.evento_id = e.id
+           )"
+    )->fetchColumn();
+    if ($diasFaltando > 0) {
+        $pdo->exec(
+            "INSERT INTO evento_dias (evento_id, ordem, data_inicio, data_fim)
+             SELECT e.id, 1, e.data_inicio, NULLIF(trim(e.data_fim), '')
+             FROM eventos e
+             WHERE e.data_inicio IS NOT NULL
+               AND trim(e.data_inicio) <> ''
+               AND NOT EXISTS (
+                   SELECT 1 FROM evento_dias d WHERE d.evento_id = e.id
+               )"
+        );
+        $changed = true;
+    }
+
     if (isset($eventos['inscricoes_abertas'])) {
         $pdo->exec(
             "UPDATE encontros
@@ -180,6 +222,7 @@ function applyCompatibleSchemaUpdates(PDO $pdo): bool
                 href TEXT NOT NULL,
                 ocorrido_em TEXT NOT NULL,
                 dispensada_em TEXT,
+                email_enviado INTEGER NOT NULL DEFAULT 0 CHECK (email_enviado IN (0, 1)),
                 UNIQUE (usuario_id, chave),
                 FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
             )'
@@ -187,6 +230,16 @@ function applyCompatibleSchemaUpdates(PDO $pdo): bool
         $pdo->exec(
             'CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario
              ON notificacoes(usuario_id, ocorrido_em)'
+        );
+        $changed = true;
+    }
+
+    $notificacoes = tableColumns($pdo, 'notificacoes');
+    if ($notificacoes !== null && !isset($notificacoes['email_enviado'])) {
+        $pdo->exec(
+            'ALTER TABLE notificacoes
+             ADD COLUMN email_enviado INTEGER NOT NULL DEFAULT 1
+             CHECK (email_enviado IN (0, 1))'
         );
         $changed = true;
     }

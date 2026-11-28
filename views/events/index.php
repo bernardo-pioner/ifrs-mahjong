@@ -127,8 +127,21 @@ $renderLinha = static function (array $evento, bool $comTipo) use (
     }
     $tipo = (string) ($evento['tipo'] ?? '');
     $local = trim((string) ($evento['local'] ?? ''));
+    $dias = is_array($evento['dias'] ?? null) ? $evento['dias'] : [];
+    $resumoDias = [];
+    foreach ($dias as $indice => $dia) {
+        if (!is_array($dia)) {
+            continue;
+        }
+        $dataDia = formatEventDayDate(isset($dia['data_inicio']) ? (string) $dia['data_inicio'] : null);
+        if ($dataDia === '') {
+            continue;
+        }
+        $resumoDias[] = 'Dia ' . ($indice + 1) . ': ' . $dataDia;
+    }
     $detalhes = array_filter([
         $quando['hora'],
+        count($resumoDias) > 1 ? implode(' · ', $resumoDias) : null,
         $local !== '' ? $local : null,
         eventModalidadeLabel($evento['modalidade'] ?? null),
     ]);
@@ -324,3 +337,37 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+<?php if (!empty($publicarAvisos) || !empty($enviarEmailsAvisos)): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const token = <?= json_encode(csrfToken(), JSON_UNESCAPED_UNICODE) ?>;
+    const publicar = <?= !empty($publicarAvisos) ? 'true' : 'false' ?>;
+    const enviar = <?= !empty($enviarEmailsAvisos) ? 'true' : 'false' ?>;
+
+    function postar(url) {
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ _csrf: token }),
+            credentials: 'same-origin',
+        });
+    }
+
+    (async function () {
+        if (publicar) {
+            try {
+                await postar('/eventos/avisos');
+            } catch (erro) {
+                return;
+            }
+        }
+        if (enviar || publicar) {
+            try {
+                await postar('/eventos/avisos-email');
+            } catch (erro) {
+            }
+        }
+    })();
+});
+</script>
+<?php endif; ?>
